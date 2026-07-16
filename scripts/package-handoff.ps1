@@ -18,6 +18,7 @@ Package excludes runtime secrets, database data, uploaded files, logs, node_modu
 
 try {
   git -C $Root archive --format=zip --output=$Zip HEAD
+  Add-Type -AssemblyName System.IO.Compression
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   $target = [System.IO.Compression.ZipFile]::Open($Zip, [System.IO.Compression.ZipArchiveMode]::Update)
   try {
