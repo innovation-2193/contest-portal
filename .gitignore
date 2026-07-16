@@ -1,7 +1,11 @@
 node_modules/
 .next/
 .env.local
+.env.production
+.env.production.*
+!.env.production.example
 storage/uploads/*
 !storage/uploads/.gitkeep
 mysql-data/
 *.log
+production-package/
