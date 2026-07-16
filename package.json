@@ -1,0 +1,29 @@
+{
+  "name": "police-innovation-contest-2026",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3003",
+    "build": "next build && node scripts/prepare-standalone.js",
+    "start": "node scripts/start-production.js",
+    "db:up": "docker compose up -d mysql",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f mysql"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "mysql2": "^3.14.0",
+    "next": "16.2.6",
+    "qrcode": "^1.5.4",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
