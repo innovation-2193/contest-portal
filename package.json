@@ -11,9 +11,16 @@
     "db:logs": "docker compose logs -f mysql"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@types/nodemailer": "^8.0.1",
+    "@types/pdfkit": "^0.17.6",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.468.0",
     "mysql2": "^3.14.0",
     "next": "16.2.6",
+    "nodemailer": "^9.0.3",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4",
     "react": "19.2.6",
     "react-dom": "19.2.6",

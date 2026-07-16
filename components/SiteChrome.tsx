@@ -1,13 +1,122 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { Lightbulb, Menu, PenLine, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { Lightbulb, Menu, PenLine } from "lucide-react";
+
+const navItems = [
+  { href: "/#project", hash: "#project", label: "ข้อมูลโครงการ" },
+  { href: "/#schedule", hash: "#schedule", label: "กำหนดการ" },
+  { href: "/#awards", hash: "#awards", label: "เกณฑ์และรางวัล" },
+  { href: "/#downloads", hash: "#downloads", label: "ดาวน์โหลดเอกสาร" },
+  { href: "/#faq", hash: "#faq", label: "FAQ" },
+  { href: "/#contact", hash: "#contact", label: "ติดต่อ" },
+];
+
+export function MobileZoomLock() {
+  useEffect(() => {
+    let lastTouchEnd = 0;
+    const cleanInjectedTextModeClasses = () => {
+      document.querySelectorAll("[class*='__text_mode_']").forEach((element) => {
+        element.className = String(element.className)
+          .split(/\s+/)
+          .filter((name) => name && !name.startsWith("__text_mode_"))
+          .join(" ");
+        if (!element.getAttribute("class")) element.removeAttribute("class");
+      });
+    };
+    const preventGestureZoom = (event: Event) => event.preventDefault();
+    const preventPinchZoom = (event: TouchEvent) => {
+      if (event.touches.length > 1) event.preventDefault();
+    };
+    const preventDoubleTapZoom = (event: TouchEvent) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) event.preventDefault();
+      lastTouchEnd = now;
+    };
+    const preventTrackpadZoom = (event: WheelEvent) => {
+      if (event.ctrlKey) event.preventDefault();
+    };
+
+    cleanInjectedTextModeClasses();
+    document.addEventListener("DOMContentLoaded", cleanInjectedTextModeClasses, { once: true });
+    document.addEventListener("gesturestart", preventGestureZoom, { passive: false });
+    document.addEventListener("gesturechange", preventGestureZoom, { passive: false });
+    document.addEventListener("gestureend", preventGestureZoom, { passive: false });
+    document.addEventListener("touchstart", preventPinchZoom, { passive: false });
+    document.addEventListener("touchmove", preventPinchZoom, { passive: false });
+    document.addEventListener("touchend", preventDoubleTapZoom, { passive: false });
+    window.addEventListener("wheel", preventTrackpadZoom, { passive: false });
+
+    return () => {
+      document.removeEventListener("DOMContentLoaded", cleanInjectedTextModeClasses);
+      document.removeEventListener("gesturestart", preventGestureZoom);
+      document.removeEventListener("gesturechange", preventGestureZoom);
+      document.removeEventListener("gestureend", preventGestureZoom);
+      document.removeEventListener("touchstart", preventPinchZoom);
+      document.removeEventListener("touchmove", preventPinchZoom);
+      document.removeEventListener("touchend", preventDoubleTapZoom);
+      window.removeEventListener("wheel", preventTrackpadZoom);
+    };
+  }, []);
+
+  return null;
+}
 
 export function Header() {
   const [open,setOpen]=useState(false);
+  const [activeHash, setActiveHash] = useState("#project");
+  const manualActiveUntil = useRef(0);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    let frame = 0;
+    const updateFromHash = () => {
+      const hash = window.location.hash || "#project";
+      manualActiveUntil.current = Date.now() + 900;
+      setActiveHash(hash);
+    };
+    const updateFromScroll = () => {
+      if (Date.now() < manualActiveUntil.current) return;
+      const headerHeight = document.querySelector(".site-header")?.getBoundingClientRect().height ?? 96;
+      const activationLine = headerHeight + 28;
+      const sections = navItems
+        .map((item) => ({ ...item, element: document.querySelector(item.hash) }))
+        .filter((item): item is typeof item & { element: Element } => Boolean(item.element));
+      const current = sections.reduce((active, item) => {
+        const top = item.element.getBoundingClientRect().top;
+        return top <= activationLine ? item : active;
+      }, sections[0]);
+      if (current) setActiveHash(current.hash);
+    };
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updateFromScroll);
+    };
+
+    updateFromHash();
+    window.addEventListener("hashchange", updateFromHash);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("hashchange", updateFromHash);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [pathname]);
+
   return <header className="site-header"><div className="wide header-row">
-    <Link className="brand" href="/"><span><ShieldCheck /></span><div><b>Police Innovation Contest 2026</b><small>ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</small></div></Link>
-    <nav className={open?"open":""} aria-label="เมนูหลัก"><a onClick={()=>setOpen(false)} href="/#project">ข้อมูลโครงการ</a><a onClick={()=>setOpen(false)} href="/#schedule">กำหนดการ</a><a onClick={()=>setOpen(false)} href="/#awards">เกณฑ์และรางวัล</a><a onClick={()=>setOpen(false)} href="/#downloads">ดาวน์โหลดเอกสาร</a><a onClick={()=>setOpen(false)} href="/#faq">FAQ</a><a onClick={()=>setOpen(false)} href="/#contact">ติดต่อ</a></nav>
+    <Link className="brand" href="/"><span className="brand-logo"><img src="/logo-3d.png" alt="Police Innovation Contest 2026"/></span><div><b>Police Innovation Contest 2026</b><small>ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</small></div></Link>
+    <nav className={open?"open":""} aria-label="เมนูหลัก">
+      {navItems.map((item) => {
+        const active = pathname === "/" && activeHash === item.hash;
+        return <a key={item.hash} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} onClick={()=>{manualActiveUntil.current=Date.now()+1200;setActiveHash(item.hash);setOpen(false);}} href={item.href}>{item.label}</a>;
+      })}
+    </nav>
     <Link className="primary compact" href="/register"><PenLine /> ลงทะเบียนสมัคร</Link>
     <button className="menu" aria-label={open?"ปิดเมนู":"เปิดเมนู"} aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Menu /></button>
   </div></header>;

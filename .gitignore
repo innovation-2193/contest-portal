@@ -6,6 +6,10 @@ node_modules/
 !.env.production.example
 storage/uploads/*
 !storage/uploads/.gitkeep
+storage/*.json
+storage/email-outbox/
+storage/winners.json
+storage/admin-settings.json
 mysql-data/
 *.log
 production-package/
