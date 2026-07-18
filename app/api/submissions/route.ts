@@ -6,6 +6,7 @@ import { z } from "zod";
 import { code } from "../../../lib/codes";
 import { getAdminSettings, isContestSubmissionOpen } from "../../../lib/admin-store";
 import { db, transaction } from "../../../lib/db";
+import { ensureDatabaseSchema } from "../../../lib/db-schema";
 import { isDatabaseUnavailable } from "../../../lib/local-registrations";
 import { createLocalSubmission, findLocalSubmissionByCode } from "../../../lib/local-submissions";
 import { participantSessionMaxAge, participantSubmissionCookie } from "../../../lib/participant-session";
@@ -35,6 +36,7 @@ export async function POST(request:Request){
     const stored=[] as Array<{id:string;type:string;original:string;stored:string;mime:string;size:number;hash:string;bytes:Uint8Array}>;
     for(const {type,file} of files){const pdf=file as File,bytes=new Uint8Array(await pdf.arrayBuffer()),storedName=`${type}-${randomUUID()}.pdf`;if(Buffer.from(bytes.subarray(0,5)).toString("ascii")!=="%PDF-")throw new Error(`${pdf.name} ไม่ใช่ไฟล์ PDF ที่ถูกต้อง`);stored.push({id:randomUUID(),type,original:pdf.name.slice(0,255),stored:storedName,mime:pdf.type,size:pdf.size,hash:createHash("sha256").update(bytes).digest("hex"),bytes});}
     for(const item of stored)await writeFile(path.join(uploadRoot,item.stored),item.bytes);
+    await ensureDatabaseSchema();
     try{await transaction(async connection=>{
       const candidateUserId=randomUUID();
       await connection.execute("INSERT INTO users(id,email,provider,display_name) VALUES(?,?,'local',?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),updated_at=CURRENT_TIMESTAMP(3)",[candidateUserId,data.email,`${data.firstName} ${data.lastName}`]);
@@ -59,7 +61,7 @@ export async function POST(request:Request){
   }catch(error){return NextResponse.json({error:error instanceof z.ZodError?error.issues[0]?.message:error instanceof Error?error.message:"ไม่สามารถส่งผลงานได้"},{status:422});}
 }
 
-export async function GET(request:Request){const codeValue=new URL(request.url).searchParams.get("code");if(!codeValue)return NextResponse.json({error:"code is required"},{status:400});let row:unknown;try{const [rows]=await db.execute("SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.citizen_id,m.phone,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 WHERE s.submission_code=? LIMIT 1",[codeValue]);row=(rows as unknown[])[0];}catch(error){if(!isDatabaseUnavailable(error))throw error;row=await findLocalSubmissionByCode(codeValue);}return row?NextResponse.json(row):NextResponse.json({error:"not found"},{status:404});}
+export async function GET(request:Request){const codeValue=new URL(request.url).searchParams.get("code");if(!codeValue)return NextResponse.json({error:"code is required"},{status:400});let row:unknown;try{await ensureDatabaseSchema();const [rows]=await db.execute("SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.citizen_id,m.phone,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 WHERE s.submission_code=? LIMIT 1",[codeValue]);row=(rows as unknown[])[0];}catch(error){if(!isDatabaseUnavailable(error))throw error;row=await findLocalSubmissionByCode(codeValue);}return row?NextResponse.json(row):NextResponse.json({error:"not found"},{status:404});}
 
 function submissionResponse(submissionCode:string,emailStatus:string,status:number){
   const response=NextResponse.json({submissionCode,emailStatus},{status});

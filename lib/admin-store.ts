@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { db, transaction } from "./db";
+import { ensureDatabaseSchema } from "./db-schema";
 import {
   checkInLocalRegistration,
   deleteLocalRegistration,
@@ -178,6 +179,7 @@ export function isPrelanderActive(settings: AdminSettings, now = new Date()) {
 
 export async function listParticipants() {
   try {
+    await ensureDatabaseSchema();
     const [rows] = await db.execute(
       "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
     );
@@ -190,6 +192,7 @@ export async function listParticipants() {
 
 export async function updateParticipant(input: RegistrationUpdateInput) {
   try {
+    await ensureDatabaseSchema();
     await db.execute(
       "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=?,u.provider=?,u.display_name=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=?,r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END WHERE r.registration_code=?",
       [
@@ -226,6 +229,7 @@ export async function deleteParticipant(registrationCode: string) {
 
 export async function checkInParticipant(registrationCode: string) {
   try {
+    await ensureDatabaseSchema();
     const [rows] = await db.execute(
       "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
       [registrationCode.trim()],
@@ -246,6 +250,7 @@ export async function checkInParticipant(registrationCode: string) {
 
 export async function listSubmissions() {
   try {
+    await ensureDatabaseSchema();
     const [rows] = await db.execute(
       "SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 ORDER BY s.submitted_at DESC LIMIT 500",
     );
@@ -259,6 +264,7 @@ export async function listSubmissions() {
 export async function getSubmissionDetail(submissionCode: string) {
   const code = submissionCode.trim();
   try {
+    await ensureDatabaseSchema();
     const [submissionRows] = await db.execute(
       "SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.submitted_at,u.email FROM submissions s JOIN users u ON u.id=s.user_id WHERE s.submission_code=? LIMIT 1",
       [code],
@@ -336,6 +342,7 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
 
 export async function updateSubmission(input: SubmissionUpdateInput) {
   try {
+    await ensureDatabaseSchema();
     await transaction(async (connection) => {
       const [rows] = await connection.execute(
         "SELECT id,user_id FROM submissions WHERE submission_code=? LIMIT 1",

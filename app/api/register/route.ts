@@ -4,6 +4,7 @@ import { z } from "zod";
 import { code } from "../../../lib/codes";
 import { getAdminSettings, isEventRegistrationOpen } from "../../../lib/admin-store";
 import { transaction } from "../../../lib/db";
+import { ensureDatabaseSchema } from "../../../lib/db-schema";
 import {
   createLocalRegistration,
   findLocalRegistrationByCode,
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     }
     data = registration.parse(await request.json());
     const parsed = data;
+    await ensureDatabaseSchema();
     const result = await transaction(async (connection) => {
       const userId = randomUUID(), registrationId = randomUUID(), registrationCode = code("REG");
       const [existingRows] = await connection.execute("SELECT registration_code FROM registrations WHERE citizen_id=? LIMIT 1", [parsed.citizenId]);
@@ -112,6 +114,7 @@ export async function GET(request: Request) {
   const { db } = await import("../../../lib/db");
   let row: unknown;
   try {
+    await ensureDatabaseSchema();
     const [rows] = await db.execute("SELECT r.registration_code,r.title,r.first_name,r.last_name,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",[codeValue]);
     row=(rows as unknown[])[0];
   } catch (error) {
