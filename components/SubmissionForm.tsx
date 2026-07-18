@@ -8,6 +8,8 @@ import { isThaiCitizenId } from "../lib/validation";
 import type { RegistrationRecord } from "../lib/local-registrations";
 
 const mobilePattern = "0[689][0-9]{8}";
+const summaryMinLength = 20;
+const summaryMaxLength = 500;
 
 const docs = [
   {
@@ -85,6 +87,7 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
   const [busy, setBusy] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [openConsent, setOpenConsent] = useState<ConsentKey | null>(null);
+  const [summaryLength, setSummaryLength] = useState(0);
   const [viewedConsent, setViewedConsent] = useState<Record<ConsentKey, boolean>>({
     rules: false,
     pdpa: false,
@@ -104,9 +107,19 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!e.currentTarget.reportValidity()) return;
+
     const form = new FormData(e.currentTarget);
     const citizenId = String(form.get("citizenId") ?? "");
     const phone = String(form.get("phone") ?? "");
+    const summary = String(form.get("summary") ?? "").trim();
+
+    if (summary.length < summaryMinLength || summary.length > summaryMaxLength) {
+      setError(`คำอธิบายย่อต้องมีอย่างน้อย ${summaryMinLength} ตัวอักษร และไม่เกิน ${summaryMaxLength} ตัวอักษร`);
+      return;
+    }
+
+    form.set("summary", summary);
 
     if (!isThaiCitizenId(citizenId)) {
       setError("หมายเลขบัตรประชาชนผู้สมัครหลักไม่ถูกต้อง กรุณาตรวจสอบเลข 13 หลัก");
@@ -240,7 +253,20 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
         <div className="form-grid">
           <label>ชื่อผลงานนวัตกรรม ภาษาไทย<RequiredMark /><input name="titleTh" required /></label>
           <label>ชื่อผลงานนวัตกรรม ภาษาอังกฤษ<input name="titleEn" /></label>
-          <label className="span-2">คำอธิบายย่อ ไม่เกิน 500 ตัวอักษร<RequiredMark /><textarea name="summary" minLength={20} maxLength={500} required /></label>
+          <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<RequiredMark />
+            <textarea
+              name="summary"
+              minLength={summaryMinLength}
+              maxLength={summaryMaxLength}
+              required
+              placeholder="สรุปปัญหา แนวคิดนวัตกรรม และประโยชน์ที่คาดว่าจะได้รับ อย่างน้อย 20 ตัวอักษร"
+              title={`กรอกคำอธิบายย่ออย่างน้อย ${summaryMinLength} ตัวอักษร และไม่เกิน ${summaryMaxLength} ตัวอักษร`}
+              onInput={(event) => setSummaryLength(event.currentTarget.value.trim().length)}
+            />
+            <small className={summaryLength > 0 && summaryLength < summaryMinLength ? "field-help invalid" : "field-help"}>
+              กรอกอย่างน้อย {summaryMinLength} ตัวอักษร • ตอนนี้ {summaryLength}/{summaryMaxLength} ตัวอักษร
+            </small>
+          </label>
           <label className="span-2">Link Video<input type="url" name="videoUrl" placeholder="Google Drive, YouTube หรือ OneDrive" /></label>
         </div>
       </section>

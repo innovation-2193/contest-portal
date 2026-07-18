@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cookieName, verifyAdminToken } from "../../../../../../lib/admin-auth";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
+import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
 import { listParticipants } from "../../../../../../lib/admin-store";
 import type { RegistrationRecord } from "../../../../../../lib/local-registrations";
 
@@ -11,13 +12,21 @@ type WorkbookFile = {
   content: string | Buffer;
 };
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) {
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const participants = await listParticipants();
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.export_xlsx",
+    entityType: "registration",
+    summary: "Export รายชื่อผู้เข้าร่วมงานเป็น Excel",
+    payload: { count: participants.length },
+  }, request.headers);
   const workbook = participantsWorkbook(participants);
   return new NextResponse(new Uint8Array(workbook), {
     headers: {

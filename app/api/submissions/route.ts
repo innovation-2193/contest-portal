@@ -11,6 +11,7 @@ import { createLocalSubmission, findLocalSubmissionByCode } from "../../../lib/l
 import { participantSessionMaxAge, participantSubmissionCookie } from "../../../lib/participant-session";
 import { sendSubmissionConfirmation } from "../../../lib/submission-artifacts";
 import { isThaiCitizenId } from "../../../lib/validation";
+import { recordAuditEvent } from "../../../lib/audit-log";
 export const runtime = "nodejs";
 
 const fields = z.object({
@@ -46,6 +47,14 @@ export async function POST(request:Request){
       await connection.execute("INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,payload) VALUES(?,?,?,?,?)",[userId,"submission.created","submission",submissionId,JSON.stringify({submissionCode,type:data.submissionType})]);
     });}catch(error){if(isDatabaseUnavailable(error)){await createLocalSubmission({submissionId,submissionCode,data,teamMembers,files:stored});}else{await rm(uploadRoot,{recursive:true,force:true});throw error;}}
     const email=await sendSubmissionConfirmation({submission_code:submissionCode,submission_type:data.submissionType,team_name:data.teamName||null,title_th:data.titleTh,title_en:data.titleEn||null,email:data.email,title:data.title,first_name:data.firstName,last_name:data.lastName,phone:data.phone,position:data.position,division:data.division,bureau:data.bureau});
+    await recordAuditEvent({
+      actor:{type:"public",email:data.email},
+      action:"submission.created",
+      entityType:"submission",
+      entityId:submissionCode,
+      summary:`สมัครประกวดนวัตกรรม ${submissionCode}`,
+      payload:{submissionCode,submissionType:data.submissionType,titleTh:data.titleTh},
+    },request.headers);
     return submissionResponse(submissionCode,email.status,201);
   }catch(error){return NextResponse.json({error:error instanceof z.ZodError?error.issues[0]?.message:error instanceof Error?error.message:"ไม่สามารถส่งผลงานได้"},{status:422});}
 }

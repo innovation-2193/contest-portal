@@ -1,13 +1,15 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cookieName, verifyAdminToken } from "../../../../lib/admin-auth";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
+import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import { checkInParticipant } from "../../../../lib/admin-store";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) {
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -19,6 +21,13 @@ export async function POST(request: Request) {
     }
 
     const record = await checkInParticipant(registrationCode);
+    await recordAuditEvent({
+      actor: actorFromAdminSession(session),
+      action: "registration.checked_in",
+      entityType: "registration",
+      entityId: registrationCode,
+      summary: `เช็คอินผู้เข้าร่วมงาน ${registrationCode}`,
+    }, request.headers);
     return NextResponse.json({
       registrationCode: record.registration_code,
       name: `${record.title}${record.first_name} ${record.last_name}`,

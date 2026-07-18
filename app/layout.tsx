@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Footer, Header, MobileZoomLock } from "../components/SiteChrome";
+import { Footer, Header, MobileZoomLock, SiteVisitTracker } from "../components/SiteChrome";
 import { getAdminSettings, isEventRegistrationOpen } from "../lib/admin-store";
+import { getSiteStats } from "../lib/site-analytics";
 import "./globals.css";
 
 const textModeClassSanitizer = `
@@ -73,5 +74,6 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getAdminSettings();
-  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: textModeClassSanitizer }} /><MobileZoomLock /><Header registrationOpen={isEventRegistrationOpen(settings)} /><main>{children}</main><Footer /></body></html>;
+  const siteStats = settings.showSiteStats ? await getSiteStats() : null;
+  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: textModeClassSanitizer }} /><MobileZoomLock /><SiteVisitTracker /><Header registrationOpen={isEventRegistrationOpen(settings)} /><main>{children}</main><Footer stats={siteStats} /></body></html>;
 }

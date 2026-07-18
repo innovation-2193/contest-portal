@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CheckCircle2, Loader2, QrCode, XCircle } from "lucide-react";
+import { Camera, CheckCircle2, Loader2, QrCode, RotateCcw, X, XCircle } from "lucide-react";
 import jsQR from "jsqr";
 
 type ScanResult = {
@@ -149,6 +149,12 @@ export function AdminQrScanner() {
     }
   }
 
+  function clearResult() {
+    setResult(null);
+    setError("");
+    setManualCode("");
+  }
+
   return <div className="scanner-shell">
     <section className={result ? "scanner-camera checked-in" : "scanner-camera"}>
       <video ref={videoRef} playsInline muted />
@@ -156,10 +162,11 @@ export function AdminQrScanner() {
       <div className="scanner-frame"><span/><span/><span/><span/></div>
       {result && <div className="scanner-success-overlay">
         <CheckCircle2/>
-        <b>เช็คอินแล้ว</b>
+        <b>เช็คอินสำเร็จ</b>
         <span>{result.registrationCode}</span>
+        <button type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์การเช็คอิน"><X/></button>
       </div>}
-      <div className="scanner-camera-label">{result ? <CheckCircle2/> : <QrCode/>}{result ? "เช็คอินสำเร็จแล้ว พร้อมสแกนคนถัดไป" : "วาง QR Code ให้อยู่ในกรอบ"}</div>
+      <div className="scanner-camera-label">{result ? <CheckCircle2/> : <QrCode/>}{result ? "ลงทะเบียนเข้าร่วมงานแล้ว พร้อมสแกนคนถัดไป" : "วาง QR Code ให้อยู่ในกรอบ"}</div>
     </section>
     <section className="scanner-controls">
       <div className="scanner-control-head">
@@ -168,15 +175,25 @@ export function AdminQrScanner() {
         <p>{cameraStatus}</p>
       </div>
       {result && <div className="scan-success-hero" role="status" aria-live="polite">
-        <div className="scan-success-mark"><CheckCircle2/></div>
-        <div className="scan-success-copy">
-          <span>CHECKED IN</span>
-          <h3>เช็คอินเรียบร้อยแล้ว</h3>
-          <p>{result.name}</p>
-          <dl>
-            <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
-            <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>
-          </dl>
+        <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
+        <div className="scan-success-heading">
+          <div className="scan-success-mark"><CheckCircle2/></div>
+          <div className="scan-success-copy">
+            <span>ยืนยันการเข้าร่วมงาน</span>
+            <h3>ลงทะเบียนเข้าร่วมงานแล้ว</h3>
+            <p>{result.name || "-"}</p>
+          </div>
+        </div>
+        <dl className="scan-success-details">
+          <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
+          <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>
+          <div><dt>สถานะ</dt><dd>เข้าร่วมงานแล้ว</dd></div>
+          <div><dt>เบอร์โทร</dt><dd>{result.phone || "-"}</dd></div>
+          <div><dt>หน่วยงาน</dt><dd>{[result.division, result.bureau].filter(Boolean).join(" / ") || "-"}</dd></div>
+          <div><dt>ตำแหน่ง</dt><dd>{result.position || "-"}</dd></div>
+        </dl>
+        <div className="scan-success-actions">
+          <button className="primary" type="button" onClick={clearResult}><RotateCcw/>สแกนคนถัดไป</button>
         </div>
       </div>}
       <div className="scanner-buttons">
@@ -193,7 +210,6 @@ export function AdminQrScanner() {
         <b>วิธีใช้งาน</b>
         <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้กรอกรหัส REG ด้วยตนเอง</p>
       </div>
-      {result && <div className="scan-result success"><CheckCircle2/><div><b>รายละเอียดผู้เข้าร่วมงาน</b><p>{result.phone || "-"} • {result.position || "-"}</p><small>{result.division || "-"} / {result.bureau || "-"}</small></div></div>}
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
   </div>;

@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, ExternalLink, FileText, Pencil, Printer, Users } from "lucide-react";
-import { AdminPrintButton } from "../../../../components/AdminPrintButton";
-import { cookieName, verifyAdminToken } from "../../../../lib/admin-auth";
+import { cookieName, getAdminSession, verifyAdminToken } from "../../../../lib/admin-auth";
 import { getSubmissionDetail, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ export default async function AdminSubmissionDetail({ params }: { params: Promis
           <h1>ข้อมูลสมัครประกวด</h1>
           <p>รายละเอียดใบสมัคร ผลงาน สมาชิกทีม และเอกสารแนบสำหรับตรวจสอบ/พิมพ์</p>
         </div>
-        <div className="admin-actions"><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>{item && <a className="primary" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a>}{item && <AdminPrintButton label="พิมพ์ข้อมูลใบสมัคร" />}</div>
+        <div className="admin-actions"><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>{item && <a className="primary" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a>}</div>
       </div>
       {item ? <article className="admin-panel printable-sheet">
         <header className="print-heading"><img className="print-brand-mark" src="/favicon.png" alt="Police Innovation Contest"/><div className="print-heading-copy"><span className="eyebrow">Innovation Submission</span><h2>{item.submission_code}</h2><p>ส่งข้อมูลเมื่อ {formatAdminDate(item.submitted_at)} • สถานะ {item.status}</p></div><div className="print-heading-meta"><b>รายละเอียดใบสมัครประกวด</b><span>ออกเอกสาร {issuedAt}</span></div></header>
@@ -119,7 +119,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       <label>สถานะ<select name="status" defaultValue={item.status}>{submissionStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
       <label className="span-2">ชื่อผลงานภาษาไทย<input name="titleTh" defaultValue={item.title_th} required/></label>
       <label>Innovation Title<input name="titleEn" defaultValue={item.title_en ?? ""}/></label>
-      <label className="span-2">คำอธิบายย่อ<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
+      <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
       <label>Link Video<input type="url" name="videoUrl" defaultValue={item.video_url ?? ""} placeholder="https://..."/></label>
       <label>บัญชีอีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
     </div>
@@ -147,7 +147,8 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
 async function updateSubmissionAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) redirect("/admin");
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
 
   const submissionCode = text(formData, "submissionCode");
   const submissionType = text(formData, "submissionType");
@@ -194,6 +195,14 @@ async function updateSubmissionAction(formData: FormData) {
     videoUrl,
     status: status as "draft" | "submitted" | "screening" | "qualified" | "rejected",
     members,
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.updated",
+    entityType: "submission",
+    entityId: submissionCode,
+    summary: `แก้ไขใบสมัครประกวด ${submissionCode}`,
+    payload: { status, submissionType },
   });
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);

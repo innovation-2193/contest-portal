@@ -14,6 +14,7 @@ import {
 import { sendRegistrationConfirmation } from "../../../lib/registration-artifacts";
 import { participantSessionCookie, participantSessionMaxAge } from "../../../lib/participant-session";
 import { isThaiCitizenId } from "../../../lib/validation";
+import { recordAuditEvent } from "../../../lib/audit-log";
 export const runtime = "nodejs";
 
 const registration = z.object({
@@ -44,12 +45,14 @@ export async function POST(request: Request) {
       return { registrationCode, record: toRecord(parsed, registrationCode) };
     });
     const email = await sendRegistrationConfirmation(result.record);
+    await recordRegistrationCreated(request, result.registrationCode, result.record.email);
     return registrationResponse(result.registrationCode, email.status);
   } catch (error) {
     if (data && isDatabaseUnavailable(error)) {
       try {
         const result = await createLocalRegistration(data);
         const email = await sendRegistrationConfirmation(result.record);
+        await recordRegistrationCreated(request, result.registrationCode, result.record.email);
         return registrationResponse(result.registrationCode, email.status);
       } catch (localError) {
         const message = messageFor(localError);
@@ -60,6 +63,17 @@ export async function POST(request: Request) {
     const message = messageFor(error);
     return NextResponse.json({ error: message }, { status: 422 });
   }
+}
+
+async function recordRegistrationCreated(request: Request, registrationCode: string, email: string) {
+  await recordAuditEvent({
+    actor: { type: "public", email },
+    action: "registration.created",
+    entityType: "registration",
+    entityId: registrationCode,
+    summary: `ลงทะเบียนเข้าร่วมงาน ${registrationCode}`,
+    payload: { registrationCode },
+  }, request.headers);
 }
 
 function registrationResponse(registrationCode: string, emailStatus: string) {

@@ -1,7 +1,8 @@
 import path from "path";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { cookieName, verifyAdminToken } from "../../../../../../../lib/admin-auth";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../../../../lib/audit-log";
+import { cookieName, getAdminSession } from "../../../../../../../lib/admin-auth";
 import { getSubmissionFile } from "../../../../../../../lib/admin-store";
 import { readSubmissionPdfFile, submissionDocumentTypes } from "../../../../../../../lib/submission-file-reader";
 
@@ -14,7 +15,8 @@ export async function GET(
   { params }: { params: Promise<{ code: string; type: string }> },
 ) {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) {
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -25,6 +27,14 @@ export async function GET(
 
   const file = await getSubmissionFile(code, type);
   if (!file) return NextResponse.json({ error: "file not found" }, { status: 404 });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.file_opened",
+    entityType: "submission",
+    entityId: code,
+    summary: `เปิดไฟล์แนบใบสมัคร ${code}`,
+    payload: { documentType: type, fileName: file.original_name },
+  }, request.headers);
 
   const filename = file.original_name.replace(/[^\wก-๙ .()[\]-]+/gu, "_") || `${type}.pdf`;
   const pdf = await readSubmissionPdfFile(file);

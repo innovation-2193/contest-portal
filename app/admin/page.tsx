@@ -2,37 +2,42 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Megaphone, Newspaper, Pencil, Printer, QrCode, Search, Settings, Trophy, Users } from "lucide-react";
+import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserPlus, Users } from "lucide-react";
 import {
   adminClientKey,
   adminCookieSecure,
-  adminPassword,
+  createAdminSessionToken,
   adminSessionMaxAgeSeconds,
-  adminToken,
   clearAdminLoginFailures,
   cookieName,
   genericAdminLoginError,
+  getAdminSession,
   getAdminLoginStatus,
   recordAdminLoginFailure,
+  requestSuperAdminOtp,
   slowFailedAdminLogin,
-  verifyAdminPassword,
-  verifyAdminToken,
+  verifySuperAdminOtp,
+  type AdminSession,
 } from "../../lib/admin-auth";
+import {
+  createAdminAccount,
+  createAdminPasswordLink,
+  listAdminAccounts,
+  verifyAdminAccountPassword,
+} from "../../lib/admin-users";
+import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEventRecord } from "../../lib/audit-log";
 import {
   addWinner,
   addNews,
   deleteWinner,
   deleteNews,
-  deleteParticipant,
   getAdminSettings,
   listNews,
   listParticipants,
   listSubmissions,
   listWinners,
   saveAdminSettings,
-  updateParticipant,
 } from "../../lib/admin-store";
-import { isThaiCitizenId } from "../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -46,25 +51,29 @@ const awardLabels: Record<string, string> = {
 
 type ParticipantSort = "newest" | "oldest";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
   const cookieStore = await cookies();
-  const loggedIn = verifyAdminToken(cookieStore.get(cookieName)?.value);
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
 
-  if (!loggedIn) {
-    return <AdminShell><LoginPanel passwordConfigured={Boolean(adminPassword())} message={genericAdminLoginError(params.login)} /></AdminShell>;
+  if (!session) {
+    return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} /></AdminShell>;
   }
 
-  const [settings, participants, submissions, winners, news] = await Promise.all([
+  const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
     getAdminSettings(),
     listParticipants(),
     listSubmissions(),
     listWinners(),
     listNews(),
+    session.role === "super_admin" ? listAdminAccounts() : Promise.resolve([]),
+    session.role === "super_admin" ? listAuditEvents({ limit: 10 }) : Promise.resolve({ events: [], total: 0, limit: 10, offset: 0 }),
   ]);
+  const isSuperAdmin = session.role === "super_admin";
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
+  const adminSearch = (params.adminSearch ?? "").trim();
   const filteredParticipants = sortParticipants(filterRecords(participants, participantSearch, (item) => [
     item.registration_code,
     item.email,
@@ -90,11 +99,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.bureau,
     item.status,
   ]);
+  const filteredAdminAccounts = filterRecords(adminAccounts, adminSearch, (item) => [
+    item.email,
+    item.name,
+    item.disabled ? "ปิดใช้งาน disabled" : "ใช้งาน active",
+    item.passwordHash ? "ตั้งรหัสผ่านแล้ว password set" : "รอตั้งรหัสผ่าน pending",
+  ]);
 
   return <AdminShell>
-    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>จัดการเวลาเปิดหน้า pre-lander ข่าวประชาสัมพันธ์ ผู้เข้าร่วมงาน ผู้สมัครประกวดนวัตกรรม และประกาศผู้ชนะเลิศ</p></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
+    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <section className="admin-grid">
-      <article className="admin-panel settings-panel">
+      {isSuperAdmin && <article className="admin-panel settings-panel">
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
         <form action={saveSettingsAction} className="admin-form">
           <div className="settings-toggle-grid">
@@ -110,15 +125,21 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               <input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/>
               <span><b>เปิดรับสมัครประกวดนวัตกรรม</b><small>ผู้สมัครสามารถส่งข้อมูลผลงานและไฟล์แนบ</small></span>
             </label>
+            <label className="settings-toggle">
+              <input type="checkbox" name="showSiteStats" defaultChecked={settings.showSiteStats}/>
+              <span><b>แสดงสถิติการเข้าเว็บ</b><small>แสดงยอดเข้าชมทั้งหมดและรายวันใน footer หน้าเว็บ</small></span>
+            </label>
           </div>
           <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
           <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
           <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
           <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
         </form>
-      </article>
+      </article>}
       <aside className="admin-panel stats-panel"><span className="eyebrow">ภาพรวมระบบ</span><div className="stat-panel"><Users/><b>{participants.length}</b><span>ผู้เข้าร่วมงาน</span></div><div className="stat-panel"><Settings/><b>{submissions.length}</b><span>ผู้สมัครประกวด</span></div><div className="stat-panel"><Newspaper/><b>{news.length}</b><span>ข่าวประชาสัมพันธ์</span></div><div className="stat-panel"><Trophy/><b>{winners.length}</b><span>ผู้ชนะที่บันทึก</span></div></aside>
     </section>
+    {isSuperAdmin && <AdminManagementPanel admins={filteredAdminAccounts} search={adminSearch}/>}
+    {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     <section className="admin-panel">
       <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
@@ -132,7 +153,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </form>
       <NewsTable news={news}/>
     </section>
-    <section className="admin-panel">
+    {isSuperAdmin && <section className="admin-panel">
       <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>ใช้ “ผ่านเข้ารอบที่ 2” สำหรับรอบคัดเลือก และใช้รางวัลที่ 1-3/ชมเชย สำหรับรอบประกาศผลรางวัล</p></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
         <label>ประเภทรางวัล<select name="rank" defaultValue="honorable">{Object.entries(awardLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
@@ -143,7 +164,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <button className="primary" type="submit">เพิ่มผู้ชนะ</button>
       </form>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><button className="danger-btn" type="submit">ลบ</button></form></td></tr>)}</tbody></table></div>
-    </section>
+    </section>}
     <section className="admin-panel">
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
       <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
@@ -157,12 +178,76 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   </AdminShell>;
 }
 
+function AuditLogPanel({ events, total }: { events: AuditEventRecord[]; total: number }) {
+  return <section className="admin-panel">
+    <header className="admin-section-head"><ClipboardList/><div><h2>Audit Log</h2><p>แสดงเฉพาะ 10 รายการล่าสุดของการลงทะเบียนเข้าร่วมงานและสมัครประกวด ย้อนหลังสูงสุด 90 วัน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/audit-log"><Eye/>ดูทั้งหมด</Link></div></header>
+    <form className="audit-quick-search" action="/admin/audit-log" method="get">
+      <label>ค้นหา Audit Log
+        <div><Search/><input name="q" placeholder="ค้นอีเมล รหัส REG/SUB หรือข้อความใน log"/><button className="secondary" type="submit">ค้นหา</button></div>
+      </label>
+    </form>
+    <div className="audit-log-list">{events.length ? events.map((event) => <article className="audit-log-row" key={event.id}>
+      <time>{formatAdminDate(event.createdAt)}</time>
+      <div>
+        <b>{event.summary}</b>
+        <small>{auditActionLabel(event.action)} • {event.entityType}{event.entityId ? ` • ${event.entityId}` : ""}</small>
+      </div>
+      <span>{actorLabel(event.actor)}</span>
+      <small>{auditEntityLabel(event.entityType)}</small>
+    </article>) : <div className="participant-empty">ยังไม่มี log การลงทะเบียนหรือสมัครประกวดใน 90 วันที่ผ่านมา</div>}</div>
+    {total > events.length && <p className="audit-log-more">มีทั้งหมด {total.toLocaleString("th-TH")} รายการ กด “ดูทั้งหมด” เพื่อเปิดหน้ารายการย้อนหลังแบบแบ่งหน้า</p>}
+  </section>;
+}
+
 function AdminShell({ children }: { children: React.ReactNode }) {
   return <div className="admin-page"><div className="wide">{children}</div></div>;
 }
 
-function LoginPanel({ passwordConfigured, message }: { passwordConfigured: boolean; message: string }) {
-  return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>{passwordConfigured ? "กรอกรหัสผ่านผู้ดูแลระบบเพื่อจัดการข้อมูลโครงการ" : "ยังไม่ได้ตั้งค่า ADMIN_PASSWORD ใน .env.local"}</p>{message && <div className="admin-login-alert">{message}</div>}<form action={loginAction}><input type="password" name="password" placeholder="Admin password" required autoComplete="current-password"/><button className="primary" type="submit">เข้าสู่ระบบ</button></form></section>;
+function LoginPanel({ message }: { message: string }) {
+  return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>Super Admin ใช้รหัส OTP ทางอีเมล ส่วน Admin ใช้อีเมลและรหัสผ่านที่ได้รับจากลิงก์เชิญ</p>{message && <div className="admin-login-alert">{message}</div>}
+    <div className="admin-login-grid">
+      <form action={requestOtpAction} className="admin-login-card">
+        <h2><ShieldCheck/>Super Admin OTP</h2>
+        <p>ระบบจะส่งรหัส 6 หลักไปยังอีเมล Super Admin ทั้ง 2 บัญชี และรหัสจะหมดอายุใน 5 นาที</p>
+        <button className="primary" type="submit"><Mail/>ส่งรหัส OTP</button>
+      </form>
+      <form action={verifyOtpAction} className="admin-login-card">
+        <h2>ยืนยัน OTP</h2>
+        <input name="otp" inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/>
+        <button className="primary" type="submit">ยืนยันและเข้าสู่ระบบ</button>
+      </form>
+      <form action={loginAction} className="admin-login-card">
+        <h2><Users/>Admin</h2>
+        <input type="email" name="email" placeholder="admin@example.com" required autoComplete="username"/>
+        <input type="password" name="password" placeholder="รหัสผ่าน" required autoComplete="current-password"/>
+        <button className="secondary" type="submit">เข้าสู่ระบบ Admin</button>
+      </form>
+    </div>
+  </section>;
+}
+
+function AdminManagementPanel({ admins, search }: { admins: Awaited<ReturnType<typeof listAdminAccounts>>; search: string }) {
+  return <section className="admin-panel">
+    <header><UserPlus/><div><h2>จัดการแอดมิน</h2><p>ค้นหาแอดมิน ดูรายละเอียด แล้วเข้าไปแก้ไขข้อมูล ส่งลิงก์รีเซ็ต หรือลบรายการในหน้ารายละเอียด</p></div></header>
+    <form action={addAdminAction} className="admin-form admin-user-form">
+      <label>ชื่อแอดมิน<input name="name" placeholder="เช่น ฝ่ายประสานงาน" maxLength={120}/></label>
+      <label>อีเมล<input type="email" name="email" placeholder="admin@example.com" required/></label>
+      <button className="primary" type="submit"><Mail/>เพิ่มและส่งลิงก์ตั้งรหัสผ่าน</button>
+    </form>
+    <SearchBox name="adminSearch" value={search} label="ค้นหาแอดมิน" placeholder="ชื่อ อีเมล สถานะ หรือรหัสผ่าน"/>
+    <AdminAccountsTable admins={admins}/>
+  </section>;
+}
+
+function AdminAccountsTable({ admins }: { admins: Awaited<ReturnType<typeof listAdminAccounts>> }) {
+  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{admins.length ? admins.map((admin) => <tr key={admin.id}>
+    <td><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
+    <td>{admin.name || "-"}</td>
+    <td><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
+    <td><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
+    <td>{formatAdminDate(admin.updatedAt)}</td>
+    <td><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
+  </tr>) : <tr><td colSpan={6}>ยังไม่มีแอดมินหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
 }
 
 function AdminTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
@@ -191,50 +276,16 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
     ["attended", "เข้าร่วมงานแล้ว"],
     ["cancelled", "ยกเลิก"],
   ];
-  if (!participants.length) return <div className="participant-empty">ยังไม่มีข้อมูลผู้เข้าร่วมงาน</div>;
-  return <div className="participant-card-list">{participants.map(item => {
-    const formId = `participant-${item.registration_code}`;
-    return <article className="participant-card" key={item.registration_code}>
-      <div className="participant-card-head">
-        <div className="participant-card-meta">
-          <span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>
-          <b>{item.title}{item.first_name} {item.last_name}</b>
-          <small>{item.registration_code} • ลงทะเบียน {formatAdminDate(item.registered_at)}</small>
-          {item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}
-        </div>
-        <div className="participant-card-actions">
-          <Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link>
-          <form action={deleteParticipantAction}><input type="hidden" name="registrationCode" value={item.registration_code}/><button className="danger-btn" type="submit">ลบ</button></form>
-        </div>
-      </div>
-      <dl className="participant-summary-grid">
-        <div><dt>อีเมล</dt><dd>{item.email}</dd></div>
-        <div><dt>เบอร์ติดต่อ</dt><dd>{item.phone}</dd></div>
-        <div><dt>ตำแหน่ง</dt><dd>{item.position}</dd></div>
-        <div><dt>สังกัด</dt><dd>{item.division}</dd></div>
-        <div><dt>หน่วยงาน</dt><dd>{item.bureau}</dd></div>
-        <div><dt>เลขบัตรประชาชน</dt><dd>{item.citizen_id}</dd></div>
-      </dl>
-      <details className="participant-edit-box">
-        <summary><Pencil/>แก้ไขข้อมูลผู้เข้าร่วมงาน</summary>
-        <form id={formId} action={updateParticipantAction} className="participant-card-form">
-          <input type="hidden" name="registrationCode" value={item.registration_code}/>
-          <input type="hidden" name="provider" value={item.provider ?? "local"}/>
-          <label className="field-title">คำนำหน้า<input name="title" defaultValue={item.title} required/></label>
-          <label className="field-name">ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
-          <label className="field-name">นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
-          <label className="field-wide">เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
-          <label className="field-wide">ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
-          <label className="field-wide">อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
-          <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
-          <label className="field-wide">สังกัด<input name="division" defaultValue={item.division} required/></label>
-          <label className="field-wide">หน่วยงาน<input name="bureau" defaultValue={item.bureau} required/></label>
-          <label>สถานะ<select name="status" defaultValue={item.status}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-          <div className="participant-edit-actions"><button className="primary small-action" type="submit">บันทึกการแก้ไข</button></div>
-        </form>
-      </details>
-    </article>;
-  })}</div>;
+  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
+    <td><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</td>
+    <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+    <td>{item.email}<small>{item.phone}</small></td>
+    <td>{item.position}</td>
+    <td>{item.division}</td>
+    <td>{item.bureau}</td>
+    <td><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span></td>
+    <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
+  </tr>) : <tr><td colSpan={8}>ยังไม่มีข้อมูลผู้เข้าร่วมงาน</td></tr>}</tbody></table></div>;
 }
 
 function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
@@ -260,6 +311,41 @@ function NewsTable({ news }: { news: Awaited<ReturnType<typeof listNews>> }) {
   }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}</div>;
 }
 
+async function requestOtpAction() {
+  "use server";
+  const result = await requestSuperAdminOtp();
+  if (!result.ok) redirect("/admin?login=otp_wait");
+  redirect(result.mailStatus === "failed" ? "/admin?login=otp_mail_failed" : "/admin?login=otp_sent");
+}
+
+async function verifyOtpAction(formData: FormData) {
+  "use server";
+  const requestHeaders = await headers();
+  const clientKey = adminClientKey(requestHeaders);
+  const status = await getAdminLoginStatus(clientKey);
+  if (status.locked) {
+    await slowFailedAdminLogin();
+    redirect("/admin?login=locked");
+  }
+
+  const ok = await verifySuperAdminOtp(String(formData.get("otp") ?? ""));
+  if (!ok) {
+    const failure = await recordAdminLoginFailure(clientKey);
+    await slowFailedAdminLogin();
+    redirect(failure.locked ? "/admin?login=locked" : "/admin?login=otp_failed");
+  }
+
+  await clearAdminLoginFailures(clientKey);
+  await setAdminSession({ email: "innovation@police.go.th", role: "super_admin" });
+  await recordAuditEvent({
+    actor: { type: "super_admin", email: "innovation@police.go.th" },
+    action: "auth.super_admin_login",
+    entityType: "auth",
+    summary: "Super Admin เข้าสู่ระบบด้วย OTP",
+  }, requestHeaders);
+  redirect("/admin");
+}
+
 async function loginAction(formData: FormData) {
   "use server";
   const requestHeaders = await headers();
@@ -270,23 +356,35 @@ async function loginAction(formData: FormData) {
     redirect("/admin?login=locked");
   }
 
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  if (!verifyAdminPassword(password)) {
+  const admin = await verifyAdminAccountPassword(email, password);
+  if (!admin) {
     const failure = await recordAdminLoginFailure(clientKey);
     await slowFailedAdminLogin();
     redirect(failure.locked ? "/admin?login=locked" : "/admin?login=failed");
   }
 
   await clearAdminLoginFailures(clientKey);
+  await setAdminSession({ email: admin.email, role: "admin" });
+  await recordAuditEvent({
+    actor: { type: "admin", email: admin.email },
+    action: "auth.admin_login",
+    entityType: "auth",
+    summary: `Admin เข้าสู่ระบบ ${admin.email}`,
+  }, requestHeaders);
+  redirect("/admin");
+}
+
+async function setAdminSession(session: Pick<AdminSession, "email" | "role">) {
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, adminToken(), {
+  cookieStore.set(cookieName, createAdminSessionToken(session), {
     httpOnly: true,
     sameSite: "strict",
     secure: adminCookieSecure(),
     path: "/",
     maxAge: adminSessionMaxAgeSeconds(),
   });
-  redirect("/admin");
 }
 
 async function logoutAction() {
@@ -298,11 +396,13 @@ async function logoutAction() {
 
 async function saveSettingsAction(formData: FormData) {
   "use server";
-  await requireAdmin();
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
   await saveAdminSettings({
     prelanderEnabled: formData.get("prelanderEnabled") === "on",
     eventRegistrationEnabled: formData.get("eventRegistrationEnabled") === "on",
     contestSubmissionEnabled: formData.get("contestSubmissionEnabled") === "on",
+    showSiteStats: formData.get("showSiteStats") === "on",
     openAt: String(formData.get("openAt") ?? ""),
     closeAt: String(formData.get("closeAt") ?? ""),
     prelanderTitle: String(formData.get("prelanderTitle") ?? ""),
@@ -313,20 +413,35 @@ async function saveSettingsAction(formData: FormData) {
   revalidatePath("/register/form");
   revalidatePath("/submit");
   revalidatePath("/admin");
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "admin.settings.updated",
+    entityType: "settings",
+    summary: "แก้ไขการตั้งค่า Pre-lander และสถานะเปิดรับสมัคร",
+  }, requestHeaders);
 }
 
 async function addWinnerAction(formData: FormData) {
   "use server";
-  await requireAdmin();
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
   const rank = String(formData.get("rank") ?? "honorable").trim();
+  const projectTitle = String(formData.get("projectTitle") ?? "").trim();
   await addWinner({
     rank,
     award: formatAward(rank),
-    projectTitle: String(formData.get("projectTitle") ?? "").trim(),
+    projectTitle,
     ownerName: String(formData.get("ownerName") ?? "").trim(),
     division: String(formData.get("division") ?? "").trim(),
     published: formData.get("published") === "on",
   });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "winner.created",
+    entityType: "winner",
+    summary: `เพิ่มประกาศผลการแข่งขัน ${projectTitle || "-"}`,
+    payload: { rank },
+  }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
@@ -334,8 +449,17 @@ async function addWinnerAction(formData: FormData) {
 
 async function deleteWinnerAction(formData: FormData) {
   "use server";
-  await requireAdmin();
-  await deleteWinner(String(formData.get("id") ?? ""));
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const id = String(formData.get("id") ?? "");
+  await deleteWinner(id);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "winner.deleted",
+    entityType: "winner",
+    entityId: id,
+    summary: "ลบประกาศผลการแข่งขัน",
+  }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
@@ -343,7 +467,8 @@ async function deleteWinnerAction(formData: FormData) {
 
 async function addNewsAction(formData: FormData) {
   "use server";
-  await requireAdmin();
+  const session = await requireAdmin();
+  const requestHeaders = await headers();
   const title = String(formData.get("title") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
@@ -357,6 +482,13 @@ async function addNewsAction(formData: FormData) {
     published: formData.get("published") === "on",
     image: formData.get("image") as File | null,
   });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "news.created",
+    entityType: "news",
+    summary: `เพิ่มข่าวประชาสัมพันธ์ ${title}`,
+    payload: { publishAt },
+  }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
@@ -364,49 +496,53 @@ async function addNewsAction(formData: FormData) {
 
 async function deleteNewsAction(formData: FormData) {
   "use server";
-  await requireAdmin();
-  await deleteNews(String(formData.get("id") ?? ""));
+  const session = await requireAdmin();
+  const requestHeaders = await headers();
+  const id = String(formData.get("id") ?? "");
+  await deleteNews(id);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "news.deleted",
+    entityType: "news",
+    entityId: id,
+    summary: "ลบข่าวประชาสัมพันธ์",
+  }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
 }
 
-async function updateParticipantAction(formData: FormData) {
+async function addAdminAction(formData: FormData) {
   "use server";
-  await requireAdmin();
-  const citizenId = String(formData.get("citizenId") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
-  const status = String(formData.get("status") ?? "registered").trim();
-  if (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId)) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
-  if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
-  if (!["registered", "attended", "cancelled"].includes(status)) throw new Error("สถานะไม่ถูกต้อง");
-  await updateParticipant({
-    registrationCode: String(formData.get("registrationCode") ?? "").trim(),
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const account = await createAdminAccount({
+    name: String(formData.get("name") ?? "").trim(),
     email: String(formData.get("email") ?? "").trim(),
-    provider: String(formData.get("provider") ?? "local") as "google" | "microsoft" | "local",
-    title: String(formData.get("title") ?? "").trim(),
-    firstName: String(formData.get("firstName") ?? "").trim(),
-    lastName: String(formData.get("lastName") ?? "").trim(),
-    citizenId,
-    phone,
-    position: String(formData.get("position") ?? "").trim(),
-    division: String(formData.get("division") ?? "").trim(),
-    bureau: String(formData.get("bureau") ?? "").trim(),
-    status: status as "registered" | "attended" | "cancelled",
   });
+  await createAdminPasswordLink(account.id);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "admin_user.created",
+    entityType: "admin_user",
+    entityId: account.id,
+    summary: `เพิ่มแอดมิน ${account.email}`,
+  }, requestHeaders);
   revalidatePath("/admin");
-}
-
-async function deleteParticipantAction(formData: FormData) {
-  "use server";
-  await requireAdmin();
-  await deleteParticipant(String(formData.get("registrationCode") ?? ""));
-  revalidatePath("/admin");
+  redirect(`/admin/admins/${encodeURIComponent(account.id)}`);
 }
 
 async function requireAdmin() {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) redirect("/admin");
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  return session;
+}
+
+async function requireSuperAdmin() {
+  const session = await requireAdmin();
+  if (session.role !== "super_admin") redirect("/admin");
+  return session;
 }
 
 function filterRecords<T>(records: T[], query: string, pickFields: (record: T) => Array<string | null | undefined>) {
@@ -435,6 +571,29 @@ function toInputDate(value: string) {
 
 function formatAward(rank: string) {
   return awardLabels[rank] ?? awardLabels.honorable;
+}
+
+function actorLabel(actor: AuditEventRecord["actor"]) {
+  if (actor.type === "public") return actor.email ? `ผู้ใช้ • ${actor.email}` : "ผู้ใช้ทั่วไป";
+  if (actor.type === "super_admin") return `Super Admin${actor.email ? ` • ${actor.email}` : ""}`;
+  if (actor.type === "admin") return `Admin${actor.email ? ` • ${actor.email}` : ""}`;
+  return "ระบบ";
+}
+
+function auditActionLabel(action: string) {
+  if (action === "registration.created") return "ลงทะเบียนเข้าร่วมงาน";
+  if (action === "registration.updated") return "แก้ไขข้อมูลผู้เข้าร่วม";
+  if (action === "registration.deleted") return "ลบข้อมูลผู้เข้าร่วม";
+  if (action === "registration.checked_in") return "เช็คอินหน้างาน";
+  if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
+  if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
+  return action;
+}
+
+function auditEntityLabel(entityType: string) {
+  if (entityType === "registration") return "ลงทะเบียน";
+  if (entityType === "submission") return "ใบสมัคร";
+  return entityType;
 }
 
 function formatAdminDate(value?: string | null) {

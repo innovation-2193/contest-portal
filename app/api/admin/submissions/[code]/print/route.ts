@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import PDFKitDocument from "pdfkit";
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
-import { cookieName, verifyAdminToken } from "../../../../../../lib/admin-auth";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
+import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
 import {
   getSubmissionDetail,
   getSubmissionFile,
@@ -29,9 +30,10 @@ const documentLabels: Record<string, string> = {
   implementation: "3.4 แผนต่อยอดใช้งานจริง",
 };
 
-export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) {
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -40,6 +42,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   if (!submission) return NextResponse.json({ error: "submission not found" }, { status: 404 });
 
   try {
+    await recordAuditEvent({
+      actor: actorFromAdminSession(session),
+      action: "submission.print_packet",
+      entityType: "submission",
+      entityId: submission.submission_code,
+      summary: `เปิดชุดพิมพ์ใบสมัครประกวด ${submission.submission_code}`,
+    }, request.headers);
     const packet = await submissionPrintPacketPdf(submission);
     return new NextResponse(new Uint8Array(packet), {
       headers: {

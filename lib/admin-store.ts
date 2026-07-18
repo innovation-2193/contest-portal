@@ -23,6 +23,7 @@ export type AdminSettings = {
   prelanderEnabled: boolean;
   eventRegistrationEnabled: boolean;
   contestSubmissionEnabled: boolean;
+  showSiteStats: boolean;
   openAt: string;
   closeAt: string;
   prelanderTitle: string;
@@ -134,6 +135,7 @@ const defaultSettings: AdminSettings = {
   prelanderEnabled: false,
   eventRegistrationEnabled: true,
   contestSubmissionEnabled: true,
+  showSiteStats: true,
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
@@ -149,6 +151,7 @@ export async function saveAdminSettings(input: Partial<AdminSettings>) {
     prelanderEnabled: Boolean(input.prelanderEnabled),
     eventRegistrationEnabled: input.eventRegistrationEnabled !== false,
     contestSubmissionEnabled: input.contestSubmissionEnabled !== false,
+    showSiteStats: input.showSiteStats !== false,
     openAt: input.openAt ?? "",
     closeAt: input.closeAt ?? "",
     prelanderTitle: input.prelanderTitle?.trim() || defaultSettings.prelanderTitle,

@@ -1,16 +1,25 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Download } from "lucide-react";
+import { revalidatePath } from "next/cache";
+import { ArrowLeft, Download, Pencil, Trash2 } from "lucide-react";
 import { AdminPrintButton } from "../../../../components/AdminPrintButton";
-import { cookieName, verifyAdminToken } from "../../../../lib/admin-auth";
+import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
+import { deleteParticipant, updateParticipant } from "../../../../lib/admin-store";
+import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { findRegistrationByCode } from "../../../../lib/registration-lookup";
+import { isThaiCitizenId } from "../../../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
+const participantStatuses = [
+  ["registered", "ลงทะเบียนแล้ว"],
+  ["attended", "เข้าร่วมงานแล้ว"],
+  ["cancelled", "ยกเลิก"],
+] as const;
+
 export default async function AdminParticipantDetail({ params }: { params: Promise<{ code: string }> }) {
-  const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) redirect("/admin");
+  await requireAdmin();
 
   const { code } = await params;
   const item = await findRegistrationByCode(code);
@@ -45,6 +54,37 @@ export default async function AdminParticipantDetail({ params }: { params: Promi
             <div className="admin-actions print-hidden"><a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} target="_blank" rel="noreferrer"><Download/>เปิด PDF ยืนยัน</a></div>
           </div>
         </section>
+        <section className="admin-detail-block print-hidden">
+          <details className="admin-edit-disclosure" open>
+            <summary><Pencil/>แก้ไขข้อมูลผู้เข้าร่วมงาน</summary>
+            <form action={updateParticipantAction} className="admin-form admin-participant-detail-form">
+              <input type="hidden" name="registrationCode" value={item.registration_code}/>
+              <input type="hidden" name="provider" value={item.provider ?? "local"}/>
+              <div className="form-grid compact-grid">
+                <label>คำนำหน้า<input name="title" defaultValue={item.title} required/></label>
+                <label>ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
+                <label>นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
+                <label>อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
+                <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
+                <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
+                <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
+                <label>กองบังคับการ<input name="division" defaultValue={item.division} required/></label>
+                <label>กองบัญชาการ<input name="bureau" defaultValue={item.bureau} required/></label>
+                <label>สถานะ<select name="status" defaultValue={item.status}>{participantStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+              </div>
+              <button className="primary" type="submit"><Pencil/>บันทึกข้อมูลผู้เข้าร่วมงาน</button>
+            </form>
+          </details>
+        </section>
+        <section className="admin-detail-block print-hidden">
+          <h3>การจัดการรายการ</h3>
+          <div className="admin-detail-actions">
+            <form action={deleteParticipantAction}>
+              <input type="hidden" name="registrationCode" value={item.registration_code}/>
+              <button className="danger-btn" type="submit"><Trash2/>ลบผู้เข้าร่วมงาน</button>
+            </form>
+          </div>
+        </section>
         <div className="print-document-footer"><span>เอกสารจากระบบ Police Innovation Contest 2026</span><b>{item.registration_code}</b></div>
       </article> : <article className="admin-panel"><h2>ไม่พบข้อมูลผู้เข้าร่วมงาน</h2><p>กรุณาตรวจสอบรหัสลงทะเบียน</p></article>}
     </div>
@@ -59,6 +99,72 @@ function statusLabel(status: string) {
   if (status === "attended") return "เข้าร่วมงานแล้ว";
   if (status === "cancelled") return "ยกเลิก";
   return "ลงทะเบียนแล้ว";
+}
+
+async function updateParticipantAction(formData: FormData) {
+  "use server";
+  const session = await requireAdmin();
+  const requestHeaders = await headers();
+  const citizenId = text(formData, "citizenId");
+  const phone = text(formData, "phone");
+  const status = text(formData, "status") || "registered";
+  if (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId)) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
+  if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
+  if (!["registered", "attended", "cancelled"].includes(status)) throw new Error("สถานะไม่ถูกต้อง");
+  const registrationCode = text(formData, "registrationCode");
+  await updateParticipant({
+    registrationCode,
+    email: text(formData, "email"),
+    provider: text(formData, "provider") as "google" | "microsoft" | "local",
+    title: text(formData, "title"),
+    firstName: text(formData, "firstName"),
+    lastName: text(formData, "lastName"),
+    citizenId,
+    phone,
+    position: text(formData, "position"),
+    division: text(formData, "division"),
+    bureau: text(formData, "bureau"),
+    status: status as "registered" | "attended" | "cancelled",
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.updated",
+    entityType: "registration",
+    entityId: registrationCode,
+    summary: `แก้ไขข้อมูลผู้เข้าร่วมงาน ${registrationCode}`,
+    payload: { status },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/participants/${encodeURIComponent(registrationCode)}`);
+  redirect(`/admin/participants/${encodeURIComponent(registrationCode)}`);
+}
+
+async function deleteParticipantAction(formData: FormData) {
+  "use server";
+  const session = await requireAdmin();
+  const requestHeaders = await headers();
+  const registrationCode = text(formData, "registrationCode");
+  await deleteParticipant(registrationCode);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.deleted",
+    entityType: "registration",
+    entityId: registrationCode,
+    summary: `ลบข้อมูลผู้เข้าร่วมงาน ${registrationCode}`,
+  }, requestHeaders);
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+async function requireAdmin() {
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  return session;
+}
+
+function text(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "").replace(/\s+/g, " ").trim();
 }
 
 function formatAdminDate(value?: string | null) {

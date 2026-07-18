@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Lightbulb, Menu, PenLine } from "lucide-react";
+import { Activity, BarChart3, Lightbulb, Menu, PenLine, TrendingUp } from "lucide-react";
+import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
   { href: "/#project", hash: "#project", label: "ข้อมูลโครงการ" },
@@ -60,6 +61,33 @@ export function MobileZoomLock() {
     };
   }, []);
 
+  return null;
+}
+
+export function SiteVisitTracker() {
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!pathname || pathname.startsWith("/admin") || pathname.startsWith("/api")) return;
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
+    const key = `police-innovation-visit:${today}`;
+    try {
+      if (window.localStorage.getItem(key)) return;
+      window.localStorage.setItem(key, "1");
+    } catch {
+      // Continue without localStorage so strict browsers still count one server hit.
+    }
+    const payload = JSON.stringify({ path: pathname });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/site-visit", new Blob([payload], { type: "application/json" }));
+      return;
+    }
+    void fetch("/api/site-visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    });
+  }, [pathname]);
   return null;
 }
 
@@ -122,8 +150,29 @@ export function Header({ registrationOpen = true }: { registrationOpen?: boolean
   </div></header>;
 }
 
-export function Footer() {
-  return <footer><div className="wide footer-grid"><div><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p></div><div><b>นโยบาย</b><Link href="/privacy">Privacy Policy</Link><Link href="/pdpa">PDPA Consent</Link></div><div id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></div></div></footer>;
+export function Footer({ stats }: { stats?: SiteStats | null }) {
+  const maxDaily = Math.max(1, ...(stats?.last7Days.map((item) => item.count) ?? [1]));
+  return <footer><div className={stats ? "wide footer-grid footer-grid-with-stats" : "wide footer-grid"}>
+    <div><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p></div>
+    {stats && <section className="footer-stats" aria-label="สถิติการเข้าใช้งานเว็บไซต์">
+      <div className="footer-stats-head"><Activity/><div><span>Website Activity</span><b>สถิติการเข้าใช้งาน</b></div></div>
+      <div className="footer-stats-numbers">
+        <div><small>ทั้งหมด</small><strong>{formatNumber(stats.total)}</strong></div>
+        <div><small>วันนี้</small><strong>{formatNumber(stats.today)}</strong></div>
+        <div><small>เฉลี่ย 7 วัน</small><strong>{formatNumber(stats.average7Days)}</strong></div>
+      </div>
+      <div className="footer-stats-bars">
+        {stats.last7Days.map((item) => <span key={item.date} title={`${item.label}: ${formatNumber(item.count)} ครั้ง`}><i style={{ height: `${Math.max(8, Math.round(item.count / maxDaily * 100))}%` }}/><small>{item.label}</small></span>)}
+      </div>
+      <p><TrendingUp/>วันที่สูงสุดใน 7 วัน: {stats.peakDay.label} ({formatNumber(stats.peakDay.count)} ครั้ง)</p>
+    </section>}
+    <div><b>นโยบาย</b><Link href="/privacy">Privacy Policy</Link><Link href="/pdpa">PDPA Consent</Link></div>
+    <div id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></div>
+  </div></footer>;
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("th-TH").format(value);
 }
 
 export function PageHero({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
