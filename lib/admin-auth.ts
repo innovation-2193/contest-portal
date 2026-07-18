@@ -203,7 +203,7 @@ export async function requestSuperAdminOtp(now = Date.now()) {
 }
 
 export async function verifySuperAdminOtp(input: string, now = Date.now()) {
-  const code = input.trim();
+  const code = normalizeOtpCode(input);
   if (!/^\d{6}$/.test(code)) return false;
   return enqueueAttemptWrite(async () => {
     const record = await readSuperAdminOtp();
@@ -218,6 +218,13 @@ export async function verifySuperAdminOtp(input: string, now = Date.now()) {
     await writeSuperAdminOtp({ ...record, attempts: record.attempts + 1 });
     return false;
   });
+}
+
+export function normalizeOtpCode(input: string) {
+  return input
+    .trim()
+    .replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))
+    .replace(/\D/g, "");
 }
 
 export function createAdminPasswordHash(password: string, salt = randomBytes(18).toString("base64url")) {

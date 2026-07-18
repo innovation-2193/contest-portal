@@ -8,7 +8,7 @@
 
 - `.env.local` หรือ `.env.production` ที่มีรหัสผ่านจริง
 - `node_modules`, `.next`, `.git`
-- `storage/uploads` จากระบบจริง
+- `storage` จากระบบจริง เช่น ไฟล์แนบ, การตั้งค่าหลังบ้าน, admin users, audit log และ email outbox
 - MySQL data volume หรือ database dump ที่มีข้อมูลส่วนบุคคล เว้นแต่ใช้ช่องทางเข้ารหัสที่หน่วยงานอนุมัติ
 
 ## 2. สถาปัตยกรรมที่แนะนำ
@@ -108,7 +108,7 @@ location / {
 5. ส่งผลงานทีมรวม 3 คนสำเร็จ
 6. ไฟล์เกิน 10 MB, ไฟล์ไม่ใช่ PDF และเลขบัตรผิดถูกปฏิเสธ
 7. ตรวจ desktop, tablet และ mobile โดยไม่มีข้อความหรือปุ่มล้น
-8. รีสตาร์ต containers แล้วข้อมูลเดิมและไฟล์แนบยังอยู่
+8. รีสตาร์ต containers แล้วข้อมูลเดิม ไฟล์แนบ การตั้งค่าหลังบ้าน และบัญชีแอดมินยังอยู่
 9. ตรวจว่า MySQL ไม่เปิดพอร์ตสาธารณะ
 10. ตรวจ server/container logs ว่าไม่มี error หรือข้อมูลส่วนบุคคลที่ไม่ควรบันทึก
 
@@ -122,7 +122,7 @@ docker compose --env-file .env.production -f compose.production.yml exec -T mysq
   | gzip > police_innovation_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
-Docker volume `uploads-production-data` ต้องสำรองพร้อมฐานข้อมูลใน recovery point เดียวกัน ทดสอบ restore ในเครื่องแยกอย่างน้อยรายไตรมาส และกำหนด retention ตามนโยบาย PDPA ของหน่วยงาน
+Docker volumes `app-storage-production-data` และ `uploads-production-data` ต้องสำรองพร้อมฐานข้อมูลใน recovery point เดียวกัน ทดสอบ restore ในเครื่องแยกอย่างน้อยรายไตรมาส และกำหนด retention ตามนโยบาย PDPA ของหน่วยงาน
 
 ## 9. อัปเดตเวอร์ชัน
 

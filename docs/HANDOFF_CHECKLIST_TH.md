@@ -15,7 +15,7 @@
 - [ ] ตั้ง DNS, HTTPS, firewall และ reverse proxy
 - [ ] ตรวจข้อความโครงการกับเจ้าของข้อมูล
 - [ ] รัน acceptance test ครบ 10 รายการ
-- [ ] ตั้ง backup database และ uploads
+- [ ] ตั้ง backup database และ storage volumes
 - [ ] ทดสอบ restore และ rollback
 - [ ] ตั้ง monitoring/alert และผู้รับผิดชอบ on-call
 - [ ] ให้ฝ่ายความมั่นคงปลอดภัยและ DPO อนุมัติก่อน Go-live
@@ -27,4 +27,4 @@
 - Application port ภายใน container: `3003`
 - Database: MySQL 8.4 / schema `police_innovation`
 - Upload limit: PDF 4 ไฟล์ ไม่เกิน 10 MB ต่อไฟล์
-- Data volumes: `mysql-production-data`, `uploads-production-data`
+- Data volumes: `mysql-production-data`, `app-storage-production-data`, `uploads-production-data`

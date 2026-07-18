@@ -213,7 +213,7 @@ function LoginPanel({ message }: { message: string }) {
       </form>
       <form action={verifyOtpAction} className="admin-login-card">
         <h2>ยืนยัน OTP</h2>
-        <input name="otp" inputMode="numeric" pattern="\d{6}" maxLength={6} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/>
+        <input name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/>
         <button className="primary" type="submit">ยืนยันและเข้าสู่ระบบ</button>
       </form>
       <form action={loginAction} className="admin-login-card">

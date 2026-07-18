@@ -16,7 +16,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\manage.ps1 restart
 powershell -ExecutionPolicy Bypass -File .\scripts\manage.ps1 stop
 ```
 
-MySQL ทำงานใน Docker และตั้ง `restart: unless-stopped` ข้อมูลฐานข้อมูลเก็บใน Docker volume `contest-portal_mysql-data` ส่วน PDF อยู่ใน `storage/uploads`.
+MySQL ทำงานใน Docker และตั้ง `restart: unless-stopped` ข้อมูลฐานข้อมูลเก็บใน Docker volume `contest-portal_mysql-data` ส่วนไฟล์แนบและข้อมูล runtime หลังบ้านอยู่ใน `storage`.
 
 ## พัฒนาและ build
 
@@ -41,6 +41,6 @@ npm.cmd run build
 
 ## ก่อนนำออกเครือข่ายจริง
 
-เปลี่ยนรหัสผ่าน MySQL ใน `.env.local` และ `docker-compose.yml`, ตั้ง `ADMIN_PASSWORD` และ `ADMIN_SESSION_SECRET` ให้เป็นค่าสุ่มยาวคนละชุด, วาง reverse proxy ที่มี HTTPS, จำกัดสิทธิ์โฟลเดอร์ `storage/uploads`, กำหนดนโยบายสำรองข้อมูล และตรวจข้อความ/วันเวลา/รางวัลกับประกาศทางการอีกครั้ง
+เปลี่ยนรหัสผ่าน MySQL ใน `.env.local` และ `docker-compose.yml`, ตั้ง `ADMIN_PASSWORD` และ `ADMIN_SESSION_SECRET` ให้เป็นค่าสุ่มยาวคนละชุด, วาง reverse proxy ที่มี HTTPS, จำกัดสิทธิ์โฟลเดอร์ `storage`, กำหนดนโยบายสำรองข้อมูล และตรวจข้อความ/วันเวลา/รางวัลกับประกาศทางการอีกครั้ง
 
 ระบบหลังบ้านมีการจำกัดการลองรหัสผ่านผิดซ้ำจาก IP/อุปกรณ์เดียวกัน โดยปรับค่าได้ผ่าน `ADMIN_LOGIN_MAX_FAILURES`, `ADMIN_LOGIN_WINDOW_SECONDS` และ `ADMIN_LOGIN_LOCK_SECONDS`.
