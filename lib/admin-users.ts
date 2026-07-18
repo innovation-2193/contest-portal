@@ -109,16 +109,18 @@ export async function deleteAdminAccount(id: string) {
 }
 
 export async function createAdminPasswordLink(id: string) {
-  const token = randomBytes(32).toString("base64url");
-  const tokenHash = createPasswordResetTokenHash(token);
-  const expiresAt = new Date(Date.now() + resetTokenMaxAgeMs).toISOString();
+  const tokenNonce = randomBytes(32).toString("base64url");
+  const expiresAtMs = Date.now() + resetTokenMaxAgeMs;
+  const expiresAt = new Date(expiresAtMs).toISOString();
+  let token = "";
   const account = await enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
     const targetIndex = accounts.findIndex((item) => item.id === id.trim());
     if (targetIndex < 0) throw new Error("ไม่พบแอดมิน");
+    token = createPasswordResetToken(accounts[targetIndex].id, tokenNonce, expiresAtMs);
     accounts[targetIndex] = {
       ...accounts[targetIndex],
-      resetTokenHash: tokenHash,
+      resetTokenHash: createPasswordResetTokenHash(token),
       resetTokenExpiresAt: expiresAt,
       updatedAt: new Date().toISOString(),
     };
@@ -259,6 +261,12 @@ function normalizeResetToken(input: string) {
   } catch {
     return value.trim();
   }
+}
+
+function createPasswordResetToken(accountId: string, nonce: string, expiresAtMs: number) {
+  const payload = `${accountId}.${expiresAtMs}.${nonce}`;
+  const signature = createHash("sha256").update(payload).digest("hex").slice(0, 24);
+  return `${payload}.${signature}`;
 }
 
 function createPasswordResetTokenHash(token: string) {

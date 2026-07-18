@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const account = await getAdminAccountByResetToken(token);
+  const account = await getPasswordResetAccount(token);
 
   return <div className="admin-page">
     <div className="wide">
@@ -36,6 +36,15 @@ export default async function AdminPasswordPage({ params }: { params: Promise<{ 
       </section>
     </div>
   </div>;
+}
+
+async function getPasswordResetAccount(token: string) {
+  try {
+    return await getAdminAccountByResetToken(token);
+  } catch (error) {
+    console.error("admin password reset lookup failed", error);
+    return null;
+  }
 }
 
 async function setPasswordAction(formData: FormData) {

@@ -60,15 +60,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} /></AdminShell>;
   }
 
-  const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
-    getAdminSettings(),
-    listParticipants(),
-    listSubmissions(),
-    listWinners(),
-    listNews(),
-    session.role === "super_admin" ? listAdminAccounts() : Promise.resolve([]),
-    session.role === "super_admin" ? listAuditEvents({ limit: 10 }) : Promise.resolve({ events: [], total: 0, limit: 10, offset: 0 }),
-  ]);
+  const { settings, participants, submissions, winners, news, adminAccounts, auditEvents } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
@@ -176,6 +168,47 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <SubmissionsTable submissions={filteredSubmissions}/>
     </section>
   </AdminShell>;
+}
+
+const fallbackAdminSettings: Awaited<ReturnType<typeof getAdminSettings>> = {
+  prelanderEnabled: false,
+  eventRegistrationEnabled: true,
+  contestSubmissionEnabled: true,
+  showSiteStats: true,
+  openAt: "",
+  closeAt: "",
+  prelanderTitle: "Police Innovation Contest 2026",
+  prelanderMessage: "ระบบจะเปิดให้ใช้งานตามเวลาที่กำหนด โปรดกลับมาใหม่อีกครั้ง",
+};
+
+const emptyAuditEvents: Awaited<ReturnType<typeof listAuditEvents>> = {
+  events: [],
+  total: 0,
+  limit: 10,
+  offset: 0,
+};
+
+async function loadAdminPageData(session: AdminSession) {
+  const isSuperAdmin = session.role === "super_admin";
+  const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
+    withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
+    withAdminFallback("participants", listParticipants(), []),
+    withAdminFallback("submissions", listSubmissions(), []),
+    withAdminFallback("winners", listWinners(), []),
+    withAdminFallback("news", listNews(), []),
+    isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
+    isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
+  ]);
+  return { settings, participants, submissions, winners, news, adminAccounts, auditEvents };
+}
+
+async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
+  try {
+    return await promise;
+  } catch (error) {
+    console.error(`admin ${label} failed`, error);
+    return fallback;
+  }
 }
 
 function AuditLogPanel({ events, total }: { events: AuditEventRecord[]; total: number }) {
