@@ -21,7 +21,7 @@ export default async function AdminPasswordPage({ params }: { params: Promise<{ 
 
   return <div className="admin-page">
     <div className="wide">
-      <section className="admin-login">
+      <section className="admin-login admin-password-panel">
         <span className="eyebrow">Admin Password</span>
         <h1>ตั้งรหัสผ่านแอดมิน</h1>
         {account ? <>

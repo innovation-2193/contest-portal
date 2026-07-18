@@ -2837,6 +2837,10 @@ body:has(.prelander-page)::before {
   margin-bottom: 14px;
 }
 
+.admin-grid > .stats-panel:only-child {
+  grid-column: 1 / -1;
+}
+
 .settings-panel { min-height: 100%; }
 
 .admin-panel,
@@ -2918,8 +2922,18 @@ body:has(.prelander-page)::before {
   padding: 16px;
 }
 
+.admin-grid > .stats-panel:only-child {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .stats-panel > .eyebrow {
   padding: 2px 2px 6px;
+}
+
+.admin-grid > .stats-panel:only-child > .eyebrow {
+  grid-column: 1 / -1;
+  padding-bottom: 0;
 }
 
 .stat-panel {
@@ -4612,14 +4626,35 @@ body:has(.prelander-page)::before {
   padding: 28px;
 }
 
+.admin-password-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 0.62fr);
+  gap: 24px 42px;
+  align-items: start;
+  width: min(940px, calc(100% - 40px));
+  padding: 30px;
+}
+
 .admin-login h1 {
   margin: 8px 0;
   color: var(--ink);
 }
 
+.admin-password-panel .eyebrow,
+.admin-password-panel h1,
+.admin-password-panel > p,
+.admin-password-panel .admin-login-alert {
+  grid-column: 1;
+}
+
 .admin-login > p {
   max-width: 760px;
   margin: 0;
+}
+
+.admin-password-panel > p {
+  max-width: 520px;
+  font-size: 16px;
 }
 
 .admin-login form {
@@ -4672,8 +4707,14 @@ body:has(.prelander-page)::before {
 }
 
 .admin-password-card {
-  width: min(480px, 100%);
-  margin: 18px auto 0;
+  width: 100%;
+  margin: 0;
+}
+
+.admin-password-panel .admin-password-card {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
 }
 
 .admin-password-card label {
@@ -4947,6 +4988,22 @@ body:has(.prelander-page)::before {
     min-height: 300px;
   }
   .settings-panel { grid-row: auto; }
+  .admin-grid > .stats-panel:only-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .admin-password-panel {
+    grid-template-columns: 1fr;
+  }
+  .admin-password-panel .eyebrow,
+  .admin-password-panel h1,
+  .admin-password-panel > p,
+  .admin-password-panel .admin-login-alert,
+  .admin-password-panel .admin-password-card {
+    grid-column: 1;
+  }
+  .admin-password-panel .admin-password-card {
+    grid-row: auto;
+  }
   .registration-result .form-layout { grid-template-columns: 1fr; }
   .registration-card .result-heading { grid-template-columns: 1fr; }
   .registration-card .ghost-action {
@@ -5029,6 +5086,29 @@ body:has(.prelander-page)::before {
 
 @media (max-width: 640px) {
   .wide { width: calc(100% - 24px); }
+  .admin-page {
+    padding: 18px 0 44px;
+  }
+  .admin-page .wide,
+  .admin-login {
+    width: calc(100% - 24px);
+  }
+  .admin-login,
+  .admin-password-panel {
+    padding: 18px;
+    margin: 18px auto;
+  }
+  .admin-topline h1,
+  .admin-login h1 {
+    font-size: 30px;
+  }
+  .admin-grid > .stats-panel:only-child {
+    grid-template-columns: 1fr;
+  }
+  .stat-panel {
+    min-height: 82px;
+    padding: 14px;
+  }
   .brand b { font-size: 14px; }
   .home-hero, .hero-content { min-height: 560px; }
   .banner-hero, .banner-content { min-height: 620px; }
