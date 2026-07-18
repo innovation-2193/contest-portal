@@ -63,7 +63,7 @@ export function MobileZoomLock() {
   return null;
 }
 
-export function Header() {
+export function Header({ registrationOpen = true }: { registrationOpen?: boolean }) {
   const [open,setOpen]=useState(false);
   const [activeHash, setActiveHash] = useState("#project");
   const manualActiveUntil = useRef(0);
@@ -117,7 +117,7 @@ export function Header() {
         return <a key={item.hash} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} onClick={()=>{manualActiveUntil.current=Date.now()+1200;setActiveHash(item.hash);setOpen(false);}} href={item.href}>{item.label}</a>;
       })}
     </nav>
-    <Link className="primary compact" href="/register"><PenLine /> ลงทะเบียนสมัคร</Link>
+    {registrationOpen ? <Link className="primary compact" href="/register"><PenLine /> ลงทะเบียนสมัคร</Link> : <span className="primary compact disabled-action" aria-disabled="true"><PenLine /> ปิดรับสมัคร</span>}
     <button className="menu" aria-label={open?"ปิดเมนู":"เปิดเมนู"} aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Menu /></button>
   </div></header>;
 }

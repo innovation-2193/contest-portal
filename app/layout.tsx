@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Footer, Header, MobileZoomLock } from "../components/SiteChrome";
+import { getAdminSettings, isEventRegistrationOpen } from "../lib/admin-store";
 import "./globals.css";
 
 const textModeClassSanitizer = `
@@ -70,6 +71,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: textModeClassSanitizer }} /><MobileZoomLock /><Header /><main>{children}</main><Footer /></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getAdminSettings();
+  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: textModeClassSanitizer }} /><MobileZoomLock /><Header registrationOpen={isEventRegistrationOpen(settings)} /><main>{children}</main><Footer /></body></html>;
 }

@@ -164,6 +164,7 @@ label,
 .primary,
 .secondary,
 .oauth,
+.disabled-action,
 .ghost-action,
 .add-member,
 .remove-member,
@@ -331,6 +332,14 @@ nav a.active::after {
   transform: translateY(-1px);
 }
 
+.disabled-action,
+.disabled-action:hover {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.25);
+}
+
 .compact {
   min-height: 54px;
   padding-inline: 26px;
@@ -477,7 +486,8 @@ nav a.active::after {
   backdrop-filter: none;
 }
 
-.banner-actions a {
+.banner-actions a,
+.banner-actions .disabled-action {
   min-width: 300px;
   min-height: 62px;
   border-radius: 14px;
@@ -752,7 +762,8 @@ nav a.active::after {
 .location p,
 .policy p { color: var(--muted); line-height: 1.78; }
 .choice-grid p { margin: 0; font-size: 17px; }
-.choice-grid a { width: 100%; min-height: 52px; margin-top: 0; }
+.choice-grid a,
+.choice-grid .disabled-action { width: 100%; min-height: 52px; margin-top: 0; }
 .three-grid article { min-height: 230px; }
 
 .criteria-panel {

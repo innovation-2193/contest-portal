@@ -77,6 +77,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
         <form action={saveSettingsAction} className="admin-form">
           <label><input type="checkbox" name="prelanderEnabled" defaultChecked={settings.prelanderEnabled}/> เปิดใช้งาน pre-lander</label>
+          <label><input type="checkbox" name="eventRegistrationEnabled" defaultChecked={settings.eventRegistrationEnabled}/> เปิดลงทะเบียนเข้าร่วมงาน</label>
+          <label><input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/> เปิดรับสมัครประกวดนวัตกรรม</label>
           <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
           <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
           <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
@@ -192,12 +194,17 @@ async function saveSettingsAction(formData: FormData) {
   await requireAdmin();
   await saveAdminSettings({
     prelanderEnabled: formData.get("prelanderEnabled") === "on",
+    eventRegistrationEnabled: formData.get("eventRegistrationEnabled") === "on",
+    contestSubmissionEnabled: formData.get("contestSubmissionEnabled") === "on",
     openAt: String(formData.get("openAt") ?? ""),
     closeAt: String(formData.get("closeAt") ?? ""),
     prelanderTitle: String(formData.get("prelanderTitle") ?? ""),
     prelanderMessage: String(formData.get("prelanderMessage") ?? ""),
   });
   revalidatePath("/");
+  revalidatePath("/register");
+  revalidatePath("/register/form");
+  revalidatePath("/submit");
   revalidatePath("/admin");
 }
 
@@ -213,14 +220,18 @@ async function addWinnerAction(formData: FormData) {
     division: String(formData.get("division") ?? "").trim(),
     published: formData.get("published") === "on",
   });
+  revalidatePath("/");
   revalidatePath("/admin");
+  redirect("/admin");
 }
 
 async function deleteWinnerAction(formData: FormData) {
   "use server";
   await requireAdmin();
   await deleteWinner(String(formData.get("id") ?? ""));
+  revalidatePath("/");
   revalidatePath("/admin");
+  redirect("/admin");
 }
 
 async function updateParticipantAction(formData: FormData) {

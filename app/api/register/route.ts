@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { code } from "../../../lib/codes";
+import { getAdminSettings, isEventRegistrationOpen } from "../../../lib/admin-store";
 import { transaction } from "../../../lib/db";
 import {
   createLocalRegistration,
@@ -24,6 +25,9 @@ const registration = z.object({
 export async function POST(request: Request) {
   let data: RegistrationInput | undefined;
   try {
+    if (!isEventRegistrationOpen(await getAdminSettings())) {
+      return NextResponse.json({ error: "ขณะนี้ระบบปิดรับลงทะเบียนเข้าร่วมงาน" }, { status: 403 });
+    }
     data = registration.parse(await request.json());
     const parsed = data;
     const result = await transaction(async (connection) => {

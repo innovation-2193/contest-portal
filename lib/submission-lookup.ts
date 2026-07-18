@@ -12,7 +12,7 @@ export async function findSubmissionByCode(code: string) {
       `${submissionSelect} WHERE s.submission_code=? LIMIT 1`,
       [code],
     );
-    return (rows as LocalSubmissionRecord[])[0] ?? null;
+    return (rows as LocalSubmissionRecord[])[0] ?? await findLocalSubmissionByCode(code);
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     return findLocalSubmissionByCode(code);
@@ -28,13 +28,17 @@ export async function findSubmissionForRegistration(registration: Pick<Registrat
       `${submissionSelect} WHERE LOWER(u.email)=? OR m.citizen_id=? ORDER BY s.submitted_at DESC LIMIT 1`,
       [email, citizenId],
     );
-    return (rows as LocalSubmissionRecord[])[0] ?? null;
+    return (rows as LocalSubmissionRecord[])[0] ?? await findLocalSubmissionForRegistration(email, citizenId);
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
-    const submissions = await listLocalSubmissions();
-    return submissions.find((item) => {
-      const memberMatch = item.members?.some((member) => member.email === email || member.citizen_id === citizenId);
-      return item.email === email || item.citizen_id === citizenId || memberMatch;
-    }) ?? null;
+    return findLocalSubmissionForRegistration(email, citizenId);
   }
+}
+
+async function findLocalSubmissionForRegistration(email: string, citizenId: string) {
+  const submissions = await listLocalSubmissions();
+  return submissions.find((item) => {
+    const memberMatch = item.members?.some((member) => member.email === email || member.citizen_id === citizenId);
+    return item.email === email || item.citizen_id === citizenId || memberMatch;
+  }) ?? null;
 }

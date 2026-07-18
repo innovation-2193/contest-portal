@@ -20,6 +20,8 @@ import {
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
+  eventRegistrationEnabled: boolean;
+  contestSubmissionEnabled: boolean;
   openAt: string;
   closeAt: string;
   prelanderTitle: string;
@@ -93,6 +95,8 @@ const winnersStorePath = path.join(storageDir, "winners.json");
 
 const defaultSettings: AdminSettings = {
   prelanderEnabled: false,
+  eventRegistrationEnabled: true,
+  contestSubmissionEnabled: true,
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
@@ -100,12 +104,14 @@ const defaultSettings: AdminSettings = {
 };
 
 export async function getAdminSettings() {
-  return readJson(adminStorePath, defaultSettings);
+  return { ...defaultSettings, ...await readJson<Partial<AdminSettings>>(adminStorePath, {}) };
 }
 
 export async function saveAdminSettings(input: Partial<AdminSettings>) {
   const settings: AdminSettings = {
     prelanderEnabled: Boolean(input.prelanderEnabled),
+    eventRegistrationEnabled: input.eventRegistrationEnabled !== false,
+    contestSubmissionEnabled: input.contestSubmissionEnabled !== false,
     openAt: input.openAt ?? "",
     closeAt: input.closeAt ?? "",
     prelanderTitle: input.prelanderTitle?.trim() || defaultSettings.prelanderTitle,
@@ -113,6 +119,14 @@ export async function saveAdminSettings(input: Partial<AdminSettings>) {
   };
   await writeJson(adminStorePath, settings);
   return settings;
+}
+
+export function isEventRegistrationOpen(settings: AdminSettings) {
+  return settings.eventRegistrationEnabled !== false;
+}
+
+export function isContestSubmissionOpen(settings: AdminSettings) {
+  return settings.contestSubmissionEnabled !== false;
 }
 
 export function isPrelanderActive(settings: AdminSettings, now = new Date()) {
@@ -224,7 +238,10 @@ export async function getSubmissionDetail(submissionCode: string) {
       submitted_at: string;
       email: string;
     }>)[0];
-    if (!submission) return null;
+    if (!submission) {
+      const local = await findLocalSubmissionByCode(code);
+      return local ? localSubmissionToAdminDetail(local) : null;
+    }
 
     const [memberRows] = await db.execute(
       "SELECT member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau FROM submission_members WHERE submission_id=? ORDER BY member_order ASC",
@@ -263,7 +280,7 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
       [code, type],
     );
     const file = (rows as Array<SubmissionFileDetail & { id: string }>)[0];
-    if (!file) return null;
+    if (!file) return getLocalSubmissionFile(code, type);
     return {
       document_type: file.document_type,
       original_name: file.original_name,
@@ -275,20 +292,24 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
     } satisfies AdminSubmissionFile;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
-    const local = await findLocalSubmissionByCode(code);
-    if (!local) return null;
-    const file = local.files.find((item) => item.document_type === type);
-    if (!file) return null;
-    return {
-      document_type: file.document_type,
-      original_name: file.original_name,
-      stored_name: file.stored_name,
-      mime_type: "application/pdf",
-      byte_size: file.byte_size,
-      sha256: file.sha256,
-      filePath: path.join(storageDir, "uploads", local.upload_id ?? "", file.stored_name),
-    } satisfies AdminSubmissionFile;
+    return getLocalSubmissionFile(code, type);
   }
+}
+
+async function getLocalSubmissionFile(submissionCode: string, documentType: string) {
+  const local = await findLocalSubmissionByCode(submissionCode);
+  if (!local) return null;
+  const file = local.files.find((item) => item.document_type === documentType);
+  if (!file) return null;
+  return {
+    document_type: file.document_type,
+    original_name: file.original_name,
+    stored_name: file.stored_name,
+    mime_type: "application/pdf",
+    byte_size: file.byte_size,
+    sha256: file.sha256,
+    filePath: path.join(storageDir, "uploads", local.upload_id ?? "", file.stored_name),
+  } satisfies AdminSubmissionFile;
 }
 
 export async function listWinners() {

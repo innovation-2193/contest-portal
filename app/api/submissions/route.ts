@@ -4,6 +4,7 @@ import path from "path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { code } from "../../../lib/codes";
+import { getAdminSettings, isContestSubmissionOpen } from "../../../lib/admin-store";
 import { db, transaction } from "../../../lib/db";
 import { isDatabaseUnavailable } from "../../../lib/local-registrations";
 import { createLocalSubmission, findLocalSubmissionByCode } from "../../../lib/local-submissions";
@@ -22,6 +23,7 @@ const fileTypes = ["ownership","concept","prototype","implementation"] as const;
 const memberSchema=z.object({title:z.string().min(1),firstName:z.string().min(2),lastName:z.string().min(2),citizenId:z.string().regex(/^\d{13}$/).refine(isThaiCitizenId,"หมายเลขบัตรประชาชนของสมาชิกไม่ถูกต้อง"),phone:z.string().regex(/^0[689]\d{8}$/,"กรุณากรอกเบอร์มือถือสมาชิก 10 หลักที่ขึ้นต้นด้วย 06, 08 หรือ 09"),email:z.string().email(),position:z.string().min(1),division:z.string().min(2),bureau:z.string().min(2)});
 export async function POST(request:Request){
   try{
+    if(!isContestSubmissionOpen(await getAdminSettings()))return NextResponse.json({error:"ขณะนี้ระบบปิดรับสมัครส่งผลงานประกวดนวัตกรรม"},{status:403});
     const form=await request.formData(); const data=fields.parse(Object.fromEntries([...form.entries()].filter(([,v])=>typeof v==="string")));
     if(data.submissionType==="team"&&!data.teamName?.trim())throw new Error("กรุณาระบุชื่อทีม");
     const teamMembers=z.array(memberSchema).max(2).parse(JSON.parse(String(form.get("teamMembers")||"[]")));
