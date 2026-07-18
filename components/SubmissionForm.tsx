@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileText, Plus, ScrollText, Trash2, UploadCloud, X } from "lucide-react";
+import { CheckCircle2, Download, FileText, Plus, ScrollText, Trash2, UploadCloud, X } from "lucide-react";
 import { contestAgreement, privacyConsent } from "./consentContent";
 import { isThaiCitizenId } from "../lib/validation";
 import type { RegistrationRecord } from "../lib/local-registrations";
@@ -268,12 +268,11 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
             ))}
           </div>
         </div>
-        {docs.map(({ name, label }) => (
-          <label className="file-field" key={name}>
-            {label}<RequiredMark /><input type="file" name={name} accept="application/pdf" required />
-            <small>รองรับเฉพาะ PDF ขนาดไม่เกิน 10 MB</small>
-          </label>
-        ))}
+        <div className="file-upload-list">
+          {docs.map(({ name, label }) => (
+            <DocumentUploadField key={name} name={name} label={label} />
+          ))}
+        </div>
       </section>
 
       <section className="form-section agreements">
@@ -315,6 +314,42 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
       )}
     </form>
   );
+}
+
+function DocumentUploadField({ name, label }: { name: string; label: string }) {
+  const id = useId();
+  const [file, setFile] = useState<File | null>(null);
+
+  return (
+    <div className={file ? "file-field has-file" : "file-field"}>
+      <div className="file-field-head">
+        <b>{label}<RequiredMark /></b>
+        <small>PDF ไม่เกิน 10 MB</small>
+      </div>
+      <input
+        id={id}
+        className="file-input"
+        type="file"
+        name={name}
+        accept="application/pdf"
+        required
+        onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+      />
+      <label className="file-dropzone" htmlFor={id}>
+        <span className="file-dropzone-icon">{file ? <CheckCircle2 /> : <UploadCloud />}</span>
+        <span className="file-dropzone-copy">
+          <strong>{file ? file.name : "เลือกไฟล์ PDF"}</strong>
+          <small>{file ? formatFileSize(file.size) : "คลิกเพื่อ Browse ไฟล์เอกสารประกอบ"}</small>
+        </span>
+        <span className="file-browse-button">Browse</span>
+      </label>
+    </div>
+  );
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function uploadSubmission(form: FormData, onProgress: (progress: number) => void) {

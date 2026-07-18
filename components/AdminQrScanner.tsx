@@ -150,11 +150,16 @@ export function AdminQrScanner() {
   }
 
   return <div className="scanner-shell">
-    <section className="scanner-camera">
+    <section className={result ? "scanner-camera checked-in" : "scanner-camera"}>
       <video ref={videoRef} playsInline muted />
       <canvas ref={canvasRef} hidden />
       <div className="scanner-frame"><span/><span/><span/><span/></div>
-      <div className="scanner-camera-label"><QrCode/>วาง QR Code ให้อยู่ในกรอบ</div>
+      {result && <div className="scanner-success-overlay">
+        <CheckCircle2/>
+        <b>เช็คอินแล้ว</b>
+        <span>{result.registrationCode}</span>
+      </div>}
+      <div className="scanner-camera-label">{result ? <CheckCircle2/> : <QrCode/>}{result ? "เช็คอินสำเร็จแล้ว พร้อมสแกนคนถัดไป" : "วาง QR Code ให้อยู่ในกรอบ"}</div>
     </section>
     <section className="scanner-controls">
       <div className="scanner-control-head">
@@ -162,6 +167,18 @@ export function AdminQrScanner() {
         <h2>สแกน QR Code ผู้เข้าร่วมงาน</h2>
         <p>{cameraStatus}</p>
       </div>
+      {result && <div className="scan-success-hero" role="status" aria-live="polite">
+        <div className="scan-success-mark"><CheckCircle2/></div>
+        <div className="scan-success-copy">
+          <span>CHECKED IN</span>
+          <h3>เช็คอินเรียบร้อยแล้ว</h3>
+          <p>{result.name}</p>
+          <dl>
+            <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
+            <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>
+          </dl>
+        </div>
+      </div>}
       <div className="scanner-buttons">
         <button className="primary" type="button" onClick={startCamera}><Camera/>เปิดกล้อง</button>
         <button className="secondary" type="button" onClick={stopCamera}><QrCode/>หยุดสแกน</button>
@@ -176,8 +193,17 @@ export function AdminQrScanner() {
         <b>วิธีใช้งาน</b>
         <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้กรอกรหัส REG ด้วยตนเอง</p>
       </div>
-      {result && <div className="scan-result success"><CheckCircle2/><div><b>เช็คอินสำเร็จ</b><p>{result.registrationCode} • {result.name}</p><small>{result.position || "-"} • {result.division || "-"} / {result.bureau || "-"}</small></div></div>}
+      {result && <div className="scan-result success"><CheckCircle2/><div><b>รายละเอียดผู้เข้าร่วมงาน</b><p>{result.phone || "-"} • {result.position || "-"}</p><small>{result.division || "-"} / {result.bureau || "-"}</small></div></div>}
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
   </div>;
+}
+
+function formatScanDate(value?: string | null) {
+  if (!value) return "เมื่อสักครู่";
+  return new Intl.DateTimeFormat("th-TH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Bangkok",
+  }).format(new Date(value));
 }

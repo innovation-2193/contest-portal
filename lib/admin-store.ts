@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
-import { db } from "./db";
+import { db, transaction } from "./db";
 import {
   checkInLocalRegistration,
   deleteLocalRegistration,
@@ -15,6 +15,7 @@ import {
 import {
   findLocalSubmissionByCode,
   listLocalSubmissions,
+  updateLocalSubmission,
   type LocalSubmissionRecord,
 } from "./local-submissions";
 
@@ -87,6 +88,19 @@ export type AdminSubmissionDetail = SubmissionListItem & {
 
 export type AdminSubmissionFile = SubmissionFileDetail & {
   filePath: string;
+};
+
+export type SubmissionUpdateInput = {
+  submissionCode: string;
+  email: string;
+  submissionType: "individual" | "team";
+  teamName: string | null;
+  titleTh: string;
+  titleEn: string;
+  summary: string;
+  videoUrl: string;
+  status: "draft" | "submitted" | "screening" | "qualified" | "rejected";
+  members: Array<Omit<SubmissionMemberDetail, "member_order">>;
 };
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
@@ -293,6 +307,77 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     return getLocalSubmissionFile(code, type);
+  }
+}
+
+export async function updateSubmission(input: SubmissionUpdateInput) {
+  try {
+    await transaction(async (connection) => {
+      const [rows] = await connection.execute(
+        "SELECT id,user_id FROM submissions WHERE submission_code=? LIMIT 1",
+        [input.submissionCode.trim()],
+      );
+      const submission = (rows as Array<{ id: string; user_id: string }>)[0];
+      if (!submission) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+
+      const primary = input.members[0];
+      if (!primary) throw new Error("primary member is required");
+      await connection.execute(
+        "UPDATE users SET email=?,display_name=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=?",
+        [input.email.trim().toLowerCase(), `${primary.first_name} ${primary.last_name}`, submission.user_id],
+      );
+      await connection.execute(
+        "UPDATE submissions SET submission_type=?,team_name=?,title_th=?,title_en=?,summary=?,video_url=?,status=? WHERE id=?",
+        [
+          input.submissionType,
+          input.submissionType === "team" ? input.teamName : null,
+          input.titleTh,
+          input.titleEn || null,
+          input.summary,
+          input.videoUrl || null,
+          input.status,
+          submission.id,
+        ],
+      );
+      await connection.execute("DELETE FROM submission_members WHERE submission_id=?", [submission.id]);
+      for (const [index, member] of input.members.entries()) {
+        await connection.execute(
+          "INSERT INTO submission_members(id,submission_id,member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+          [
+            randomUUID(),
+            submission.id,
+            index + 1,
+            member.title,
+            member.first_name,
+            member.last_name,
+            member.citizen_id,
+            member.phone,
+            member.email.trim().toLowerCase(),
+            member.position,
+            member.division,
+            member.bureau,
+          ],
+        );
+      }
+      await connection.execute(
+        "INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,payload) VALUES(?,?,?,?,?)",
+        [submission.user_id, "submission.updated", "submission", submission.id, JSON.stringify({ submissionCode: input.submissionCode })],
+      );
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    await updateLocalSubmission({
+      submissionCode: input.submissionCode,
+      email: input.email,
+      submissionType: input.submissionType,
+      teamName: input.teamName,
+      titleTh: input.titleTh,
+      titleEn: input.titleEn,
+      summary: input.summary,
+      videoUrl: input.videoUrl,
+      status: input.status,
+      members: input.members,
+    });
   }
 }
 

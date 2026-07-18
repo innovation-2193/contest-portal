@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Download, Eye, LogOut, QrCode, Search, Settings, Trophy, Users } from "lucide-react";
+import { CalendarClock, Download, Eye, FileSpreadsheet, LogOut, Pencil, Printer, QrCode, Search, Settings, Trophy, Users } from "lucide-react";
 import { adminPassword, adminToken, cookieName, verifyAdminToken } from "../../lib/admin-auth";
 import {
   addWinner,
@@ -27,7 +27,9 @@ const awardLabels: Record<string, string> = {
   honorable: "รางวัลชมเชย",
 };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ participantSearch?: string; submissionSearch?: string }> }) {
+type ParticipantSort = "newest" | "oldest";
+
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ participantSearch?: string; participantSort?: string; submissionSearch?: string }> }) {
   const cookieStore = await cookies();
   const loggedIn = verifyAdminToken(cookieStore.get(cookieName)?.value);
 
@@ -43,8 +45,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
   const params = await searchParams;
   const participantSearch = (params.participantSearch ?? "").trim();
+  const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
-  const filteredParticipants = filterRecords(participants, participantSearch, (item) => [
+  const filteredParticipants = sortParticipants(filterRecords(participants, participantSearch, (item) => [
     item.registration_code,
     item.email,
     item.citizen_id,
@@ -56,7 +59,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.division,
     item.bureau,
     item.status,
-  ]);
+  ]), participantSort);
   const filteredSubmissions = filterRecords(submissions, submissionSearch, (item) => [
     item.submission_code,
     item.email,
@@ -76,9 +79,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <article className="admin-panel settings-panel">
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
         <form action={saveSettingsAction} className="admin-form">
-          <label><input type="checkbox" name="prelanderEnabled" defaultChecked={settings.prelanderEnabled}/> เปิดใช้งาน pre-lander</label>
-          <label><input type="checkbox" name="eventRegistrationEnabled" defaultChecked={settings.eventRegistrationEnabled}/> เปิดลงทะเบียนเข้าร่วมงาน</label>
-          <label><input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/> เปิดรับสมัครประกวดนวัตกรรม</label>
+          <div className="settings-toggle-grid">
+            <label className="settings-toggle">
+              <input type="checkbox" name="prelanderEnabled" defaultChecked={settings.prelanderEnabled}/>
+              <span><b>เปิดใช้งาน pre-lander</b><small>แสดงหน้าเตรียมเปิดระบบตามช่วงเวลาที่กำหนด</small></span>
+            </label>
+            <label className="settings-toggle">
+              <input type="checkbox" name="eventRegistrationEnabled" defaultChecked={settings.eventRegistrationEnabled}/>
+              <span><b>เปิดลงทะเบียนเข้าร่วมงาน</b><small>ผู้เข้าร่วมงานสามารถกรอกข้อมูลและรับ QR Code</small></span>
+            </label>
+            <label className="settings-toggle">
+              <input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/>
+              <span><b>เปิดรับสมัครประกวดนวัตกรรม</b><small>ผู้สมัครสามารถส่งข้อมูลผลงานและไฟล์แนบ</small></span>
+            </label>
+          </div>
           <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
           <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
           <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
@@ -100,8 +114,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><button className="danger-btn" type="submit">ลบ</button></form></td></tr>)}</tbody></table></div>
     </section>
     <section className="admin-panel">
-      <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="primary" href="/api/admin/participants/export"><Download/>ดาวน์โหลดข้อมูลผู้เข้าร่วมงาน (PDF)</a></div></header>
-      <SearchBox name="participantSearch" value={participantSearch} label="ค้นหาผู้เข้าร่วมงาน" placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/>
+      <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
+      <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
     </section>
     <section className="admin-panel">
@@ -130,6 +144,16 @@ function SearchBox({ name, value, label, placeholder }: { name: string; value: s
   </form>;
 }
 
+function ParticipantFilterBar({ search, sort }: { search: string; sort: ParticipantSort }) {
+  return <form className="admin-search participant-filter-bar" action="/admin">
+    <label>ค้นหาผู้เข้าร่วมงาน<div><Search/><input name="participantSearch" defaultValue={search} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/><button className="secondary" type="submit">ค้นหา</button>{search && <Link className="ghost-action" href="/admin">ล้าง</Link>}</div></label>
+    <label>เรียงลำดับ<select name="participantSort" defaultValue={sort}>
+      <option value="newest">ใหม่ไปเก่า</option>
+      <option value="oldest">เก่าไปใหม่</option>
+    </select></label>
+  </form>;
+}
+
 function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<typeof listParticipants>> }) {
   const statuses = [
     ["registered", "ลงทะเบียนแล้ว"],
@@ -140,37 +164,50 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
   return <div className="participant-card-list">{participants.map(item => {
     const formId = `participant-${item.registration_code}`;
     return <article className="participant-card" key={item.registration_code}>
-      <div className="participant-card-meta">
-        <span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>
-        <b>{item.registration_code}</b>
-        <small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>
-        {item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}
+      <div className="participant-card-head">
+        <div className="participant-card-meta">
+          <span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>
+          <b>{item.title}{item.first_name} {item.last_name}</b>
+          <small>{item.registration_code} • ลงทะเบียน {formatAdminDate(item.registered_at)}</small>
+          {item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}
+        </div>
+        <div className="participant-card-actions">
+          <Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link>
+          <form action={deleteParticipantAction}><input type="hidden" name="registrationCode" value={item.registration_code}/><button className="danger-btn" type="submit">ลบ</button></form>
+        </div>
       </div>
-      <form id={formId} action={updateParticipantAction} className="participant-card-form">
-        <input type="hidden" name="registrationCode" value={item.registration_code}/>
-        <input type="hidden" name="provider" value={item.provider ?? "local"}/>
-        <label className="field-title">คำนำหน้า<input name="title" defaultValue={item.title} required/></label>
-        <label className="field-name">ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
-        <label className="field-name">นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
-        <label className="field-wide">เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
-        <label className="field-wide">ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
-        <label className="field-wide">อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
-        <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
-        <label className="field-wide">สังกัด<input name="division" defaultValue={item.division} required/></label>
-        <label className="field-wide">หน่วยงาน<input name="bureau" defaultValue={item.bureau} required/></label>
-        <label>สถานะ<select name="status" defaultValue={item.status}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-      </form>
-      <div className="participant-card-actions">
-        <button className="primary small-action" form={formId} type="submit">บันทึก</button>
-        <Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link>
-        <form action={deleteParticipantAction}><input type="hidden" name="registrationCode" value={item.registration_code}/><button className="danger-btn" type="submit">ลบ</button></form>
-      </div>
+      <dl className="participant-summary-grid">
+        <div><dt>อีเมล</dt><dd>{item.email}</dd></div>
+        <div><dt>เบอร์ติดต่อ</dt><dd>{item.phone}</dd></div>
+        <div><dt>ตำแหน่ง</dt><dd>{item.position}</dd></div>
+        <div><dt>สังกัด</dt><dd>{item.division}</dd></div>
+        <div><dt>หน่วยงาน</dt><dd>{item.bureau}</dd></div>
+        <div><dt>เลขบัตรประชาชน</dt><dd>{item.citizen_id}</dd></div>
+      </dl>
+      <details className="participant-edit-box">
+        <summary><Pencil/>แก้ไขข้อมูลผู้เข้าร่วมงาน</summary>
+        <form id={formId} action={updateParticipantAction} className="participant-card-form">
+          <input type="hidden" name="registrationCode" value={item.registration_code}/>
+          <input type="hidden" name="provider" value={item.provider ?? "local"}/>
+          <label className="field-title">คำนำหน้า<input name="title" defaultValue={item.title} required/></label>
+          <label className="field-name">ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
+          <label className="field-name">นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
+          <label className="field-wide">เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
+          <label className="field-wide">ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
+          <label className="field-wide">อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
+          <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
+          <label className="field-wide">สังกัด<input name="division" defaultValue={item.division} required/></label>
+          <label className="field-wide">หน่วยงาน<input name="bureau" defaultValue={item.bureau} required/></label>
+          <label>สถานะ<select name="status" defaultValue={item.status}>{statuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+          <div className="participant-edit-actions"><button className="primary small-action" type="submit">บันทึกการแก้ไข</button></div>
+        </form>
+      </details>
     </article>;
   })}</div>;
 }
 
 function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
-  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ประเภท</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{submissions.length?submissions.map(item=><tr key={item.submission_code}><td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td><td>{item.title_th}</td><td>{item.submission_type === "team" ? `ทีม ${item.team_name ?? ""}` : "เดี่ยว"}</td><td>{item.first_name} {item.last_name}<small>{item.email}</small></td><td>{item.position}</td><td>{item.division}</td><td>{item.bureau}</td><td>{item.status}</td><td><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link></td></tr>):<tr><td colSpan={9}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
+  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ประเภท</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{submissions.length?submissions.map(item=><tr key={item.submission_code}><td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td><td>{item.title_th}</td><td>{item.submission_type === "team" ? `ทีม ${item.team_name ?? ""}` : "เดี่ยว"}</td><td>{item.first_name} {item.last_name}<small>{item.email}</small></td><td>{item.position}</td><td>{item.division}</td><td>{item.bureau}</td><td>{item.status}</td><td><div className="table-action-stack"><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link><a className="primary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a></div></td></tr>):<tr><td colSpan={9}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
 }
 
 async function loginAction(formData: FormData) {
@@ -280,6 +317,13 @@ function filterRecords<T>(records: T[], query: string, pickFields: (record: T) =
 
 function normalizeSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function sortParticipants<T extends { registered_at: string }>(records: T[], sort: ParticipantSort) {
+  return [...records].sort((a, b) => {
+    const diff = new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime();
+    return sort === "oldest" ? -diff : diff;
+  });
 }
 
 function toInputDate(value: string) {

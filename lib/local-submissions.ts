@@ -43,6 +43,19 @@ export type LocalSubmissionRecord = {
   }>;
 };
 
+export type LocalSubmissionUpdateInput = {
+  submissionCode: string;
+  email: string;
+  submissionType: "individual" | "team";
+  teamName: string | null;
+  titleTh: string;
+  titleEn: string;
+  summary: string;
+  videoUrl: string;
+  status: string;
+  members: LocalSubmissionMember[];
+};
+
 type LocalSubmissionInput = {
   submissionId?: string;
   submissionCode: string;
@@ -175,6 +188,46 @@ export async function listLocalSubmissions() {
   await writeQueue.catch(() => undefined);
   const store = await readStore();
   return [...store.submissions].sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+}
+
+export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
+  const work = async () => {
+    const store = await readStore();
+    const code = input.submissionCode.trim();
+    const index = store.submissions.findIndex((item) => item.submission_code === code);
+    if (index < 0) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+
+    const current = store.submissions[index];
+    const primary = input.members[0];
+    if (!primary) throw new Error("primary member is required");
+    const record: LocalSubmissionRecord = {
+      ...current,
+      submission_type: input.submissionType,
+      team_name: input.submissionType === "team" ? input.teamName : null,
+      title_th: input.titleTh,
+      title_en: input.titleEn,
+      summary: input.summary,
+      video_url: input.videoUrl,
+      status: input.status,
+      email: input.email.trim().toLowerCase(),
+      title: primary.title,
+      first_name: primary.first_name,
+      last_name: primary.last_name,
+      citizen_id: primary.citizen_id,
+      phone: primary.phone,
+      position: primary.position,
+      division: primary.division,
+      bureau: primary.bureau,
+      members: input.members,
+    };
+    store.submissions[index] = record;
+    await writeStore(store);
+    return record;
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
 }
 
 async function readStore(): Promise<LocalSubmissionStore> {

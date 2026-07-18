@@ -65,7 +65,8 @@ export function RegistrationForm() {
     const data = await response.json();
 
     if (response.ok) {
-      router.push(`/register/success?code=${data.registrationCode}`);
+      router.replace(`/register/success?code=${data.registrationCode}`);
+      router.refresh();
     } else {
       setError(data.error);
       setBusy(false);
