@@ -52,6 +52,14 @@ const unavailableCodes = new Set([
   "ER_CON_COUNT_ERROR",
 ]);
 
+const schemaFallbackCodes = new Set([
+  "ER_BAD_FIELD_ERROR",
+  "ER_NO_SUCH_TABLE",
+  "ER_TABLEACCESS_DENIED_ERROR",
+  "ER_COLUMNACCESS_DENIED_ERROR",
+  "ER_DBACCESS_DENIED_ERROR",
+]);
+
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const storePath = path.join(storageDir, "dev-registrations.json");
 
@@ -62,6 +70,17 @@ export function isDatabaseUnavailable(error: unknown) {
   return (
     unavailableCodes.has(reason.code ?? "") ||
     (reason.message ?? "").includes("connect ECONNREFUSED")
+  );
+}
+
+export function isDatabaseSchemaFallback(error: unknown) {
+  const reason = error as { code?: string; message?: string };
+  const message = reason.message ?? "";
+  return (
+    schemaFallbackCodes.has(reason.code ?? "") ||
+    message.includes("command denied") ||
+    message.includes("Unknown column") ||
+    message.includes("doesn't exist")
   );
 }
 

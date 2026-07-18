@@ -6,6 +6,7 @@ import { ensureDatabaseSchema } from "./db-schema";
 import {
   checkInLocalRegistration,
   deleteLocalRegistration,
+  isDatabaseSchemaFallback,
   isDatabaseUnavailable,
   listLocalRegistrations,
   updateLocalRegistration,
@@ -185,6 +186,7 @@ export async function listParticipants() {
     );
     return rows as RegistrationRecord[];
   } catch (error) {
+    if (isDatabaseSchemaFallback(error)) return listParticipantsCompat();
     if (!isDatabaseUnavailable(error)) throw error;
     return listLocalRegistrations();
   }
@@ -256,6 +258,7 @@ export async function listSubmissions() {
     );
     return rows as SubmissionListItem[];
   } catch (error) {
+    if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat();
     if (!isDatabaseUnavailable(error)) throw error;
     return listLocalSubmissions();
   }
@@ -459,7 +462,7 @@ export async function listNews(options?: { publicOnly?: boolean }) {
     );
     return filterAndSortNews((rows as NewsDbRow[]).map(newsDbRowToRecord), options?.publicOnly);
   } catch (error) {
-    if (!isDatabaseUnavailable(error)) throw error;
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     return filterAndSortNews(await readJson<NewsRecord[]>(newsStorePath, []), options?.publicOnly);
   }
 }
@@ -651,6 +654,30 @@ async function ensureNewsTable() {
       INDEX idx_news_publish (published, publish_at)
     ) ENGINE=InnoDB
   `);
+}
+
+async function listParticipantsCompat() {
+  try {
+    const [rows] = await db.execute(
+      "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,'' AS position,'' AS division,'' AS bureau,r.status,NULL AS checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+    );
+    return rows as RegistrationRecord[];
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    return listLocalRegistrations();
+  }
+}
+
+async function listSubmissionsCompat() {
+  try {
+    const [rows] = await db.execute(
+      "SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 ORDER BY s.submitted_at DESC LIMIT 500",
+    );
+    return rows as SubmissionListItem[];
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    return listLocalSubmissions();
+  }
 }
 
 function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmissionDetail {

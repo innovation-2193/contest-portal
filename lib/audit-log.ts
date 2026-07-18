@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { db } from "./db";
-import { isDatabaseUnavailable } from "./local-registrations";
+import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { AdminSession } from "./admin-auth";
 
 export type AuditActor = {
@@ -169,7 +169,7 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       offset: normalized.offset,
     };
   } catch (error) {
-    if (!isDatabaseUnavailable(error)) throw error;
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     const filtered = filterLocalAuditEvents(await readLocalAuditEvents(), {
       actions,
       actorType: normalized.actorType,

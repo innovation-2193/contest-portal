@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { isDatabaseUnavailable } from "./local-registrations";
+import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 
 let schemaPromise: Promise<void> | null = null;
 
@@ -8,6 +8,10 @@ export async function ensureDatabaseSchema() {
     schemaPromise = null;
     if (isDatabaseUnavailable(error)) {
       console.warn("database unavailable while checking schema", error);
+      return;
+    }
+    if (isDatabaseSchemaFallback(error)) {
+      console.warn("database schema repair skipped", error);
       return;
     }
     throw error;
