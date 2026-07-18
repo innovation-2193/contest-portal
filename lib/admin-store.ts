@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { mkdir, readFile, rename, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { db, transaction } from "./db";
 import {
@@ -38,6 +38,27 @@ export type WinnerRecord = {
   division: string;
   published: boolean;
   createdAt: string;
+};
+
+export type NewsRecord = {
+  id: string;
+  title: string;
+  excerpt: string;
+  body: string;
+  imageName: string | null;
+  imageOriginalName: string | null;
+  publishAt: string;
+  published: boolean;
+  createdAt: string;
+};
+
+export type NewsInput = {
+  title: string;
+  excerpt: string;
+  body: string;
+  publishAt: string;
+  published: boolean;
+  image?: File | null;
 };
 
 export type SubmissionListItem = {
@@ -106,6 +127,8 @@ export type SubmissionUpdateInput = {
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const adminStorePath = path.join(storageDir, "admin-settings.json");
 const winnersStorePath = path.join(storageDir, "winners.json");
+const newsStorePath = path.join(storageDir, "news.json");
+const newsUploadsDir = path.join(storageDir, "news");
 
 const defaultSettings: AdminSettings = {
   prelanderEnabled: false,
@@ -146,9 +169,7 @@ export function isContestSubmissionOpen(settings: AdminSettings) {
 export function isPrelanderActive(settings: AdminSettings, now = new Date()) {
   if (!settings.prelanderEnabled) return false;
   const openAt = parseDate(settings.openAt);
-  const closeAt = parseDate(settings.closeAt);
   if (openAt && now < openAt) return true;
-  if (closeAt && now > closeAt) return true;
   return false;
 }
 
@@ -420,6 +441,84 @@ export async function deleteWinner(id: string) {
   await writeJson(winnersStorePath, winners.filter((winner) => winner.id !== id));
 }
 
+export async function listNews(options?: { publicOnly?: boolean }) {
+  try {
+    await ensureNewsTable();
+    const [rows] = await db.execute(
+      "SELECT id,title,excerpt,body,image_name,image_original_name,publish_at,published,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
+    );
+    return filterAndSortNews((rows as NewsDbRow[]).map(newsDbRowToRecord), options?.publicOnly);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return filterAndSortNews(await readJson<NewsRecord[]>(newsStorePath, []), options?.publicOnly);
+  }
+}
+
+export async function addNews(input: NewsInput) {
+  const now = new Date().toISOString();
+  const id = randomUUID();
+  const image = input.image && input.image.size > 0 ? await saveNewsImage(input.image) : null;
+  const record: NewsRecord = {
+    id,
+    title: input.title.trim(),
+    excerpt: input.excerpt.trim(),
+    body: input.body.trim(),
+    imageName: image?.storedName ?? null,
+    imageOriginalName: image?.originalName ?? null,
+    publishAt: input.publishAt || now,
+    published: input.published,
+    createdAt: now,
+  };
+
+  try {
+    await ensureNewsTable();
+    await db.execute(
+      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,publish_at,published,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+      [
+        record.id,
+        record.title,
+        record.excerpt,
+        record.body,
+        record.imageName,
+        record.imageOriginalName,
+        record.publishAt,
+        record.published,
+        record.createdAt,
+      ],
+    );
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const news = await readJson<NewsRecord[]>(newsStorePath, []);
+    news.push(record);
+    await writeJson(newsStorePath, news);
+  }
+
+  return record;
+}
+
+export async function deleteNews(id: string) {
+  const targetId = id.trim();
+  let imageName: string | null = null;
+  try {
+    await ensureNewsTable();
+    const [rows] = await db.execute("SELECT image_name FROM news_posts WHERE id=? LIMIT 1", [targetId]);
+    imageName = ((rows as Array<{ image_name: string | null }>)[0]?.image_name) ?? null;
+    await db.execute("DELETE FROM news_posts WHERE id=?", [targetId]);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const news = await readJson<NewsRecord[]>(newsStorePath, []);
+    imageName = news.find((item) => item.id === targetId)?.imageName ?? null;
+    await writeJson(newsStorePath, news.filter((item) => item.id !== targetId));
+  }
+  if (imageName) await deleteNewsImage(imageName);
+}
+
+export function getNewsImagePath(imageName: string) {
+  const safeName = path.basename(imageName);
+  if (!safeName || safeName !== imageName) return null;
+  return path.join(newsUploadsDir, safeName);
+}
+
 async function readJson<T>(filePath: string, fallback: T): Promise<T> {
   try {
     return JSON.parse(await readFile(filePath, "utf8")) as T;
@@ -449,6 +548,99 @@ function rankWeight(rank: string) {
   if (rank === "3") return 3;
   if (rank === "honorable") return 20;
   return 99;
+}
+
+type NewsDbRow = {
+  id: string;
+  title: string;
+  excerpt: string;
+  body: string;
+  image_name: string | null;
+  image_original_name: string | null;
+  publish_at: string | Date;
+  published: boolean | number;
+  created_at: string | Date;
+};
+
+function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
+  return {
+    id: row.id,
+    title: row.title,
+    excerpt: row.excerpt,
+    body: row.body,
+    imageName: row.image_name,
+    imageOriginalName: row.image_original_name,
+    publishAt: normalizeStoredDate(row.publish_at),
+    published: Boolean(row.published),
+    createdAt: normalizeStoredDate(row.created_at),
+  };
+}
+
+function filterAndSortNews(records: NewsRecord[], publicOnly = false) {
+  const now = Date.now();
+  return [...records]
+    .filter((record) => {
+      if (!publicOnly) return true;
+      const publishTime = parseDate(record.publishAt)?.getTime();
+      return record.published && publishTime !== undefined && publishTime <= now;
+    })
+    .sort((a, b) => {
+      const publishDiff = (parseDate(b.publishAt)?.getTime() ?? 0) - (parseDate(a.publishAt)?.getTime() ?? 0);
+      if (publishDiff !== 0) return publishDiff;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+}
+
+async function saveNewsImage(file: File) {
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+  if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
+  if (file.size > 8 * 1024 * 1024) throw new Error("ไฟล์ภาพต้องมีขนาดไม่เกิน 8 MB");
+  await mkdir(newsUploadsDir, { recursive: true });
+  const extension = extensionFromFile(file);
+  const storedName = `${randomUUID()}${extension}`;
+  await writeFile(path.join(newsUploadsDir, storedName), Buffer.from(await file.arrayBuffer()));
+  return { storedName, originalName: file.name || storedName };
+}
+
+async function deleteNewsImage(imageName: string) {
+  const filePath = getNewsImagePath(imageName);
+  if (!filePath) return;
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
+function extensionFromFile(file: File) {
+  const ext = path.extname(file.name).toLowerCase();
+  if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) return ext;
+  if (file.type === "image/png") return ".png";
+  if (file.type === "image/webp") return ".webp";
+  if (file.type === "image/gif") return ".gif";
+  return ".jpg";
+}
+
+function normalizeStoredDate(value: string | Date) {
+  if (value instanceof Date) return value.toISOString();
+  return value;
+}
+
+async function ensureNewsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS news_posts (
+      id CHAR(36) PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      excerpt VARCHAR(500) NOT NULL,
+      body LONGTEXT NOT NULL,
+      image_name VARCHAR(255) NULL,
+      image_original_name VARCHAR(255) NULL,
+      publish_at VARCHAR(40) NOT NULL,
+      published BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at VARCHAR(40) NOT NULL,
+      INDEX idx_news_publish (published, publish_at)
+    ) ENGINE=InnoDB
+  `);
 }
 
 function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmissionDetail {

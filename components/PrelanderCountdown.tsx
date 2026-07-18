@@ -21,11 +21,27 @@ function getTimeLeft(target: Date, now = Date.now()): TimeLeft {
 export function PrelanderCountdown({ target, initialNow }: { target: string; initialNow: number }) {
   const targetDate = useMemo(() => new Date(target), [target]);
   const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(targetDate, initialNow));
+  const expired = targetDate.getTime() <= Date.now();
 
   useEffect(() => {
-    const timer = window.setInterval(() => setTimeLeft(getTimeLeft(targetDate)), 1000);
+    if (Number.isNaN(targetDate.getTime())) return;
+    if (targetDate.getTime() <= Date.now()) {
+      window.location.reload();
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (targetDate.getTime() <= Date.now()) {
+        window.clearInterval(timer);
+        window.location.reload();
+        return;
+      }
+      setTimeLeft(getTimeLeft(targetDate));
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [targetDate]);
+
+  if (expired || Number.isNaN(targetDate.getTime())) return null;
 
   const items = [
     ["วัน", timeLeft.days],

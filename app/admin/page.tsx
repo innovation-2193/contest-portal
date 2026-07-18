@@ -1,14 +1,31 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Download, Eye, FileSpreadsheet, LogOut, Pencil, Printer, QrCode, Search, Settings, Trophy, Users } from "lucide-react";
-import { adminPassword, adminToken, cookieName, verifyAdminToken } from "../../lib/admin-auth";
+import { CalendarClock, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Megaphone, Newspaper, Pencil, Printer, QrCode, Search, Settings, Trophy, Users } from "lucide-react";
+import {
+  adminClientKey,
+  adminCookieSecure,
+  adminPassword,
+  adminSessionMaxAgeSeconds,
+  adminToken,
+  clearAdminLoginFailures,
+  cookieName,
+  genericAdminLoginError,
+  getAdminLoginStatus,
+  recordAdminLoginFailure,
+  slowFailedAdminLogin,
+  verifyAdminPassword,
+  verifyAdminToken,
+} from "../../lib/admin-auth";
 import {
   addWinner,
+  addNews,
   deleteWinner,
+  deleteNews,
   deleteParticipant,
   getAdminSettings,
+  listNews,
   listParticipants,
   listSubmissions,
   listWinners,
@@ -29,21 +46,22 @@ const awardLabels: Record<string, string> = {
 
 type ParticipantSort = "newest" | "oldest";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ participantSearch?: string; participantSort?: string; submissionSearch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string }> }) {
   const cookieStore = await cookies();
   const loggedIn = verifyAdminToken(cookieStore.get(cookieName)?.value);
+  const params = await searchParams;
 
   if (!loggedIn) {
-    return <AdminShell><LoginPanel passwordConfigured={Boolean(adminPassword())} /></AdminShell>;
+    return <AdminShell><LoginPanel passwordConfigured={Boolean(adminPassword())} message={genericAdminLoginError(params.login)} /></AdminShell>;
   }
 
-  const [settings, participants, submissions, winners] = await Promise.all([
+  const [settings, participants, submissions, winners, news] = await Promise.all([
     getAdminSettings(),
     listParticipants(),
     listSubmissions(),
     listWinners(),
+    listNews(),
   ]);
-  const params = await searchParams;
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
@@ -74,7 +92,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
 
   return <AdminShell>
-    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>จัดการเวลาเปิดหน้า pre-lander ตรวจสอบรายชื่อผู้เข้าร่วมงาน ผู้สมัครประกวดนวัตกรรม และประกาศผู้ชนะเลิศ</p></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
+    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>จัดการเวลาเปิดหน้า pre-lander ข่าวประชาสัมพันธ์ ผู้เข้าร่วมงาน ผู้สมัครประกวดนวัตกรรม และประกาศผู้ชนะเลิศ</p></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <section className="admin-grid">
       <article className="admin-panel settings-panel">
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
@@ -99,7 +117,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
         </form>
       </article>
-      <aside className="admin-panel stats-panel"><span className="eyebrow">ภาพรวมระบบ</span><div className="stat-panel"><Users/><b>{participants.length}</b><span>ผู้เข้าร่วมงาน</span></div><div className="stat-panel"><Settings/><b>{submissions.length}</b><span>ผู้สมัครประกวด</span></div><div className="stat-panel"><Trophy/><b>{winners.length}</b><span>ผู้ชนะที่บันทึก</span></div></aside>
+      <aside className="admin-panel stats-panel"><span className="eyebrow">ภาพรวมระบบ</span><div className="stat-panel"><Users/><b>{participants.length}</b><span>ผู้เข้าร่วมงาน</span></div><div className="stat-panel"><Settings/><b>{submissions.length}</b><span>ผู้สมัครประกวด</span></div><div className="stat-panel"><Newspaper/><b>{news.length}</b><span>ข่าวประชาสัมพันธ์</span></div><div className="stat-panel"><Trophy/><b>{winners.length}</b><span>ผู้ชนะที่บันทึก</span></div></aside>
+    </section>
+    <section className="admin-panel">
+      <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน</p></div></header>
+      <form action={addNewsAction} className="admin-form news-form">
+        <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
+        <label>วันที่ต้องการโพสต์<input type="datetime-local" name="publishAt" defaultValue={toInputDate(new Date().toISOString())} required/></label>
+        <label className="field-wide">หัวข้อข่าว<input name="title" placeholder="เช่น เปิดรับสมัครผลงานนวัตกรรมตำรวจ ประจำปี 2569" required maxLength={255}/></label>
+        <label className="field-wide">ข้อความสรุป<input name="excerpt" placeholder="ข้อความสั้นสำหรับแสดงบนการ์ดข่าว" required maxLength={500}/></label>
+        <label className="field-wide">เนื้อหา<textarea name="body" placeholder="รายละเอียดข่าวประชาสัมพันธ์" required rows={5}/></label>
+        <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่เมื่อถึงวันที่กำหนด</label>
+        <button className="primary" type="submit"><Megaphone/>เพิ่มข่าวประชาสัมพันธ์</button>
+      </form>
+      <NewsTable news={news}/>
     </section>
     <section className="admin-panel">
       <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>ใช้ “ผ่านเข้ารอบที่ 2” สำหรับรอบคัดเลือก และใช้รางวัลที่ 1-3/ชมเชย สำหรับรอบประกาศผลรางวัล</p></div></header>
@@ -130,8 +161,8 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   return <div className="admin-page"><div className="wide">{children}</div></div>;
 }
 
-function LoginPanel({ passwordConfigured }: { passwordConfigured: boolean }) {
-  return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>{passwordConfigured ? "กรอกรหัสผ่านผู้ดูแลระบบเพื่อจัดการข้อมูลโครงการ" : "ยังไม่ได้ตั้งค่า ADMIN_PASSWORD ใน .env.local"}</p><form action={loginAction}><input type="password" name="password" placeholder="Admin password" required/><button className="primary" type="submit">เข้าสู่ระบบ</button></form></section>;
+function LoginPanel({ passwordConfigured, message }: { passwordConfigured: boolean; message: string }) {
+  return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>{passwordConfigured ? "กรอกรหัสผ่านผู้ดูแลระบบเพื่อจัดการข้อมูลโครงการ" : "ยังไม่ได้ตั้งค่า ADMIN_PASSWORD ใน .env.local"}</p>{message && <div className="admin-login-alert">{message}</div>}<form action={loginAction}><input type="password" name="password" placeholder="Admin password" required autoComplete="current-password"/><button className="primary" type="submit">เข้าสู่ระบบ</button></form></section>;
 }
 
 function AdminTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
@@ -210,12 +241,51 @@ function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typ
   return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ประเภท</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{submissions.length?submissions.map(item=><tr key={item.submission_code}><td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td><td>{item.title_th}</td><td>{item.submission_type === "team" ? `ทีม ${item.team_name ?? ""}` : "เดี่ยว"}</td><td>{item.first_name} {item.last_name}<small>{item.email}</small></td><td>{item.position}</td><td>{item.division}</td><td>{item.bureau}</td><td>{item.status}</td><td><div className="table-action-stack"><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link><a className="primary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a></div></td></tr>):<tr><td colSpan={9}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
 }
 
+function NewsTable({ news }: { news: Awaited<ReturnType<typeof listNews>> }) {
+  return <div className="admin-news-list">{news.length ? news.map((item) => {
+    const isLive = item.published && (new Date(item.publishAt).getTime() <= Date.now());
+    return <article className="admin-news-card" key={item.id}>
+      <div className="admin-news-thumb">{item.imageName ? <img src={`/api/news-images/${encodeURIComponent(item.imageName)}`} alt={item.title}/> : <ImageIcon/>}</div>
+      <div>
+        <span className={`status-pill ${isLive ? "attended" : item.published ? "registered" : "cancelled"}`}>{isLive ? "เผยแพร่แล้ว" : item.published ? "รอโพสต์" : "ฉบับร่าง"}</span>
+        <h3>{item.title}</h3>
+        <p>{item.excerpt}</p>
+        <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>
+      </div>
+      <form action={deleteNewsAction}>
+        <input type="hidden" name="id" value={item.id}/>
+        <button className="danger-btn" type="submit">ลบ</button>
+      </form>
+    </article>;
+  }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}</div>;
+}
+
 async function loginAction(formData: FormData) {
   "use server";
+  const requestHeaders = await headers();
+  const clientKey = adminClientKey(requestHeaders);
+  const status = await getAdminLoginStatus(clientKey);
+  if (status.locked) {
+    await slowFailedAdminLogin();
+    redirect("/admin?login=locked");
+  }
+
   const password = String(formData.get("password") ?? "");
-  if (!adminPassword() || password !== adminPassword()) redirect("/admin?error=1");
+  if (!verifyAdminPassword(password)) {
+    const failure = await recordAdminLoginFailure(clientKey);
+    await slowFailedAdminLogin();
+    redirect(failure.locked ? "/admin?login=locked" : "/admin?login=failed");
+  }
+
+  await clearAdminLoginFailures(clientKey);
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, adminToken(), { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 8 });
+  cookieStore.set(cookieName, adminToken(), {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: adminCookieSecure(),
+    path: "/",
+    maxAge: adminSessionMaxAgeSeconds(),
+  });
   redirect("/admin");
 }
 
@@ -266,6 +336,36 @@ async function deleteWinnerAction(formData: FormData) {
   "use server";
   await requireAdmin();
   await deleteWinner(String(formData.get("id") ?? ""));
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+async function addNewsAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  const excerpt = String(formData.get("excerpt") ?? "").trim();
+  const body = String(formData.get("body") ?? "").trim();
+  const publishAt = String(formData.get("publishAt") ?? "").trim();
+  if (!title || !excerpt || !body || !publishAt) throw new Error("กรุณากรอกข้อมูลข่าวให้ครบถ้วน");
+  await addNews({
+    title,
+    excerpt,
+    body,
+    publishAt,
+    published: formData.get("published") === "on",
+    image: formData.get("image") as File | null,
+  });
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect("/admin");
+}
+
+async function deleteNewsAction(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  await deleteNews(String(formData.get("id") ?? ""));
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");

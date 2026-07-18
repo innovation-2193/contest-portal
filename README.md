@@ -41,4 +41,6 @@ npm.cmd run build
 
 ## ก่อนนำออกเครือข่ายจริง
 
-เปลี่ยนรหัสผ่าน MySQL ใน `.env.local` และ `docker-compose.yml`, วาง reverse proxy ที่มี HTTPS, จำกัดสิทธิ์โฟลเดอร์ `storage/uploads`, กำหนดนโยบายสำรองข้อมูล และตรวจข้อความ/วันเวลา/รางวัลกับประกาศทางการอีกครั้ง
+เปลี่ยนรหัสผ่าน MySQL ใน `.env.local` และ `docker-compose.yml`, ตั้ง `ADMIN_PASSWORD` และ `ADMIN_SESSION_SECRET` ให้เป็นค่าสุ่มยาวคนละชุด, วาง reverse proxy ที่มี HTTPS, จำกัดสิทธิ์โฟลเดอร์ `storage/uploads`, กำหนดนโยบายสำรองข้อมูล และตรวจข้อความ/วันเวลา/รางวัลกับประกาศทางการอีกครั้ง
+
+ระบบหลังบ้านมีการจำกัดการลองรหัสผ่านผิดซ้ำจาก IP/อุปกรณ์เดียวกัน โดยปรับค่าได้ผ่าน `ADMIN_LOGIN_MAX_FAILURES`, `ADMIN_LOGIN_WINDOW_SECONDS` และ `ADMIN_LOGIN_LOCK_SECONDS`.
