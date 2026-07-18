@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import {
@@ -31,6 +31,7 @@ export type AdminAccountInput = {
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const adminUsersPath = path.join(storageDir, "admin-users.json");
 const resetTokenMaxAgeMs = 24 * 60 * 60 * 1000;
+const resetTokenHashPrefix = "sha256:";
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
@@ -109,7 +110,7 @@ export async function deleteAdminAccount(id: string) {
 
 export async function createAdminPasswordLink(id: string) {
   const token = randomBytes(32).toString("base64url");
-  const tokenHash = adminSecureHash(token, "admin-password-reset");
+  const tokenHash = createPasswordResetTokenHash(token);
   const expiresAt = new Date(Date.now() + resetTokenMaxAgeMs).toISOString();
   const account = await enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
@@ -136,25 +137,23 @@ export async function createAdminPasswordLink(id: string) {
 }
 
 export async function getAdminAccountByResetToken(token: string) {
-  const tokenHash = adminSecureHash(token.trim(), "admin-password-reset");
+  const normalizedToken = normalizeResetToken(token);
   const now = Date.now();
   return (await readAdminAccounts()).find((account) => (
-    account.resetTokenHash === tokenHash
-    && account.resetTokenExpiresAt
-    && new Date(account.resetTokenExpiresAt).getTime() > now
+    passwordResetTokenMatches(account.resetTokenHash, normalizedToken)
+    && isResetTokenActive(account.resetTokenExpiresAt, now)
     && !account.disabled
   )) ?? null;
 }
 
 export async function setAdminPasswordByResetToken(token: string, password: string) {
   if (password.length < 8) throw new Error("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
-  const tokenHash = adminSecureHash(token.trim(), "admin-password-reset");
+  const normalizedToken = normalizeResetToken(token);
   return enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
     const targetIndex = accounts.findIndex((account) => (
-      account.resetTokenHash === tokenHash
-      && account.resetTokenExpiresAt
-      && new Date(account.resetTokenExpiresAt).getTime() > Date.now()
+      passwordResetTokenMatches(account.resetTokenHash, normalizedToken)
+      && isResetTokenActive(account.resetTokenExpiresAt)
       && !account.disabled
     ));
     if (targetIndex < 0) throw new Error("ลิงก์ตั้งรหัสผ่านหมดอายุหรือไม่ถูกต้อง");
@@ -172,9 +171,15 @@ export async function setAdminPasswordByResetToken(token: string, password: stri
 
 async function readAdminAccounts(): Promise<AdminAccount[]> {
   try {
-    return JSON.parse(await readFile(adminUsersPath, "utf8")) as AdminAccount[];
+    const parsed = JSON.parse(await readFile(adminUsersPath, "utf8")) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalizeAdminAccount).filter((account): account is AdminAccount => Boolean(account));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    if (error instanceof SyntaxError) {
+      console.warn("admin users store is invalid JSON", error);
+      return [];
+    }
     throw error;
   }
 }
@@ -198,6 +203,78 @@ function normalizeEmail(value: string) {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function normalizeAdminAccount(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<AdminAccount>;
+  const id = textValue(raw.id);
+  const email = normalizeEmail(textValue(raw.email));
+  if (!id || !isValidEmail(email)) return null;
+  const now = new Date().toISOString();
+  return {
+    id,
+    email,
+    name: textValue(raw.name),
+    role: "admin" as const,
+    passwordHash: nullableText(raw.passwordHash),
+    resetTokenHash: nullableText(raw.resetTokenHash),
+    resetTokenExpiresAt: nullableText(raw.resetTokenExpiresAt),
+    disabled: Boolean(raw.disabled),
+    createdAt: validDateText(raw.createdAt) ?? now,
+    updatedAt: validDateText(raw.updatedAt) ?? validDateText(raw.createdAt) ?? now,
+  };
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function nullableText(value: unknown) {
+  const text = textValue(value);
+  return text || null;
+}
+
+function validDateText(value: unknown) {
+  const text = textValue(value);
+  if (!text) return null;
+  const date = new Date(text);
+  return Number.isFinite(date.getTime()) ? text : null;
+}
+
+function normalizeResetToken(input: string) {
+  let value = input.trim();
+  try {
+    const parsed = new URL(value);
+    value = parsed.pathname.split("/").filter(Boolean).pop() ?? value;
+  } catch {
+    const marker = "/admin/password/";
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex >= 0) value = value.slice(markerIndex + marker.length);
+  }
+  value = value.split(/[?#]/, 1)[0] ?? "";
+  value = value.replace(/[).,;:!?]+$/g, "");
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return value.trim();
+  }
+}
+
+function createPasswordResetTokenHash(token: string) {
+  return `${resetTokenHashPrefix}${createHash("sha256").update(normalizeResetToken(token)).digest("hex")}`;
+}
+
+function passwordResetTokenMatches(storedHash: string | null | undefined, token: string) {
+  if (!storedHash || !token) return false;
+  return storedHash === createPasswordResetTokenHash(token)
+    || storedHash === adminSecureHash(token, "admin-password-reset");
+}
+
+function isResetTokenActive(expiresAt: string | null | undefined, now = Date.now()) {
+  if (!expiresAt) return false;
+  const expiresAtMs = new Date(expiresAt).getTime();
+  return Number.isFinite(expiresAtMs) && expiresAtMs > now;
 }
 
 function publicBaseUrl() {

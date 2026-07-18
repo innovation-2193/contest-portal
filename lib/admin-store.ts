@@ -537,6 +537,10 @@ async function readJson<T>(filePath: string, fallback: T): Promise<T> {
     return JSON.parse(await readFile(filePath, "utf8")) as T;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return fallback;
+    if (error instanceof SyntaxError) {
+      console.warn(`runtime JSON store is invalid: ${filePath}`, error);
+      return fallback;
+    }
     throw error;
   }
 }
