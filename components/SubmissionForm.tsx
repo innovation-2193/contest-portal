@@ -214,7 +214,9 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
             {members.map((member, index) => (
               <fieldset key={index}>
                 <legend>สมาชิกคนที่ {index + 2}</legend>
-                <button type="button" className="remove-member" title="ลบสมาชิก" onClick={() => setMembers((current) => current.filter((_, i) => i !== index))}>
+                <button type="button" className="remove-member" title="ลบสมาชิก" onClick={() => {
+                  if (window.confirm(`ยืนยันลบสมาชิกคนที่ ${index + 2}?`)) setMembers((current) => current.filter((_, i) => i !== index));
+                }}>
                   <Trash2 />
                 </button>
                 <div className="form-grid">

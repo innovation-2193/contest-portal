@@ -147,6 +147,11 @@ function auditActionLabel(action: string) {
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
+  if (action === "submission.deleted") return "ลบใบสมัครประกวด";
+  if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
+  if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board PDF";
+  if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
+  if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
   return action;
 }
 

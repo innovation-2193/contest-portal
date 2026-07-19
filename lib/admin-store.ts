@@ -15,6 +15,7 @@ import {
   type RegistrationUpdateInput,
 } from "./local-registrations";
 import {
+  deleteLocalSubmission,
   findLocalSubmissionByCode,
   listLocalSubmissions,
   updateLocalSubmission,
@@ -457,6 +458,17 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
       status: input.status,
       members: input.members,
     });
+  }
+}
+
+export async function deleteSubmission(submissionCode: string) {
+  const code = submissionCode.trim();
+  try {
+    await ensureDatabaseSchema();
+    await db.execute("DELETE FROM submissions WHERE submission_code=?", [code]);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    await deleteLocalSubmission(code);
   }
 }
 

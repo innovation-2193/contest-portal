@@ -3941,20 +3941,27 @@ body:has(.prelander-page)::before {
 .assignment-row,
 .scoreboard-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.54fr) auto;
-  gap: 12px;
-  align-items: end;
-  padding: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr);
+  gap: 14px;
+  align-items: center;
+  padding: 16px 18px;
   border: 1px solid rgba(64, 89, 128, 0.46);
   border-radius: 12px;
   background: rgba(2, 11, 27, 0.46);
 }
 
-.assignment-row > div,
+.assignment-copy,
 .scoreboard-row > div {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.assignment-copy .status-pill {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 3px;
+  font-style: normal;
 }
 
 .assignment-row b,
@@ -3985,10 +3992,38 @@ body:has(.prelander-page)::before {
   font-weight: 900;
 }
 
+.assignment-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
 .assignment-row select,
 .inline-assign-form select {
   width: 100%;
   min-width: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(68, 99, 145, 0.95);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.9);
+  color: #f5f8ff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.assignment-row option,
+.inline-assign-form option {
+  color: #07142a;
+  background: #ffffff;
+}
+
+.assignment-controls button {
+  min-height: 42px;
+  padding-inline: 14px;
 }
 
 .scoreboard-row {
@@ -4017,6 +4052,47 @@ body:has(.prelander-page)::before {
   grid-template-columns: minmax(150px, 1fr) auto;
   gap: 8px;
   min-width: 0;
+}
+
+.admin-delete-otp-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(168, 46, 69, 0.44);
+  border-radius: 12px;
+  background: rgba(111, 24, 39, 0.16);
+}
+
+.admin-delete-otp-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.admin-delete-otp-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.admin-delete-otp-form label {
+  display: grid;
+  gap: 6px;
+  color: #dce4f3;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-delete-otp-form input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(68, 99, 145, 0.95);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.9);
+  color: var(--text);
 }
 
 .score-review-panel {
@@ -4942,6 +5018,12 @@ body:has(.prelander-page)::before {
   line-height: 1.55;
 }
 
+.admin-login-alert.success {
+  border-color: rgba(64, 190, 127, 0.38);
+  background: rgba(22, 121, 75, 0.22);
+  color: #dff8e9;
+}
+
 .admin-login-alert svg {
   width: 16px;
   height: 16px;
@@ -5236,6 +5318,9 @@ body:has(.prelander-page)::before {
   .scoreboard-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+  .assignment-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
   }
   .scoreboard-row > span {
     text-align: left;
@@ -5826,6 +5911,15 @@ body:has(.prelander-page)::before {
   .assignment-row,
   .scoreboard-row {
     padding: 12px;
+  }
+  .assignment-controls,
+  .admin-delete-otp-form {
+    grid-template-columns: 1fr;
+  }
+  .assignment-controls button,
+  .admin-delete-otp-panel form,
+  .admin-delete-otp-panel button {
+    width: 100%;
   }
   .score-review-grid {
     grid-template-columns: 1fr;

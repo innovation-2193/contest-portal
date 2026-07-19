@@ -47,7 +47,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
     <div className="wide">
       <div className="admin-topline">
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจ และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
-        <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+        <div className="admin-actions"><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ Scoreboard PDF</a><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link></div>
       </div>
       <section className="admin-panel">
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>

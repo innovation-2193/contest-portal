@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, ExternalLink, FileText, Pencil, Printer, ShieldCheck, Trophy, Users } from "lucide-react";
-import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
-import { getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
+import { ArrowLeft, ExternalLink, FileText, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
+import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { cookieName, getAdminSession, requestSuperAdminOtp, verifySuperAdminOtp } from "../../../../lib/admin-auth";
+import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
@@ -45,7 +46,7 @@ const paperScreeningCriteria = [
   { name: "impactScore", label: "ความคุ้มค่าและการขยายผล", max: 20, field: "review_impact_score" },
 ] as const;
 
-export default async function AdminSubmissionDetail({ params }: { params: Promise<{ code: string }> }) {
+export default async function AdminSubmissionDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ deleteOtp?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -53,6 +54,7 @@ export default async function AdminSubmissionDetail({ params }: { params: Promis
   const { code } = await params;
   const item = await getSubmissionDetail(code);
   if (item && session.role !== "super_admin" && item.review_assigned_admin_email?.toLowerCase() !== session.email.toLowerCase()) redirect("/admin");
+  const query = await searchParams;
   const issuedAt = formatAdminDate(new Date().toISOString());
   const isSuperAdmin = session.role === "super_admin";
 
@@ -115,6 +117,22 @@ export default async function AdminSubmissionDetail({ params }: { params: Promis
           </a>)}</div> : <p>ยังไม่มีไฟล์แนบในระบบ</p>}
           <p className="admin-print-note">เปิดไฟล์ PDF ในแท็บใหม่ แล้วใช้คำสั่งพิมพ์ของเบราว์เซอร์หรือ PDF viewer เพื่อพิมพ์เอกสารแนบ</p>
         </section>
+        {isSuperAdmin && <section className="admin-detail-block print-hidden">
+          <h3><Trash2/> ลบใบสมัครประกวด</h3>
+          <div className="admin-delete-otp-panel">
+            <p>การลบใบสมัครทำได้เฉพาะ Super Admin และต้องยืนยันด้วย OTP ทางอีเมลก่อนลบจริง</p>
+            {deleteOtpMessage(query.deleteOtp)}
+            <form action={requestDeleteSubmissionOtpAction}>
+              <input type="hidden" name="submissionCode" value={item.submission_code}/>
+              <button className="secondary" type="submit"><Mail/>ส่ง OTP เพื่อยืนยันการลบ</button>
+            </form>
+            <form action={deleteSubmissionAction} className="admin-delete-otp-form">
+              <input type="hidden" name="submissionCode" value={item.submission_code}/>
+              <label>รหัส OTP<input name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/></label>
+              <ConfirmSubmitButton className="danger-btn" type="submit" message={`ยืนยันลบใบสมัคร ${item.submission_code}? เมื่อลบแล้วไม่สามารถกู้คืนจากระบบได้`}><Trash2/>ลบใบสมัครประกวด</ConfirmSubmitButton>
+            </form>
+          </div>
+        </section>}
         <div className="print-document-footer"><span>เอกสารจากระบบ Police Innovation Contest 2026</span><b>{item.submission_code}</b></div>
       </article> : <article className="admin-panel"><h2>ไม่พบใบสมัครประกวด</h2><p>กรุณาตรวจสอบรหัสผลงาน</p></article>}
     </div>
@@ -274,6 +292,59 @@ async function saveScoreAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
+}
+
+async function requestDeleteSubmissionOtpAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const submissionCode = text(formData, "submissionCode");
+  const result = await requestSuperAdminOtp();
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.delete_otp_requested",
+    entityType: "submission",
+    entityId: submissionCode,
+    summary: `ขอ OTP เพื่อลบใบสมัคร ${submissionCode}`,
+  }, requestHeaders);
+  const status = result.ok ? result.mailStatus === "failed" ? "mail_failed" : "sent" : "wait";
+  redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=${status}`);
+}
+
+async function deleteSubmissionAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const submissionCode = text(formData, "submissionCode");
+  const otpOk = await verifySuperAdminOtp(String(formData.get("otp") ?? ""));
+  if (!otpOk) redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=failed`);
+
+  await deleteSubmission(submissionCode);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.deleted",
+    entityType: "submission",
+    entityId: submissionCode,
+    summary: `ลบใบสมัครประกวด ${submissionCode}`,
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  redirect("/admin/submissions");
+}
+
+async function requireSuperAdmin() {
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || session.role !== "super_admin") redirect("/admin");
+  return session;
+}
+
+function deleteOtpMessage(status?: string) {
+  if (status === "sent") return <div className="admin-login-alert success">ส่ง OTP ไปยังอีเมล Super Admin แล้ว กรุณากรอกรหัสเพื่อยืนยันการลบ</div>;
+  if (status === "wait") return <div className="admin-login-alert">เพิ่งส่ง OTP ไปไม่นาน กรุณารอสักครู่ก่อนส่งใหม่</div>;
+  if (status === "failed") return <div className="admin-login-alert">รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาลองใหม่</div>;
+  if (status === "mail_failed") return <div className="admin-login-alert">สร้าง OTP แล้ว แต่ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าอีเมล</div>;
+  return null;
 }
 
 function Detail({ label, value, wide = false }: { label: string; value?: string | null; wide?: boolean }) {

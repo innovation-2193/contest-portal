@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Mail, Pencil, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import {
   createAdminPasswordLink,
@@ -73,7 +74,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
             </form>
             <form action={deleteAccountAction}>
               <input type="hidden" name="id" value={account.id}/>
-              <button className="danger-btn" type="submit"><Trash2/>ลบแอดมิน</button>
+              <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบบัญชีแอดมินนี้?"><Trash2/>ลบแอดมิน</ConfirmSubmitButton>
             </form>
           </div>
         </section>

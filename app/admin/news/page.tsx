@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Image as ImageIcon, Newspaper, Search } from "lucide-react";
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { deleteNews, listNews } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
@@ -48,7 +49,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
             </div>
             <form action={deleteNewsAction}>
               <input type="hidden" name="id" value={item.id}/>
-              <button className="danger-btn" type="submit">ลบ</button>
+              <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton>
             </form>
           </article>;
         }) : <div className="participant-empty">ไม่พบข่าวประชาสัมพันธ์</div>}</div>

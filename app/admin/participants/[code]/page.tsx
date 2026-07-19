@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Download, Pencil, Trash2 } from "lucide-react";
 import { AdminPrintButton } from "../../../../components/AdminPrintButton";
+import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import { deleteParticipant, updateParticipant } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
@@ -81,7 +82,7 @@ export default async function AdminParticipantDetail({ params }: { params: Promi
           <div className="admin-detail-actions">
             <form action={deleteParticipantAction}>
               <input type="hidden" name="registrationCode" value={item.registration_code}/>
-              <button className="danger-btn" type="submit"><Trash2/>ลบผู้เข้าร่วมงาน</button>
+              <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข้อมูลผู้เข้าร่วมงานรายการนี้?"><Trash2/>ลบผู้เข้าร่วมงาน</ConfirmSubmitButton>
             </form>
           </div>
         </section>

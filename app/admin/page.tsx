@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import {
   adminClientKey,
   adminCookieSecure,
@@ -167,7 +168,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่</label>
         <button className="primary" type="submit">เพิ่มผู้ชนะ</button>
       </form>
-      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><button className="danger-btn" type="submit">ลบ</button></form></td></tr>)}</tbody></table></div>
+      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     <section className="admin-panel">
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
@@ -293,16 +294,19 @@ function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Aw
     <div className="assignment-list">
       {submissions.length ? submissions.map((submission) => <form className="assignment-row" action={assignSubmissionAction} key={submission.submission_code}>
         <input type="hidden" name="submissionCode" value={submission.submission_code}/>
-        <div>
+        <div className="assignment-copy">
           <b>{submission.submission_code}</b>
           <span>{submission.title_th}</span>
           <small>{submission.first_name} {submission.last_name} • {submission.review_total_score ?? "-"} คะแนน</small>
+          <em className={`status-pill ${submission.review_assigned_admin_email ? "registered" : "cancelled"}`}>{submission.review_assigned_admin_email || "ยังไม่ assign"}</em>
         </div>
-        <label>ผู้ตรวจ<select name="adminEmail" defaultValue={submission.review_assigned_admin_email ?? ""}>
-          <option value="">ยังไม่ assign</option>
-          {admins.map((admin) => <option key={admin.id} value={admin.email}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
-        </select></label>
-        <button className="secondary" type="submit">บันทึก</button>
+        <div className="assignment-controls">
+          <label>ผู้ตรวจ<select name="adminEmail" defaultValue={submission.review_assigned_admin_email ?? ""}>
+            <option value="">ยังไม่ assign</option>
+            {admins.map((admin) => <option key={admin.id} value={admin.email}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
+          </select></label>
+          <button className="secondary" type="submit"><UserCheck/>บันทึก</button>
+        </div>
       </form>) : <div className="participant-empty">ยังไม่มีใบสมัครประกวด</div>}
     </div>
     <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
@@ -311,7 +315,7 @@ function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Aw
 
 function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; total: number }) {
   return <section className="admin-panel">
-    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ PDF</a><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
     <div className="scoreboard-list">
       {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row" key={submission.submission_code}>
         <b>#{index + 1}</b>
@@ -390,7 +394,7 @@ function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>
       </div>
       <form action={deleteNewsAction}>
         <input type="hidden" name="id" value={item.id}/>
-        <button className="danger-btn" type="submit">ลบ</button>
+        <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton>
       </form>
     </article>;
   }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}<CardMore total={total} shown={news.length} href="/admin/news"/></div>;
@@ -697,6 +701,11 @@ function auditActionLabel(action: string) {
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
+  if (action === "submission.deleted") return "ลบใบสมัครประกวด";
+  if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
+  if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board PDF";
+  if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
+  if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
   return action;
 }
 

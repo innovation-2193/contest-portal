@@ -266,6 +266,21 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
   return result;
 }
 
+export async function deleteLocalSubmission(submissionCode: string) {
+  const work = async () => {
+    const store = await readStore();
+    const code = submissionCode.trim();
+    const before = store.submissions.length;
+    store.submissions = store.submissions.filter((item) => item.submission_code !== code);
+    if (store.submissions.length === before) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+    await writeStore(store);
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
 export async function updateLocalSubmissionReview(input: LocalSubmissionReviewInput) {
   const work = async () => {
     const store = await readStore();
