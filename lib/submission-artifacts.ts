@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import nodemailer from "nodemailer";
+import { publicBaseUrl } from "./public-url";
 
 type MailStatus = "sent" | "outbox" | "skipped" | "failed";
 
@@ -114,10 +115,6 @@ async function writeDevOutbox(record: SubmissionEmailRecord) {
     `${JSON.stringify({ to: record.email, subject: `ยืนยันการสมัครประกวดนวัตกรรม ${record.submission_code}`, createdAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
   );
-}
-
-function publicBaseUrl() {
-  return (process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3003").replace(/\/$/, "");
 }
 
 function escapeHtml(value: string) {

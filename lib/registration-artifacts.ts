@@ -12,6 +12,7 @@ import {
   pdfFontBold,
   pdfFontRegular,
 } from "./pdf-theme";
+import { publicBaseUrl } from "./public-url";
 
 type MailStatus = "sent" | "outbox" | "skipped" | "failed";
 
@@ -216,10 +217,6 @@ async function writeDevOutbox(record: RegistrationRecord, qr: Buffer, pdf: Buffe
     `${JSON.stringify({ to: record.email, subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`, createdAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
   );
-}
-
-function publicBaseUrl() {
-  return (process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3003").replace(/\/$/, "");
 }
 
 function statusLabel(status: string) {

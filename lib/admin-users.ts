@@ -8,6 +8,7 @@ import {
   type AdminRole,
 } from "./admin-auth";
 import { sendAdminMail } from "./admin-mail";
+import { publicBaseUrl } from "./public-url";
 
 export type AdminAccount = {
   id: string;
@@ -283,10 +284,6 @@ function isResetTokenActive(expiresAt: string | null | undefined, now = Date.now
   if (!expiresAt) return false;
   const expiresAtMs = new Date(expiresAt).getTime();
   return Number.isFinite(expiresAtMs) && expiresAtMs > now;
-}
-
-function publicBaseUrl() {
-  return (process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3003").replace(/\/$/, "");
 }
 
 function escapeHtml(value: string) {
