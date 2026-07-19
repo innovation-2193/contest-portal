@@ -422,7 +422,7 @@ async function verifyOtpAction(formData: FormData) {
     redirect("/admin?login=locked");
   }
 
-  const ok = await verifySuperAdminOtp(String(formData.get("otp") ?? ""));
+  const ok = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), { purpose: "login" });
   if (!ok) {
     const failure = await recordAdminLoginFailure(clientKey);
     await slowFailedAdminLogin();

@@ -299,7 +299,14 @@ async function requestDeleteSubmissionOtpAction(formData: FormData) {
   const session = await requireSuperAdmin();
   const requestHeaders = await headers();
   const submissionCode = text(formData, "submissionCode");
-  const result = await requestSuperAdminOtp();
+  const submission = await getSubmissionDetail(submissionCode);
+  if (!submission) redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=failed`);
+  const result = await requestSuperAdminOtp({
+    purpose: "delete_submission",
+    submissionCode,
+    titleTh: submission.title_th,
+    teamName: submission.submission_type === "team" ? submission.team_name : null,
+  });
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "submission.delete_otp_requested",
@@ -316,7 +323,10 @@ async function deleteSubmissionAction(formData: FormData) {
   const session = await requireSuperAdmin();
   const requestHeaders = await headers();
   const submissionCode = text(formData, "submissionCode");
-  const otpOk = await verifySuperAdminOtp(String(formData.get("otp") ?? ""));
+  const otpOk = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), {
+    purpose: "delete_submission",
+    submissionCode,
+  });
   if (!otpOk) redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=failed`);
 
   await deleteSubmission(submissionCode);

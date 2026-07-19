@@ -44,6 +44,18 @@ type SuperAdminOtpRecord = {
   expiresAt: number;
   sentAt: number;
   attempts: number;
+  purpose: SuperAdminOtpPurpose;
+  contextKey: string;
+};
+
+type SuperAdminOtpPurpose = "login" | "delete_submission";
+
+type SuperAdminOtpOptions = {
+  purpose?: SuperAdminOtpPurpose;
+  submissionCode?: string;
+  titleTh?: string;
+  teamName?: string | null;
+  now?: number;
 };
 
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -174,9 +186,12 @@ export async function slowFailedAdminLogin() {
   await new Promise((resolve) => setTimeout(resolve, 350 + Math.floor(Math.random() * 350)));
 }
 
-export async function requestSuperAdminOtp(now = Date.now()) {
+export async function requestSuperAdminOtp(options: SuperAdminOtpOptions = {}) {
+  const now = options.now ?? Date.now();
+  const purpose = options.purpose ?? "login";
+  const contextKey = otpContextKey({ purpose, submissionCode: options.submissionCode });
   const current = await readSuperAdminOtp();
-  if (current && now - current.sentAt < otpResendCooldownMs) {
+  if (current && current.purpose === purpose && current.contextKey === contextKey && now - current.sentAt < otpResendCooldownMs) {
     return {
       ok: false,
       retryAfterSeconds: Math.ceil((otpResendCooldownMs - (now - current.sentAt)) / 1000),
@@ -190,25 +205,34 @@ export async function requestSuperAdminOtp(now = Date.now()) {
     expiresAt: now + otpMaxAgeMs,
     sentAt: now,
     attempts: 0,
+    purpose,
+    contextKey,
   };
   await writeSuperAdminOtp(record);
+  const message = superAdminOtpMessage(code, options);
   const mail = await sendAdminMail({
     to: [...superAdminEmails],
-    subject: `รหัส OTP สำหรับ Super Admin: ${code}`,
-    text: `รหัส OTP สำหรับเข้าสู่ระบบ Super Admin คือ ${code}\nรหัสนี้หมดอายุภายใน 5 นาที`,
-    html: `<p>รหัส OTP สำหรับเข้าสู่ระบบ Super Admin คือ</p><h1 style="letter-spacing:8px">${code}</h1><p>รหัสนี้หมดอายุภายใน 5 นาที</p>`,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
     outboxKey: `super-admin-otp-${new Date(now).toISOString().replace(/[:.]/g, "-")}`,
   });
   return { ok: true, expiresAt: record.expiresAt, mailStatus: mail.status };
 }
 
-export async function verifySuperAdminOtp(input: string, now = Date.now()) {
+export async function verifySuperAdminOtp(input: string, options: SuperAdminOtpOptions = {}) {
+  const now = options.now ?? Date.now();
+  const expectedPurpose = options.purpose ?? "login";
+  const expectedContextKey = otpContextKey({ purpose: expectedPurpose, submissionCode: options.submissionCode });
   const code = normalizeOtpCode(input);
   if (!/^\d{6}$/.test(code)) return false;
   return enqueueAttemptWrite(async () => {
     const record = await readSuperAdminOtp();
     if (!record || record.expiresAt < now || record.attempts >= 5) {
       await deleteSuperAdminOtp();
+      return false;
+    }
+    if (record.purpose !== expectedPurpose || record.contextKey !== expectedContextKey) {
       return false;
     }
     if (safeEqual(record.codeHash, adminSecureHash(code, "super-admin-otp"))) {
@@ -225,6 +249,56 @@ export function normalizeOtpCode(input: string) {
     .trim()
     .replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))
     .replace(/\D/g, "");
+}
+
+function otpContextKey(options: Pick<SuperAdminOtpOptions, "purpose" | "submissionCode">) {
+  if (options.purpose === "delete_submission") return `delete_submission:${options.submissionCode?.trim() ?? ""}`;
+  return "login";
+}
+
+function superAdminOtpMessage(code: string, options: SuperAdminOtpOptions) {
+  if (options.purpose === "delete_submission") {
+    const submissionCode = options.submissionCode?.trim() || "-";
+    const titleTh = options.titleTh?.trim() || "-";
+    const teamName = options.teamName?.trim() || "ส่งเดี่ยว / ไม่มีชื่อทีม";
+    return {
+      subject: `OTP ยืนยันลบใบสมัครประกวด ${submissionCode}`,
+      text: [
+        "ยืนยันที่จะลบข้อมูลการสมัครประกวดรายการนี้",
+        `รหัสรายการ: ${submissionCode}`,
+        `ชื่อผลงาน: ${titleTh}`,
+        `ชื่อทีม: ${teamName}`,
+        "",
+        `รหัส OTP: ${code}`,
+        "รหัสนี้หมดอายุภายใน 5 นาที",
+      ].join("\n"),
+      html: [
+        "<p>ยืนยันที่จะลบข้อมูลการสมัครประกวดรายการนี้</p>",
+        "<ul>",
+        `<li><strong>รหัสรายการ:</strong> ${escapeHtml(submissionCode)}</li>`,
+        `<li><strong>ชื่อผลงาน:</strong> ${escapeHtml(titleTh)}</li>`,
+        `<li><strong>ชื่อทีม:</strong> ${escapeHtml(teamName)}</li>`,
+        "</ul>",
+        `<p>รหัส OTP คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1>`,
+        "<p>รหัสนี้หมดอายุภายใน 5 นาที</p>",
+      ].join(""),
+    };
+  }
+
+  return {
+    subject: `รหัส OTP สำหรับ Super Admin: ${code}`,
+    text: `รหัส OTP สำหรับเข้าสู่ระบบ Super Admin คือ ${code}\nรหัสนี้หมดอายุภายใน 5 นาที`,
+    html: `<p>รหัส OTP สำหรับเข้าสู่ระบบ Super Admin คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1><p>รหัสนี้หมดอายุภายใน 5 นาที</p>`,
+  };
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function createAdminPasswordHash(password: string, salt = randomBytes(18).toString("base64url")) {

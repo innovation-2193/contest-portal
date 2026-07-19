@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Download, FileText, Plus, ScrollText, Trash2, UploadCloud, X } from "lucide-react";
 import { contestAgreement, privacyConsent } from "./consentContent";
@@ -104,6 +105,12 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
     setViewedConsent((current) => ({ ...current, [key]: true }));
     setOpenConsent(null);
   }
+
+  useEffect(() => {
+    if (!openConsent) return;
+    document.body.classList.add("consent-modal-open");
+    return () => document.body.classList.remove("consent-modal-open");
+  }, [openConsent]);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -329,16 +336,19 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
       </div>}
       <button className="primary submit" disabled={busy}>{busy ? "กำลังส่งข้อมูล..." : "ส่งผลงานเข้าประกวด"}</button>
 
-      {openConsent && (
+      {openConsent && typeof document !== "undefined" && createPortal(
         <div className="consent-modal" role="dialog" aria-modal="true" aria-labelledby="consent-modal-title">
           <div className="consent-modal-panel">
             <button className="modal-close" type="button" aria-label="ปิด" onClick={() => setOpenConsent(null)}><X /></button>
             <ScrollText />
             <h3 id="consent-modal-title">{modalContent[openConsent].title}</h3>
-            {modalContent[openConsent].body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            <div className="consent-modal-scroll">
+              {modalContent[openConsent].body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </div>
             <button className="primary" type="button" onClick={() => confirmConsent(openConsent)}>รับทราบและเปิดให้ยินยอม</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </form>
   );

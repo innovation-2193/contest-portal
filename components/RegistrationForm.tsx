@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MailCheck, ScrollText, X } from "lucide-react";
 import { privacyConsent } from "./consentContent";
@@ -78,6 +79,12 @@ export function RegistrationForm() {
     setOpenConsent(false);
   }
 
+  useEffect(() => {
+    if (!openConsent) return;
+    document.body.classList.add("consent-modal-open");
+    return () => document.body.classList.remove("consent-modal-open");
+  }, [openConsent]);
+
   return (
     <form className="form-card registration-form" onSubmit={submit}>
       <div className="form-heading">
@@ -123,16 +130,19 @@ export function RegistrationForm() {
       {error && <p className="error">{error}</p>}
       <button className="primary submit" disabled={busy}>{busy ? "กำลังบันทึก..." : "ยืนยันการลงทะเบียน"}</button>
 
-      {openConsent && (
+      {openConsent && typeof document !== "undefined" && createPortal(
         <div className="consent-modal" role="dialog" aria-modal="true" aria-labelledby="registration-consent-title">
           <div className="consent-modal-panel">
             <button className="modal-close" type="button" aria-label="ปิด" onClick={() => setOpenConsent(false)}><X /></button>
             <ScrollText />
             <h3 id="registration-consent-title">{privacyConsent.title}</h3>
-            {privacyConsent.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            <div className="consent-modal-scroll">
+              {privacyConsent.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </div>
             <button className="primary" type="button" onClick={acceptConsent}>รับทราบและเปิดให้ยินยอม</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </form>
   );
