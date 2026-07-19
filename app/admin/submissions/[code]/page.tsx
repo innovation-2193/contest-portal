@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, ExternalLink, FileText, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { ScoreSubmitConfirmButton } from "../../../../components/ScoreSubmitConfirmButton";
 import { cookieName, getAdminSession, requestSuperAdminOtp, verifySuperAdminOtp } from "../../../../lib/admin-auth";
 import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
@@ -157,7 +158,17 @@ function ScorePanel({ item, isSuperAdmin }: { item: AdminSubmissionDetail; isSup
         {paperScreeningCriteria.map((criterion) => <label key={criterion.name}>{criterion.label}<small>เต็ม {criterion.max} คะแนน</small><input type="number" name={criterion.name} min={0} max={criterion.max} step={1} defaultValue={String((item[criterion.field] as number | null) ?? 0)} disabled={locked} required/></label>)}
       </div>
       <label>หมายเหตุ<textarea name="note" maxLength={1000} defaultValue={item.review_note ?? ""} disabled={locked} placeholder="บันทึกเหตุผลหรือข้อสังเกตสำหรับ Super Admin"/></label>
-      {locked ? <p className="admin-print-note">คะแนนนี้ถูกส่งแล้ว Admin ไม่สามารถแก้ไขได้ หากต้องแก้ไขให้ Super Admin ดำเนินการ</p> : <button className="primary" type="submit"><Trophy/>{hasScore ? "บันทึกคะแนนใหม่" : "ส่งคะแนนรอบแรก"}</button>}
+      {locked ? <p className="admin-print-note">คะแนนนี้ถูกส่งแล้ว Admin ไม่สามารถแก้ไขได้ หากต้องแก้ไขให้ Super Admin ดำเนินการ</p> : (
+        <ScoreSubmitConfirmButton
+          className="primary"
+          confirmTitle="ยืนยันว่าจะบันทึกคะแนน"
+          confirmMessage={isSuperAdmin
+            ? "การบันทึกนี้จะอัปเดตคะแนนของใบสมัครรายการนี้ กรุณาตรวจสอบคะแนนและหมายเหตุให้ถูกต้องก่อนยืนยัน"
+            : "เนื่องจากบันทึกแล้ว Admin จะไม่สามารถแก้ไขคะแนนรายการนี้ได้อีก กรุณาตรวจสอบคะแนนและหมายเหตุให้ถูกต้องก่อนยืนยัน"}
+        >
+          <Trophy/>{hasScore ? "บันทึกคะแนนใหม่" : "ส่งคะแนนรอบแรก"}
+        </ScoreSubmitConfirmButton>
+      )}
     </form>
   </div>;
 }
