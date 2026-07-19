@@ -23,6 +23,17 @@ export type LocalSubmissionRecord = {
   summary: string;
   video_url: string;
   status: string;
+  review_assigned_admin_email?: string | null;
+  review_assigned_at?: string | null;
+  review_scored_by_email?: string | null;
+  review_rules_score?: number | null;
+  review_problem_score?: number | null;
+  review_innovation_score?: number | null;
+  review_evidence_score?: number | null;
+  review_impact_score?: number | null;
+  review_total_score?: number | null;
+  review_note?: string | null;
+  review_submitted_at?: string | null;
   submitted_at: string;
   email: string;
   title: string;
@@ -54,6 +65,20 @@ export type LocalSubmissionUpdateInput = {
   videoUrl: string;
   status: string;
   members: LocalSubmissionMember[];
+};
+
+export type LocalSubmissionReviewInput = {
+  submissionCode: string;
+  assignedAdminEmail?: string | null;
+  scoredByEmail?: string | null;
+  rulesScore?: number | null;
+  problemScore?: number | null;
+  innovationScore?: number | null;
+  evidenceScore?: number | null;
+  impactScore?: number | null;
+  totalScore?: number | null;
+  note?: string | null;
+  submittedAt?: string | null;
 };
 
 type LocalSubmissionInput = {
@@ -145,6 +170,17 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       summary: data.summary,
       video_url: data.videoUrl ?? "",
       status: "submitted",
+      review_assigned_admin_email: null,
+      review_assigned_at: null,
+      review_scored_by_email: null,
+      review_rules_score: null,
+      review_problem_score: null,
+      review_innovation_score: null,
+      review_evidence_score: null,
+      review_impact_score: null,
+      review_total_score: null,
+      review_note: null,
+      review_submitted_at: null,
       submitted_at: new Date().toISOString(),
       email: primary.email,
       title: primary.title,
@@ -223,6 +259,37 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
     store.submissions[index] = record;
     await writeStore(store);
     return record;
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
+export async function updateLocalSubmissionReview(input: LocalSubmissionReviewInput) {
+  const work = async () => {
+    const store = await readStore();
+    const code = input.submissionCode.trim();
+    const index = store.submissions.findIndex((item) => item.submission_code === code);
+    if (index < 0) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+
+    const current = store.submissions[index];
+    store.submissions[index] = {
+      ...current,
+      review_assigned_admin_email: input.assignedAdminEmail !== undefined ? input.assignedAdminEmail : current.review_assigned_admin_email ?? null,
+      review_assigned_at: input.assignedAdminEmail !== undefined ? new Date().toISOString() : current.review_assigned_at ?? null,
+      review_scored_by_email: input.scoredByEmail !== undefined ? input.scoredByEmail : current.review_scored_by_email ?? null,
+      review_rules_score: input.rulesScore !== undefined ? input.rulesScore : current.review_rules_score ?? null,
+      review_problem_score: input.problemScore !== undefined ? input.problemScore : current.review_problem_score ?? null,
+      review_innovation_score: input.innovationScore !== undefined ? input.innovationScore : current.review_innovation_score ?? null,
+      review_evidence_score: input.evidenceScore !== undefined ? input.evidenceScore : current.review_evidence_score ?? null,
+      review_impact_score: input.impactScore !== undefined ? input.impactScore : current.review_impact_score ?? null,
+      review_total_score: input.totalScore !== undefined ? input.totalScore : current.review_total_score ?? null,
+      review_note: input.note !== undefined ? input.note : current.review_note ?? null,
+      review_submitted_at: input.submittedAt !== undefined ? input.submittedAt : current.review_submitted_at ?? null,
+    };
+    await writeStore(store);
+    return store.submissions[index];
   };
 
   const result = writeQueue.then(work, work);

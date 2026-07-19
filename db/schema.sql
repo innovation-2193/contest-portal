@@ -44,12 +44,25 @@ CREATE TABLE IF NOT EXISTS submissions (
   summary VARCHAR(500) NOT NULL,
   video_url VARCHAR(1000) NULL,
   status ENUM('draft','submitted','screening','qualified','rejected') NOT NULL DEFAULT 'submitted',
+  review_assigned_admin_email VARCHAR(255) NULL,
+  review_assigned_at VARCHAR(40) NULL,
+  review_scored_by_email VARCHAR(255) NULL,
+  review_rules_score TINYINT UNSIGNED NULL,
+  review_problem_score TINYINT UNSIGNED NULL,
+  review_innovation_score TINYINT UNSIGNED NULL,
+  review_evidence_score TINYINT UNSIGNED NULL,
+  review_impact_score TINYINT UNSIGNED NULL,
+  review_total_score SMALLINT UNSIGNED NULL,
+  review_note VARCHAR(1000) NULL,
+  review_submitted_at VARCHAR(40) NULL,
   consent_rules BOOLEAN NOT NULL,
   consent_pdpa BOOLEAN NOT NULL,
   submitted_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_submission_user FOREIGN KEY (user_id) REFERENCES users(id),
   INDEX idx_submission_user (user_id),
-  INDEX idx_submission_status (status)
+  INDEX idx_submission_status (status),
+  INDEX idx_submission_review_assignee (review_assigned_admin_email),
+  INDEX idx_submission_review_total (review_total_score)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS submission_members (

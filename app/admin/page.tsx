@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserPlus, Users } from "lucide-react";
+import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import {
   adminClientKey,
   adminCookieSecure,
@@ -29,6 +29,7 @@ import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEve
 import {
   addWinner,
   addNews,
+  assignSubmissionReviewer,
   deleteWinner,
   deleteNews,
   getAdminSettings,
@@ -50,6 +51,7 @@ const awardLabels: Record<string, string> = {
 };
 
 type ParticipantSort = "newest" | "oldest";
+const dashboardLimit = 10;
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
   const cookieStore = await cookies();
@@ -66,7 +68,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
   const adminSearch = (params.adminSearch ?? "").trim();
-  const filteredParticipants = sortParticipants(filterRecords(participants, participantSearch, (item) => [
+  const filteredParticipantsAll = sortParticipants(filterRecords(participants, participantSearch, (item) => [
     item.registration_code,
     item.email,
     item.citizen_id,
@@ -79,7 +81,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.bureau,
     item.status,
   ]), participantSort);
-  const filteredSubmissions = filterRecords(submissions, submissionSearch, (item) => [
+  const filteredSubmissionsAll = filterRecords(submissions, submissionSearch, (item) => [
     item.submission_code,
     item.email,
     item.title_th,
@@ -97,6 +99,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.disabled ? "ปิดใช้งาน disabled" : "ใช้งาน active",
     item.passwordHash ? "ตั้งรหัสผ่านแล้ว password set" : "รอตั้งรหัสผ่าน pending",
   ]);
+  const filteredParticipants = filteredParticipantsAll.slice(0, dashboardLimit);
+  const filteredSubmissions = filteredSubmissionsAll.slice(0, dashboardLimit);
+  const visibleNews = news.slice(0, dashboardLimit);
+  const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
+  const scoreBoard = submissions
+    .filter((item) => item.review_total_score !== null && item.review_total_score !== undefined)
+    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at));
 
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
@@ -130,9 +139,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </article>}
       <aside className="admin-panel stats-panel"><span className="eyebrow">ภาพรวมระบบ</span><div className="stat-panel"><Users/><b>{participants.length}</b><span>ผู้เข้าร่วมงาน</span></div><div className="stat-panel"><Settings/><b>{submissions.length}</b><span>ผู้สมัครประกวด</span></div><div className="stat-panel"><Newspaper/><b>{news.length}</b><span>ข่าวประชาสัมพันธ์</span></div><div className="stat-panel"><Trophy/><b>{winners.length}</b><span>ผู้ชนะที่บันทึก</span></div></aside>
     </section>
-    {isSuperAdmin && <AdminManagementPanel admins={filteredAdminAccounts} search={adminSearch}/>}
+    {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
-    <section className="admin-panel">
+    {isSuperAdmin && <section className="admin-panel">
       <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
         <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
@@ -143,8 +152,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่เมื่อถึงวันที่กำหนด</label>
         <button className="primary" type="submit"><Megaphone/>เพิ่มข่าวประชาสัมพันธ์</button>
       </form>
-      <NewsTable news={news}/>
-    </section>
+      <NewsTable news={visibleNews} total={news.length}/>
+    </section>}
+    {!isSuperAdmin && <section className="admin-panel admin-notice-panel"><header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>การเพิ่ม/ลบข่าวประชาสัมพันธ์ถูกจำกัดให้ Super Admin เท่านั้น</p></div></header></section>}
+    {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length}/>}
+    {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>ใช้ “ผ่านเข้ารอบที่ 2” สำหรับรอบคัดเลือก และใช้รางวัลที่ 1-3/ชมเชย สำหรับรอบประกาศผลรางวัล</p></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
@@ -161,11 +173,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
       <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
+      <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href="/admin/participants"/>
     </section>
     <section className="admin-panel">
       <header><Settings/><div><h2>ผู้สมัครประกวดนวัตกรรม</h2><p>ดูรายละเอียดใบสมัคร ข้อมูลที่กรอก เอกสารแนบ และค้นหารายการผลงาน</p></div></header>
       <SearchBox name="submissionSearch" value={submissionSearch} label="ค้นหาใบสมัครประกวด" placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/>
       <SubmissionsTable submissions={filteredSubmissions}/>
+      <CardMore total={filteredSubmissionsAll.length} shown={filteredSubmissions.length} href="/admin/submissions"/>
     </section>
   </AdminShell>;
 }
@@ -193,7 +207,7 @@ async function loadAdminPageData(session: AdminSession) {
   const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
-    withAdminFallback("submissions", listSubmissions(), []),
+    withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
     withAdminFallback("winners", listWinners(), []),
     withAdminFallback("news", listNews(), []),
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
@@ -259,7 +273,7 @@ function LoginPanel({ message }: { message: string }) {
   </section>;
 }
 
-function AdminManagementPanel({ admins, search }: { admins: Awaited<ReturnType<typeof listAdminAccounts>>; search: string }) {
+function AdminManagementPanel({ admins, search, total }: { admins: Awaited<ReturnType<typeof listAdminAccounts>>; search: string; total: number }) {
   return <section className="admin-panel">
     <header><UserPlus/><div><h2>จัดการแอดมิน</h2><p>ค้นหาแอดมิน ดูรายละเอียด แล้วเข้าไปแก้ไขข้อมูล ส่งลิงก์รีเซ็ต หรือลบรายการในหน้ารายละเอียด</p></div></header>
     <form action={addAdminAction} className="admin-form admin-user-form">
@@ -269,6 +283,44 @@ function AdminManagementPanel({ admins, search }: { admins: Awaited<ReturnType<t
     </form>
     <SearchBox name="adminSearch" value={search} label="ค้นหาแอดมิน" placeholder="ชื่อ อีเมล สถานะ หรือรหัสผ่าน"/>
     <AdminAccountsTable admins={admins}/>
+    <CardMore total={total} shown={admins.length} href="/admin/admins"/>
+  </section>;
+}
+
+function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; admins: Awaited<ReturnType<typeof listAdminAccounts>>; total: number }) {
+  return <section className="admin-panel">
+    <header className="admin-section-head"><UserCheck/><div><h2>แจกงานตรวจรอบแรก</h2><p>Super Admin เลือก Admin ผู้รับผิดชอบตรวจ Paper Screening ในแต่ละใบสมัคร</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <div className="assignment-list">
+      {submissions.length ? submissions.map((submission) => <form className="assignment-row" action={assignSubmissionAction} key={submission.submission_code}>
+        <input type="hidden" name="submissionCode" value={submission.submission_code}/>
+        <div>
+          <b>{submission.submission_code}</b>
+          <span>{submission.title_th}</span>
+          <small>{submission.first_name} {submission.last_name} • {submission.review_total_score ?? "-"} คะแนน</small>
+        </div>
+        <label>ผู้ตรวจ<select name="adminEmail" defaultValue={submission.review_assigned_admin_email ?? ""}>
+          <option value="">ยังไม่ assign</option>
+          {admins.map((admin) => <option key={admin.id} value={admin.email}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
+        </select></label>
+        <button className="secondary" type="submit">บันทึก</button>
+      </form>) : <div className="participant-empty">ยังไม่มีใบสมัครประกวด</div>}
+    </div>
+    <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
+  </section>;
+}
+
+function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; total: number }) {
+  return <section className="admin-panel">
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <div className="scoreboard-list">
+      {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row" key={submission.submission_code}>
+        <b>#{index + 1}</b>
+        <div><strong>{submission.title_th}</strong><small>{submission.submission_code} • {submission.first_name} {submission.last_name}</small></div>
+        <span>{submission.review_total_score}/100</span>
+        <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(submission.submission_code)}`}><Eye/>ดูคะแนน</Link>
+      </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
+    </div>
+    <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
   </section>;
 }
 
@@ -325,7 +377,7 @@ function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typ
   return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ประเภท</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{submissions.length?submissions.map(item=><tr key={item.submission_code}><td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td><td>{item.title_th}</td><td>{item.submission_type === "team" ? `ทีม ${item.team_name ?? ""}` : "เดี่ยว"}</td><td>{item.first_name} {item.last_name}<small>{item.email}</small></td><td>{item.position}</td><td>{item.division}</td><td>{item.bureau}</td><td>{item.status}</td><td><div className="table-action-stack"><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link><a className="primary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a></div></td></tr>):<tr><td colSpan={9}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
 }
 
-function NewsTable({ news }: { news: Awaited<ReturnType<typeof listNews>> }) {
+function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>; total: number }) {
   return <div className="admin-news-list">{news.length ? news.map((item) => {
     const isLive = item.published && (new Date(item.publishAt).getTime() <= Date.now());
     return <article className="admin-news-card" key={item.id}>
@@ -341,7 +393,12 @@ function NewsTable({ news }: { news: Awaited<ReturnType<typeof listNews>> }) {
         <button className="danger-btn" type="submit">ลบ</button>
       </form>
     </article>;
-  }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}</div>;
+  }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}<CardMore total={total} shown={news.length} href="/admin/news"/></div>;
+}
+
+function CardMore({ total, shown, href }: { total: number; shown: number; href: string }) {
+  if (total <= shown) return null;
+  return <div className="card-more"><span>แสดง {shown.toLocaleString("th-TH")} จาก {total.toLocaleString("th-TH")} รายการ</span><Link className="secondary" href={href}><Eye/>ดูทั้งหมด</Link></div>;
 }
 
 async function requestOtpAction() {
@@ -500,7 +557,7 @@ async function deleteWinnerAction(formData: FormData) {
 
 async function addNewsAction(formData: FormData) {
   "use server";
-  const session = await requireAdmin();
+  const session = await requireSuperAdmin();
   const requestHeaders = await headers();
   const title = String(formData.get("title") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
@@ -529,7 +586,7 @@ async function addNewsAction(formData: FormData) {
 
 async function deleteNewsAction(formData: FormData) {
   "use server";
-  const session = await requireAdmin();
+  const session = await requireSuperAdmin();
   const requestHeaders = await headers();
   const id = String(formData.get("id") ?? "");
   await deleteNews(id);
@@ -542,6 +599,26 @@ async function deleteNewsAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
+  redirect("/admin");
+}
+
+async function assignSubmissionAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const submissionCode = String(formData.get("submissionCode") ?? "").trim();
+  const adminEmail = String(formData.get("adminEmail") ?? "").trim().toLowerCase() || null;
+  await assignSubmissionReviewer(submissionCode, adminEmail);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.review.assigned",
+    entityType: "submission",
+    entityId: submissionCode,
+    summary: adminEmail ? `assign ใบสมัคร ${submissionCode} ให้ ${adminEmail}` : `ยกเลิก assign ใบสมัคร ${submissionCode}`,
+    payload: { adminEmail },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect("/admin");
 }
 

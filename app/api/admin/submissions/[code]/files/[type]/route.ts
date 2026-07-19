@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../../../../lib/admin-auth";
-import { getSubmissionFile } from "../../../../../../../lib/admin-store";
+import { getSubmissionDetail, getSubmissionFile } from "../../../../../../../lib/admin-store";
 import { readSubmissionPdfFile, submissionDocumentTypes } from "../../../../../../../lib/submission-file-reader";
 
 export const runtime = "nodejs";
@@ -23,6 +23,12 @@ export async function GET(
   const { code, type } = await params;
   if (!documentTypes.has(type)) {
     return NextResponse.json({ error: "invalid document type" }, { status: 400 });
+  }
+
+  const submission = await getSubmissionDetail(decodeURIComponent(code));
+  if (!submission) return NextResponse.json({ error: "submission not found" }, { status: 404 });
+  if (session.role !== "super_admin" && submission.review_assigned_admin_email?.toLowerCase() !== session.email.toLowerCase()) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const file = await getSubmissionFile(code, type);

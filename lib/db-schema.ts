@@ -39,6 +39,17 @@ async function ensureSubmissionColumns() {
   if (await tableExists("submissions")) {
     await ensureColumn("submissions", "title_en", "ALTER TABLE submissions ADD COLUMN title_en VARCHAR(255) NULL AFTER title_th");
     await ensureColumn("submissions", "video_url", "ALTER TABLE submissions ADD COLUMN video_url VARCHAR(1000) NULL AFTER summary");
+    await ensureColumn("submissions", "review_assigned_admin_email", "ALTER TABLE submissions ADD COLUMN review_assigned_admin_email VARCHAR(255) NULL AFTER status");
+    await ensureColumn("submissions", "review_assigned_at", "ALTER TABLE submissions ADD COLUMN review_assigned_at VARCHAR(40) NULL AFTER review_assigned_admin_email");
+    await ensureColumn("submissions", "review_scored_by_email", "ALTER TABLE submissions ADD COLUMN review_scored_by_email VARCHAR(255) NULL AFTER review_assigned_at");
+    await ensureColumn("submissions", "review_rules_score", "ALTER TABLE submissions ADD COLUMN review_rules_score TINYINT UNSIGNED NULL AFTER review_scored_by_email");
+    await ensureColumn("submissions", "review_problem_score", "ALTER TABLE submissions ADD COLUMN review_problem_score TINYINT UNSIGNED NULL AFTER review_rules_score");
+    await ensureColumn("submissions", "review_innovation_score", "ALTER TABLE submissions ADD COLUMN review_innovation_score TINYINT UNSIGNED NULL AFTER review_problem_score");
+    await ensureColumn("submissions", "review_evidence_score", "ALTER TABLE submissions ADD COLUMN review_evidence_score TINYINT UNSIGNED NULL AFTER review_innovation_score");
+    await ensureColumn("submissions", "review_impact_score", "ALTER TABLE submissions ADD COLUMN review_impact_score TINYINT UNSIGNED NULL AFTER review_evidence_score");
+    await ensureColumn("submissions", "review_total_score", "ALTER TABLE submissions ADD COLUMN review_total_score SMALLINT UNSIGNED NULL AFTER review_impact_score");
+    await ensureColumn("submissions", "review_note", "ALTER TABLE submissions ADD COLUMN review_note VARCHAR(1000) NULL AFTER review_total_score");
+    await ensureColumn("submissions", "review_submitted_at", "ALTER TABLE submissions ADD COLUMN review_submitted_at VARCHAR(40) NULL AFTER review_note");
   }
 
   if (!await tableExists("submission_members")) return;

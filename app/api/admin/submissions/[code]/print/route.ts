@@ -40,6 +40,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const { code } = await params;
   const submission = await getSubmissionDetail(decodeURIComponent(code));
   if (!submission) return NextResponse.json({ error: "submission not found" }, { status: 404 });
+  if (session.role !== "super_admin" && submission.review_assigned_admin_email?.toLowerCase() !== session.email.toLowerCase()) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
 
   try {
     await recordAuditEvent({

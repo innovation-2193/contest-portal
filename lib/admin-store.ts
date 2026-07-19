@@ -18,6 +18,7 @@ import {
   findLocalSubmissionByCode,
   listLocalSubmissions,
   updateLocalSubmission,
+  updateLocalSubmissionReview,
   type LocalSubmissionRecord,
 } from "./local-submissions";
 
@@ -70,6 +71,17 @@ export type SubmissionListItem = {
   team_name: string | null;
   title_th: string;
   status: string;
+  review_assigned_admin_email: string | null;
+  review_assigned_at: string | null;
+  review_scored_by_email: string | null;
+  review_rules_score: number | null;
+  review_problem_score: number | null;
+  review_innovation_score: number | null;
+  review_evidence_score: number | null;
+  review_impact_score: number | null;
+  review_total_score: number | null;
+  review_note: string | null;
+  review_submitted_at: string | null;
   submitted_at: string;
   email: string;
   first_name: string;
@@ -125,6 +137,18 @@ export type SubmissionUpdateInput = {
   videoUrl: string;
   status: "draft" | "submitted" | "screening" | "qualified" | "rejected";
   members: Array<Omit<SubmissionMemberDetail, "member_order">>;
+};
+
+export type SubmissionScoreInput = {
+  submissionCode: string;
+  actorEmail: string;
+  actorRole: "admin" | "super_admin";
+  rulesScore: number;
+  problemScore: number;
+  innovationScore: number;
+  evidenceScore: number;
+  impactScore: number;
+  note: string;
 };
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
@@ -250,17 +274,26 @@ export async function checkInParticipant(registrationCode: string) {
   }
 }
 
-export async function listSubmissions() {
+export async function listSubmissions(options?: { assignedAdminEmail?: string | null }): Promise<SubmissionListItem[]> {
   try {
     await ensureDatabaseSchema();
+    const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      "SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 ORDER BY s.submitted_at DESC LIMIT 500",
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
+       FROM submissions s
+       JOIN users u ON u.id=s.user_id
+       JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
+       ${assignedEmail ? "WHERE LOWER(s.review_assigned_admin_email)=?" : ""}
+       ORDER BY s.submitted_at DESC LIMIT 500`,
+      assignedEmail ? [assignedEmail] : [],
     );
     return rows as SubmissionListItem[];
   } catch (error) {
-    if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat();
+    if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat(options);
     if (!isDatabaseUnavailable(error)) throw error;
-    return listLocalSubmissions();
+    const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
+    const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
+    return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
   }
 }
 
@@ -269,7 +302,8 @@ export async function getSubmissionDetail(submissionCode: string) {
   try {
     await ensureDatabaseSchema();
     const [submissionRows] = await db.execute(
-      "SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.submitted_at,u.email FROM submissions s JOIN users u ON u.id=s.user_id WHERE s.submission_code=? LIMIT 1",
+      `SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email
+       FROM submissions s JOIN users u ON u.id=s.user_id WHERE s.submission_code=? LIMIT 1`,
       [code],
     );
     const submission = (submissionRows as Array<{
@@ -282,6 +316,17 @@ export async function getSubmissionDetail(submissionCode: string) {
       summary: string;
       video_url: string | null;
       status: string;
+      review_assigned_admin_email: string | null;
+      review_assigned_at: string | null;
+      review_scored_by_email: string | null;
+      review_rules_score: number | null;
+      review_problem_score: number | null;
+      review_innovation_score: number | null;
+      review_evidence_score: number | null;
+      review_impact_score: number | null;
+      review_total_score: number | null;
+      review_note: string | null;
+      review_submitted_at: string | null;
       submitted_at: string;
       email: string;
     }>)[0];
@@ -411,6 +456,90 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
       videoUrl: input.videoUrl,
       status: input.status,
       members: input.members,
+    });
+  }
+}
+
+export async function assignSubmissionReviewer(submissionCode: string, adminEmail: string | null) {
+  const code = submissionCode.trim();
+  const email = adminEmail?.trim().toLowerCase() || null;
+  const now = new Date().toISOString();
+  try {
+    await ensureDatabaseSchema();
+    await db.execute(
+      "UPDATE submissions SET review_assigned_admin_email=?,review_assigned_at=?,status=CASE WHEN status='submitted' THEN 'screening' ELSE status END WHERE submission_code=?",
+      [email, email ? now : null, code],
+    );
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    await updateLocalSubmissionReview({
+      submissionCode: code,
+      assignedAdminEmail: email,
+    });
+  }
+}
+
+export async function saveSubmissionScore(input: SubmissionScoreInput) {
+  const code = input.submissionCode.trim();
+  const actorEmail = input.actorEmail.trim().toLowerCase();
+  const totalScore = input.rulesScore + input.problemScore + input.innovationScore + input.evidenceScore + input.impactScore;
+  validateScoreInput(input, totalScore);
+  const submittedAt = new Date().toISOString();
+
+  try {
+    await ensureDatabaseSchema();
+    await transaction(async (connection) => {
+      const [rows] = await connection.execute(
+        "SELECT review_assigned_admin_email,review_submitted_at FROM submissions WHERE submission_code=? LIMIT 1",
+        [code],
+      );
+      const current = (rows as Array<{ review_assigned_admin_email: string | null; review_submitted_at: string | null }>)[0];
+      if (!current) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+      if (input.actorRole !== "super_admin" && current.review_assigned_admin_email?.toLowerCase() !== actorEmail) {
+        throw Object.assign(new Error("not assigned to this admin"), { code: "FORBIDDEN" });
+      }
+      if (input.actorRole !== "super_admin" && current.review_submitted_at) {
+        throw Object.assign(new Error("score already submitted"), { code: "LOCKED" });
+      }
+      await connection.execute(
+        `UPDATE submissions
+         SET review_scored_by_email=?,review_rules_score=?,review_problem_score=?,review_innovation_score=?,review_evidence_score=?,review_impact_score=?,review_total_score=?,review_note=?,review_submitted_at=?,status=CASE WHEN status IN ('submitted','screening') THEN 'screening' ELSE status END
+         WHERE submission_code=?`,
+        [
+          actorEmail,
+          input.rulesScore,
+          input.problemScore,
+          input.innovationScore,
+          input.evidenceScore,
+          input.impactScore,
+          totalScore,
+          input.note.trim() || null,
+          submittedAt,
+          code,
+        ],
+      );
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const local = await findLocalSubmissionByCode(code);
+    if (!local) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+    if (input.actorRole !== "super_admin" && local.review_assigned_admin_email?.toLowerCase() !== actorEmail) {
+      throw Object.assign(new Error("not assigned to this admin"), { code: "FORBIDDEN" });
+    }
+    if (input.actorRole !== "super_admin" && local.review_submitted_at) {
+      throw Object.assign(new Error("score already submitted"), { code: "LOCKED" });
+    }
+    await updateLocalSubmissionReview({
+      submissionCode: code,
+      scoredByEmail: actorEmail,
+      rulesScore: input.rulesScore,
+      problemScore: input.problemScore,
+      innovationScore: input.innovationScore,
+      evidenceScore: input.evidenceScore,
+      impactScore: input.impactScore,
+      totalScore,
+      note: input.note.trim() || null,
+      submittedAt,
     });
   }
 }
@@ -608,6 +737,22 @@ function filterAndSortNews(records: NewsRecord[], publicOnly = false) {
     });
 }
 
+function validateScoreInput(input: SubmissionScoreInput, totalScore: number) {
+  const ranges = [
+    ["ความเป็นผลงานของตำรวจ", input.rulesScore, 20],
+    ["ปัญหาและความจำเป็น", input.problemScore, 15],
+    ["แนวคิดหรือรูปแบบนวัตกรรม", input.innovationScore, 25],
+    ["หลักฐานผลลัพธ์เบื้องต้น", input.evidenceScore, 20],
+    ["ความคุ้มค่าและการขยายผล", input.impactScore, 20],
+  ] as const;
+  for (const [label, value, max] of ranges) {
+    if (!Number.isInteger(value) || value < 0 || value > max) {
+      throw new Error(`คะแนน ${label} ต้องอยู่ระหว่าง 0-${max}`);
+    }
+  }
+  if (totalScore < 0 || totalScore > 100) throw new Error("คะแนนรวมต้องอยู่ระหว่าง 0-100");
+}
+
 async function saveNewsImage(file: File) {
   const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
   if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
@@ -672,16 +817,52 @@ async function listParticipantsCompat() {
   }
 }
 
-async function listSubmissionsCompat() {
+async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | null }) {
   try {
+    const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      "SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 ORDER BY s.submitted_at DESC LIMIT 500",
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
+       FROM submissions s
+       JOIN users u ON u.id=s.user_id
+       JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
+       ${assignedEmail ? "WHERE 1=0" : ""}
+       ORDER BY s.submitted_at DESC LIMIT 500`,
     );
     return rows as SubmissionListItem[];
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
-    return listLocalSubmissions();
+    const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
+    const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
+    return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
   }
+}
+
+function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionListItem {
+  return {
+    submission_code: local.submission_code,
+    submission_type: local.submission_type,
+    team_name: local.team_name,
+    title_th: local.title_th,
+    status: local.status,
+    review_assigned_admin_email: local.review_assigned_admin_email ?? null,
+    review_assigned_at: local.review_assigned_at ?? null,
+    review_scored_by_email: local.review_scored_by_email ?? null,
+    review_rules_score: local.review_rules_score ?? null,
+    review_problem_score: local.review_problem_score ?? null,
+    review_innovation_score: local.review_innovation_score ?? null,
+    review_evidence_score: local.review_evidence_score ?? null,
+    review_impact_score: local.review_impact_score ?? null,
+    review_total_score: local.review_total_score ?? null,
+    review_note: local.review_note ?? null,
+    review_submitted_at: local.review_submitted_at ?? null,
+    submitted_at: local.submitted_at,
+    email: local.email,
+    first_name: local.first_name,
+    last_name: local.last_name,
+    position: local.position,
+    division: local.division,
+    bureau: local.bureau,
+  };
 }
 
 function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmissionDetail {
@@ -695,6 +876,17 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
     summary: local.summary,
     video_url: local.video_url,
     status: local.status,
+    review_assigned_admin_email: local.review_assigned_admin_email ?? null,
+    review_assigned_at: local.review_assigned_at ?? null,
+    review_scored_by_email: local.review_scored_by_email ?? null,
+    review_rules_score: local.review_rules_score ?? null,
+    review_problem_score: local.review_problem_score ?? null,
+    review_innovation_score: local.review_innovation_score ?? null,
+    review_evidence_score: local.review_evidence_score ?? null,
+    review_impact_score: local.review_impact_score ?? null,
+    review_total_score: local.review_total_score ?? null,
+    review_note: local.review_note ?? null,
+    review_submitted_at: local.review_submitted_at ?? null,
     submitted_at: local.submitted_at,
     email: local.email,
     first_name: primary?.first_name ?? local.first_name,

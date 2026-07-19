@@ -2,9 +2,9 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, ExternalLink, FileText, Pencil, Printer, Users } from "lucide-react";
-import { cookieName, getAdminSession, verifyAdminToken } from "../../../../lib/admin-auth";
-import { getSubmissionDetail, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
+import { ArrowLeft, ExternalLink, FileText, Pencil, Printer, ShieldCheck, Trophy, Users } from "lucide-react";
+import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
+import { getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
@@ -37,13 +37,24 @@ const emptyMember = {
   bureau: "",
 };
 
+const paperScreeningCriteria = [
+  { name: "rulesScore", label: "ความเป็นผลงานของตำรวจ", max: 20, field: "review_rules_score" },
+  { name: "problemScore", label: "ปัญหาและความจำเป็น", max: 15, field: "review_problem_score" },
+  { name: "innovationScore", label: "แนวคิดหรือรูปแบบนวัตกรรม", max: 25, field: "review_innovation_score" },
+  { name: "evidenceScore", label: "หลักฐานผลลัพธ์เบื้องต้น", max: 20, field: "review_evidence_score" },
+  { name: "impactScore", label: "ความคุ้มค่าและการขยายผล", max: 20, field: "review_impact_score" },
+] as const;
+
 export default async function AdminSubmissionDetail({ params }: { params: Promise<{ code: string }> }) {
   const cookieStore = await cookies();
-  if (!verifyAdminToken(cookieStore.get(cookieName)?.value)) redirect("/admin");
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
 
   const { code } = await params;
   const item = await getSubmissionDetail(code);
+  if (item && session.role !== "super_admin" && item.review_assigned_admin_email?.toLowerCase() !== session.email.toLowerCase()) redirect("/admin");
   const issuedAt = formatAdminDate(new Date().toISOString());
+  const isSuperAdmin = session.role === "super_admin";
 
   return <div className="admin-page admin-detail-page">
     <div className="wide">
@@ -86,9 +97,13 @@ export default async function AdminSubmissionDetail({ params }: { params: Promis
           </div>
         </section>
         <section className="admin-detail-block print-hidden">
+          <h3><Trophy/> คะแนนรอบที่ 1: Paper Screening</h3>
+          <ScorePanel item={item} isSuperAdmin={isSuperAdmin}/>
+        </section>
+        <section className="admin-detail-block print-hidden">
           <details className="admin-edit-disclosure">
             <summary><Pencil/>แก้ไขข้อมูลใบสมัคร</summary>
-            <SubmissionEditForm item={item}/>
+            {isSuperAdmin ? <SubmissionEditForm item={item}/> : <p>เฉพาะ Super Admin เท่านั้นที่แก้ไขข้อมูลใบสมัครได้</p>}
           </details>
         </section>
         <section className="admin-detail-block print-hidden">
@@ -103,6 +118,29 @@ export default async function AdminSubmissionDetail({ params }: { params: Promis
         <div className="print-document-footer"><span>เอกสารจากระบบ Police Innovation Contest 2026</span><b>{item.submission_code}</b></div>
       </article> : <article className="admin-panel"><h2>ไม่พบใบสมัครประกวด</h2><p>กรุณาตรวจสอบรหัสผลงาน</p></article>}
     </div>
+  </div>;
+}
+
+function ScorePanel({ item, isSuperAdmin }: { item: AdminSubmissionDetail; isSuperAdmin: boolean }) {
+  const hasScore = item.review_submitted_at !== null && item.review_submitted_at !== undefined;
+  const locked = hasScore && !isSuperAdmin;
+  const assignedLabel = item.review_assigned_admin_email || "ยังไม่ถูก assign";
+  return <div className="score-review-panel">
+    <div className="score-review-summary">
+      <span className={`status-pill ${hasScore ? "attended" : item.review_assigned_admin_email ? "registered" : "cancelled"}`}>
+        {hasScore ? "ส่งคะแนนแล้ว" : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}
+      </span>
+      <b>{item.review_total_score ?? "-"} / 100 คะแนน</b>
+      <small><ShieldCheck/> ผู้ตรวจ: {assignedLabel}{item.review_submitted_at ? ` • ส่งเมื่อ ${formatAdminDate(item.review_submitted_at)}` : ""}</small>
+    </div>
+    <form action={saveScoreAction} className="admin-form score-review-form">
+      <input type="hidden" name="submissionCode" value={item.submission_code}/>
+      <div className="score-review-grid">
+        {paperScreeningCriteria.map((criterion) => <label key={criterion.name}>{criterion.label}<small>เต็ม {criterion.max} คะแนน</small><input type="number" name={criterion.name} min={0} max={criterion.max} step={1} defaultValue={String((item[criterion.field] as number | null) ?? 0)} disabled={locked} required/></label>)}
+      </div>
+      <label>หมายเหตุ<textarea name="note" maxLength={1000} defaultValue={item.review_note ?? ""} disabled={locked} placeholder="บันทึกเหตุผลหรือข้อสังเกตสำหรับ Super Admin"/></label>
+      {locked ? <p className="admin-print-note">คะแนนนี้ถูกส่งแล้ว Admin ไม่สามารถแก้ไขได้ หากต้องแก้ไขให้ Super Admin ดำเนินการ</p> : <button className="primary" type="submit"><Trophy/>{hasScore ? "บันทึกคะแนนใหม่" : "ส่งคะแนนรอบแรก"}</button>}
+    </form>
   </div>;
 }
 
@@ -209,12 +247,47 @@ async function updateSubmissionAction(formData: FormData) {
   redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
 }
 
+async function saveScoreAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  const submissionCode = text(formData, "submissionCode");
+  await saveSubmissionScore({
+    submissionCode,
+    actorEmail: session.email,
+    actorRole: session.role,
+    rulesScore: score(formData, "rulesScore"),
+    problemScore: score(formData, "problemScore"),
+    innovationScore: score(formData, "innovationScore"),
+    evidenceScore: score(formData, "evidenceScore"),
+    impactScore: score(formData, "impactScore"),
+    note: String(formData.get("note") ?? "").trim(),
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.score.submitted",
+    entityType: "submission",
+    entityId: submissionCode,
+    summary: `${session.role === "super_admin" ? "Super Admin แก้ไข" : "Admin ส่ง"}คะแนนรอบแรก ${submissionCode}`,
+  });
+  revalidatePath("/admin");
+  revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
+  redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
+}
+
 function Detail({ label, value, wide = false }: { label: string; value?: string | null; wide?: boolean }) {
   return <div className={wide ? "wide-detail" : undefined}><dt>{label}</dt><dd>{value || "-"}</dd></div>;
 }
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").replace(/\s+/g, " ").trim();
+}
+
+function score(formData: FormData, name: string) {
+  const value = Number(String(formData.get(name) ?? "0"));
+  if (!Number.isFinite(value)) return 0;
+  return Math.trunc(value);
 }
 
 function formatAdminDate(value?: string | null) {
