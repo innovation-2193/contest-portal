@@ -2460,9 +2460,10 @@ dd { min-width: 0; margin: 0; color: #f4f7ff; font-weight: 800; overflow-wrap: a
 .policy a { color: var(--gold); }
 
 footer {
-  padding: 46px 0;
+  padding: 42px 0 48px;
   border-top: 1px solid var(--line);
-  background: rgba(18, 27, 44, 0.96);
+  background:
+    linear-gradient(180deg, rgba(18, 27, 44, 0.98), rgba(12, 20, 34, 0.98));
 }
 
 body:has(.prelander-page) {
@@ -5196,8 +5197,9 @@ body:has(.prelander-page)::before {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1.35fr;
-  gap: 64px;
+  grid-template-columns: minmax(360px, 1.6fr) minmax(180px, 0.55fr) minmax(320px, 0.85fr);
+  gap: 52px;
+  align-items: start;
 }
 
 .footer-grid-with-stats {
@@ -5206,29 +5208,68 @@ body:has(.prelander-page)::before {
   align-items: start;
 }
 
-.footer-grid b { color: var(--ink); }
-.footer-grid p,
-.footer-grid a {
-  display: block;
+.footer-column {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.footer-column b {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.footer-column p {
+  max-width: 680px;
+  margin: 0;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.75;
 }
 
-.footer-grid a {
+.footer-column a {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color 0.2s ease, transform 0.2s ease;
 }
 
-.footer-grid a + a {
-  margin-top: 4px;
+.footer-column a:hover {
+  color: var(--ink);
+  transform: translateX(2px);
 }
 
-.footer-grid a svg {
+.footer-column a svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.footer-brand b {
+  font-size: 18px;
+}
+
+.footer-links {
+  justify-items: start;
+}
+
+.footer-contact {
+  gap: 11px;
+}
+
+.footer-contact a {
+  padding: 2px 0;
 }
 
 .footer-stats {

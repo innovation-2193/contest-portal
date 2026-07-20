@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Activity, BarChart3, Lightbulb, Menu, PenLine, Phone, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, Lightbulb, Mail, Menu, PenLine, Phone, TrendingUp } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
@@ -153,7 +153,7 @@ export function Header({ registrationOpen = true }: { registrationOpen?: boolean
 export function Footer({ stats }: { stats?: SiteStats | null }) {
   const maxDaily = Math.max(1, ...(stats?.last7Days.map((item) => item.count) ?? [1]));
   return <footer><div className={stats ? "wide footer-grid footer-grid-with-stats" : "wide footer-grid"}>
-    <div><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p></div>
+    <div className="footer-column footer-brand"><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p></div>
     {stats && <section className="footer-stats" aria-label="สถิติการเข้าใช้งานเว็บไซต์">
       <div className="footer-stats-head"><Activity/><div><span>Website Activity</span><b>สถิติการเข้าใช้งาน</b></div></div>
       <div className="footer-stats-numbers">
@@ -166,8 +166,8 @@ export function Footer({ stats }: { stats?: SiteStats | null }) {
       </div>
       <p><TrendingUp/>วันที่สูงสุดใน 7 วัน: {stats.peakDay.label} ({formatNumber(stats.peakDay.count)} ครั้ง)</p>
     </section>}
-    <div><b>นโยบาย</b><Link href="/privacy">Privacy Policy</Link><Link href="/pdpa">PDPA Consent</Link></div>
-    <div id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="tel:022052193"><Phone/>0 2205 2193</a><a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></div>
+    <div className="footer-column footer-links"><b>นโยบาย</b><Link href="/privacy">Privacy Policy</Link><Link href="/pdpa">PDPA Consent</Link></div>
+    <div className="footer-column footer-contact" id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="tel:022052193"><Phone/>0 2205 2193</a><a href="mailto:innocontest@police.go.th"><Mail/>innocontest@police.go.th</a></div>
   </div></footer>;
 }
 
