@@ -10,15 +10,24 @@ export const dynamic = "force-dynamic";
 const pageSize = 20;
 const actorFilterValues = ["", "public", "admin_any", "admin", "super_admin"] as const;
 const actionOptions = [
+  ["auth.super_admin_login", "Super Admin เข้าสู่ระบบ"],
+  ["auth.admin_login", "Admin เข้าสู่ระบบ"],
   ["registration.created", "ลงทะเบียนใหม่"],
   ["registration.checked_in", "เช็คอินหน้างาน"],
   ["registration.updated", "แก้ไขข้อมูลผู้เข้าร่วม"],
   ["registration.deleted", "ลบข้อมูลผู้เข้าร่วม"],
+  ["registration.bulk_deleted", "ลบผู้เข้าร่วมหลายรายการ"],
+  ["registration.export_pdf", "Export รายชื่อ PDF"],
+  ["registration.export_xlsx", "Export รายชื่อ Excel"],
   ["submission.created", "สมัครประกวดนวัตกรรม"],
   ["submission.updated", "แก้ไขใบสมัครประกวด"],
   ["submission.deleted", "ลบใบสมัครประกวด"],
+  ["submission.delete_otp_requested", "ขอ OTP ลบใบสมัคร"],
+  ["submission.file_opened", "เปิดไฟล์แนบ"],
+  ["submission.print_packet", "พิมพ์ชุดใบสมัคร"],
   ["submission.review.assigned", "แจกงานตรวจรอบแรก"],
   ["submission.score.submitted", "ส่งคะแนนรอบแรก"],
+  ["submission.scoreboard_pdf", "พิมพ์ Score Board"],
   ["admin.settings.updated", "แก้ไขตั้งค่าระบบ"],
   ["admin_user.created", "เพิ่มแอดมิน"],
   ["admin_user.updated", "แก้ไขแอดมิน"],
@@ -29,6 +38,7 @@ const actionOptions = [
   ["news.deleted", "ลบข่าวประชาสัมพันธ์"],
   ["winner.created", "เพิ่มประกาศผล"],
   ["winner.deleted", "ลบประกาศผล"],
+  ["evaluation.lucky_draw", "สุ่ม Lucky Draw"],
 ] as const;
 
 type ActorFilter = typeof actorFilterValues[number];
@@ -110,7 +120,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
             <button className="primary" type="submit"><Search/>ค้นหา</button>
             <Link className="secondary" href="/admin/audit-log"><X/>ล้างตัวกรอง</Link>
           </div>
-          <p><Filter/>ดูย้อนหลังได้ไม่เกิน 90 วัน ระบบไม่บันทึกการคลิกเปิดหน้า เปิดไฟล์ พิมพ์ หรือ export ที่ไม่เปลี่ยนข้อมูล</p>
+          <p><Filter/>ดูย้อนหลังได้ไม่เกิน 90 วัน รวมรายการสร้าง แก้ไข ลบ เปลี่ยนสถานะ เปิดไฟล์ พิมพ์ และ export ที่ระบบบันทึกไว้</p>
         </form>
 
         <div className="audit-log-list">
@@ -159,15 +169,24 @@ function actorLabel(actor: AuditActor) {
 }
 
 function auditActionLabel(action: string) {
+  if (action === "auth.super_admin_login") return "Super Admin เข้าสู่ระบบ";
+  if (action === "auth.admin_login") return "Admin เข้าสู่ระบบ";
   if (action === "registration.created") return "ลงทะเบียนเข้าร่วมงาน";
   if (action === "registration.updated") return "แก้ไขข้อมูลผู้เข้าร่วม";
   if (action === "registration.deleted") return "ลบข้อมูลผู้เข้าร่วม";
+  if (action === "registration.bulk_deleted") return "ลบผู้เข้าร่วมหลายรายการ";
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
+  if (action === "registration.export_pdf") return "Export รายชื่อ PDF";
+  if (action === "registration.export_xlsx") return "Export รายชื่อ Excel";
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";
+  if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
+  if (action === "submission.file_opened") return "เปิดไฟล์แนบ";
+  if (action === "submission.print_packet") return "พิมพ์ชุดใบสมัคร";
   if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
+  if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
   if (action === "admin_user.created") return "เพิ่มแอดมิน";
   if (action === "admin_user.updated") return "แก้ไขแอดมิน";
@@ -178,6 +197,7 @@ function auditActionLabel(action: string) {
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   return action;
 }
 
@@ -188,6 +208,8 @@ function auditEntityLabel(entityType: string) {
   if (entityType === "admin_user") return "แอดมิน";
   if (entityType === "news") return "ข่าว";
   if (entityType === "winner") return "ประกาศผล";
+  if (entityType === "evaluation") return "แบบประเมิน";
+  if (entityType === "auth") return "เข้าสู่ระบบ";
   return entityType;
 }
 

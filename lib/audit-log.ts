@@ -48,16 +48,24 @@ const auditLogPath = path.join(storageDir, "audit-events.json");
 const maxLocalEvents = 5000;
 const maxAuditAgeDays = 90;
 const allowedAuditActions = new Set([
+  "auth.super_admin_login",
+  "auth.admin_login",
   "registration.created",
   "registration.updated",
   "registration.deleted",
   "registration.bulk_deleted",
   "registration.checked_in",
+  "registration.export_pdf",
+  "registration.export_xlsx",
   "submission.created",
   "submission.updated",
   "submission.deleted",
+  "submission.delete_otp_requested",
+  "submission.file_opened",
+  "submission.print_packet",
   "submission.review.assigned",
   "submission.score.submitted",
+  "submission.scoreboard_pdf",
   "admin.settings.updated",
   "admin_user.created",
   "admin_user.updated",
@@ -138,6 +146,17 @@ export type AuditEventListResult = {
   offset: number;
 };
 
+type LegacyAuditEventRow = {
+  id?: string | number | null;
+  actor_user_id?: string | null;
+  actor_email?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  payload: string | null;
+  created_at: string | Date;
+};
+
 export async function listAuditEvents(options: AuditEventListOptions | number = {}) {
   const normalized = normalizeListOptions(options);
   const dateRange = auditDateRange(normalized.days, normalized.from, normalized.to);
@@ -171,21 +190,34 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
 
   try {
     await ensureDatabaseSchema();
+    const fetchLimit = normalized.limit + normalized.offset;
     const [rows] = await db.execute(
       `SELECT id,actor_type,actor_email,action,entity_type,entity_id,summary,payload,ip_address,user_agent,created_at
        FROM app_audit_events
        WHERE ${whereSql}
        ORDER BY created_at DESC
-       LIMIT ? OFFSET ?`,
-      [...values, normalized.limit, normalized.offset],
+       LIMIT ? OFFSET 0`,
+      [...values, fetchLimit],
     );
     const [countRows] = await db.execute(
       `SELECT COUNT(*) AS total FROM app_audit_events WHERE ${whereSql}`,
       values,
     );
+    const modernEvents = (rows as AuditEventRow[]).map(rowToRecord);
+    const modernTotal = Number((countRows as Array<{ total: number | string }>)[0]?.total ?? 0);
+    const legacy = await listLegacyAuditEvents({
+      actions,
+      actorType: normalized.actorType,
+      actorEmail: normalized.actorEmail,
+      query: normalized.query,
+      from: dateRange.from,
+      to: dateRange.to,
+      limit: fetchLimit,
+    });
+    const events = [...modernEvents, ...legacy.events].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return {
-      events: (rows as AuditEventRow[]).map(rowToRecord),
-      total: Number((countRows as Array<{ total: number | string }>)[0]?.total ?? 0),
+      events: events.slice(normalized.offset, normalized.offset + normalized.limit),
+      total: modernTotal + legacy.total,
       limit: normalized.limit,
       offset: normalized.offset,
     };
@@ -210,6 +242,63 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
   }
 }
 
+async function listLegacyAuditEvents(filters: {
+  actions: string[];
+  actorType?: AuditActor["type"] | "admin_any" | "";
+  actorEmail?: string;
+  query?: string;
+  from: string;
+  to: string;
+  limit: number;
+}) {
+  try {
+    if (!await legacyAuditTableExists()) return { events: [] as AuditEventRecord[], total: 0 };
+    if (filters.actorType && filters.actorType !== "public") return { events: [] as AuditEventRecord[], total: 0 };
+
+    const where = [
+      `al.action IN (${filters.actions.map(() => "?").join(",")})`,
+      "al.created_at >= ?",
+      "al.created_at <= ?",
+    ];
+    const values: Array<string | number> = [...filters.actions, filters.from, filters.to];
+    if (filters.actorEmail) {
+      where.push("LOWER(u.email) = ?");
+      values.push(filters.actorEmail.toLowerCase());
+    }
+    if (filters.query) {
+      where.push("(al.entity_id LIKE ? OR u.email LIKE ? OR al.action LIKE ? OR al.payload LIKE ?)");
+      const like = `%${filters.query}%`;
+      values.push(like, like, like, like);
+    }
+    const whereSql = where.join(" AND ");
+    const [rows] = await db.execute(
+      `SELECT al.id,al.actor_user_id,u.email AS actor_email,al.action,al.entity_type,al.entity_id,al.payload,al.created_at
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.actor_user_id
+       WHERE ${whereSql}
+       ORDER BY al.created_at DESC
+       LIMIT ?`,
+      [...values, filters.limit],
+    );
+    const [countRows] = await db.execute(
+      `SELECT COUNT(*) AS total
+       FROM audit_logs al
+       LEFT JOIN users u ON u.id = al.actor_user_id
+       WHERE ${whereSql}`,
+      values,
+    );
+    return {
+      events: (rows as LegacyAuditEventRow[]).map(legacyRowToRecord),
+      total: Number((countRows as Array<{ total: number | string }>)[0]?.total ?? 0),
+    };
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("legacy audit log list failed", error);
+    }
+    return { events: [] as AuditEventRecord[], total: 0 };
+  }
+}
+
 function rowToRecord(row: AuditEventRow): AuditEventRecord {
   return {
     id: row.id,
@@ -226,6 +315,56 @@ function rowToRecord(row: AuditEventRow): AuditEventRecord {
     userAgent: row.user_agent,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
   };
+}
+
+function legacyRowToRecord(row: LegacyAuditEventRow): AuditEventRecord {
+  const createdAt = normalizeAuditDate(row.created_at);
+  return {
+    id: `legacy-${row.id ?? `${row.action}-${row.entity_id ?? ""}-${createdAt}`}`,
+    actor: {
+      type: "public",
+      email: row.actor_email ?? null,
+    },
+    action: row.action,
+    entityType: row.entity_type,
+    entityId: legacyEntityId(row),
+    summary: legacySummary(row),
+    payload: parsePayload(row.payload),
+    ipAddress: null,
+    userAgent: null,
+    createdAt,
+  };
+}
+
+async function legacyAuditTableExists() {
+  const [rows] = await db.execute(
+    "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_logs'",
+  );
+  return Number((rows as Array<{ count: number | string }>)[0]?.count ?? 0) > 0;
+}
+
+function legacyEntityId(row: LegacyAuditEventRow) {
+  const payload = parsePayload(row.payload);
+  const code = typeof payload.registrationCode === "string"
+    ? payload.registrationCode
+    : typeof payload.submissionCode === "string"
+      ? payload.submissionCode
+      : "";
+  return code || row.entity_id;
+}
+
+function legacySummary(row: LegacyAuditEventRow) {
+  const entityId = legacyEntityId(row);
+  if (row.action === "registration.created") return `ลงทะเบียนเข้าร่วมงาน ${entityId || row.entity_id || ""}`.trim();
+  if (row.action === "submission.created") return `ส่งใบสมัครประกวดนวัตกรรม ${entityId || row.entity_id || ""}`.trim();
+  if (row.action === "submission.updated") return `แก้ไขใบสมัครประกวด ${entityId || row.entity_id || ""}`.trim();
+  return `บันทึกจากระบบเดิม ${row.action}${entityId ? ` • ${entityId}` : ""}`;
+}
+
+function normalizeAuditDate(value: string | Date) {
+  if (value instanceof Date) return value.toISOString();
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
 }
 
 async function writeLocalAuditEvent(record: AuditEventRecord) {
