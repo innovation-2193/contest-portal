@@ -67,7 +67,7 @@ export function MobileZoomLock() {
 export function SiteVisitTracker() {
   const pathname = usePathname();
   useEffect(() => {
-    if (!pathname || pathname.startsWith("/admin") || pathname.startsWith("/api") || pathname === "/daily-report") return;
+    if (!pathname || pathname.startsWith("/admin") || pathname.startsWith("/api") || pathname.startsWith("/daily-report")) return;
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
     const key = `police-innovation-visit:${today}`;
     try {

@@ -1,20 +1,19 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
-  BarChart3,
-  Building2,
   CheckCircle2,
   ClipboardList,
   Eye,
   FileText,
   LineChart,
+  Printer,
+  User,
   Trophy,
   UserCheck,
   Users,
 } from "lucide-react";
-import { AdminPrintButton } from "../../components/AdminPrintButton";
 import {
   listParticipants,
   listSubmissions,
@@ -132,13 +131,11 @@ export default async function DailyReportPage() {
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const commandStats = buildCommandStats(activeParticipants, submissions);
-  const orgSectionSummaries = buildOrgSectionSummaries(commandStats);
-  const orgsWithSubmissions = commandStats.filter((item) => item.submissions > 0).length;
-  const topOrgStats = [...commandStats]
-    .filter((item) => item.submissions > 0)
-    .sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations || a.label.localeCompare(b.label, "th"))
-    .slice(0, 8);
+  const pendingReview = Math.max(0, submissions.length - scored.length);
+  const qualified = submissions.filter((item) => item.status === "qualified");
+  const rejected = submissions.filter((item) => item.status === "rejected");
+  const reviewPercent = submissions.length ? Math.round((scored.length / submissions.length) * 100) : 0;
+  const recentSubmissions = submissions.slice(0, 10);
   const statusStats = buildStatusStats(submissions);
 
   return <div className="admin-page report-page">
@@ -158,8 +155,8 @@ export default async function DailyReportPage() {
           <p>{formatFullThaiDate(new Date())} • หน้าสรุปสำหรับ<wbr/>ผู้บังคับบัญชา</p>
         </div>
         <div className="admin-actions">
-          <AdminPrintButton label="พิมพ์ / บันทึก PDF"/>
-          <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+          <a className="primary report-action-button" href="/api/daily-report/print" target="_blank" rel="noreferrer"><Printer/>พิมพ์ / บันทึก PDF</a>
+          <Link className="secondary report-action-button" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
         </div>
       </div>
 
@@ -167,7 +164,7 @@ export default async function DailyReportPage() {
         <div>
           <span className="eyebrow">ภาพรวมวันนี้</span>
           <h2>ลงทะเบียนแล้ว {activeParticipants.length.toLocaleString("th-TH")} คน <wbr/>ส่งผลงานแล้ว {submissions.length.toLocaleString("th-TH")} รายการ</h2>
-          <p>สรุปยอดประจำวัน <wbr/>ยอดเข้าชมเว็บไซต์ <wbr/>และกราฟแยกตามสังกัด<wbr/>ในผังองค์กร ตร.</p>
+          <p>สรุปยอดประจำวัน <wbr/>ยอดเข้าชมเว็บไซต์ <wbr/>และสถานะผลงานจากระบบรับสมัคร</p>
         </div>
         <div className="report-pulse">
           <Eye/>
@@ -176,15 +173,21 @@ export default async function DailyReportPage() {
         </div>
       </section>
 
-      <section className="report-metric-grid" aria-label="summary">
-        <Metric icon={<Eye/>} value={siteStats.today} label="ยอดเข้าชมวันนี้" detail={`เมื่อวาน ${siteStats.yesterday.toLocaleString("th-TH")} ครั้ง`}/>
-        <Metric icon={<LineChart/>} value={siteStats.total} label="ยอดเข้าชมสะสม" detail={`เฉลี่ย 7 วัน ${siteStats.average7Days.toLocaleString("th-TH")} ครั้ง/วัน`}/>
-        <Metric icon={<Users/>} value={activeParticipants.length} label="คนสมัคร / ลงทะเบียนทั้งหมด" detail={`วันนี้ +${registeredToday.length.toLocaleString("th-TH")} คน`}/>
-        <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินแล้ว" detail={`รอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
-        <Metric icon={<FileText/>} value={submissions.length} label="ผลงานที่ส่งแล้ว" detail={`วันนี้ +${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
-        <Metric icon={<Building2/>} value={orgsWithSubmissions} label="บช./สำนักงานที่มีผลงาน" detail={`จาก ${orgCommands.length.toLocaleString("th-TH")} หน่วยตามโครงสร้าง ตร.`}/>
-        <Metric icon={<Trophy/>} value={scored.length} label="ผลงานที่มีคะแนนแล้ว" detail={`ยังรอตรวจ ${(submissions.length - scored.length).toLocaleString("th-TH")} รายการ`}/>
-        <Metric icon={<ClipboardList/>} value={teams.length} label="ส่งแบบทีม" detail={`ส่งเดี่ยว ${(submissions.length - teams.length).toLocaleString("th-TH")} รายการ`}/>
+      <section className="report-metric-groups" aria-label="summary">
+        <MetricGroup title="การเข้าชมเว็บไซต์" detail="ติดตามความสนใจของผู้เข้าชมหน้าบ้าน">
+          <Metric icon={<Eye/>} value={siteStats.today} label="ยอดเข้าชมวันนี้" detail={`เมื่อวาน ${siteStats.yesterday.toLocaleString("th-TH")} ครั้ง`}/>
+          <Metric icon={<LineChart/>} value={siteStats.total} label="ยอดเข้าชมสะสม" detail={`เฉลี่ย 7 วัน ${siteStats.average7Days.toLocaleString("th-TH")} ครั้ง/วัน`}/>
+        </MetricGroup>
+        <MetricGroup title="ผู้สมัครและเช็คอิน" detail="สรุปจำนวนผู้เข้าร่วมกิจกรรม">
+          <Metric icon={<Users/>} value={activeParticipants.length} label="คนสมัคร / ลงทะเบียนทั้งหมด" detail={`วันนี้ +${registeredToday.length.toLocaleString("th-TH")} คน`}/>
+          <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินแล้ว" detail={`รอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
+        </MetricGroup>
+        <MetricGroup title="ผลงานประกวด" detail="สรุปผลงานที่ส่งเข้าระบบ">
+          <Metric icon={<FileText/>} value={submissions.length} label="ผลงานที่ส่งแล้ว" detail={`วันนี้ +${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
+          <Metric icon={<Trophy/>} value={scored.length} label="ผลงานที่มีคะแนนแล้ว" detail={`ยังรอตรวจ ${(submissions.length - scored.length).toLocaleString("th-TH")} รายการ`}/>
+          <Metric icon={<ClipboardList/>} value={teams.length} label="ส่งแบบทีม" detail="จำนวนผลงานประเภททีม"/>
+          <Metric icon={<User/>} value={submissions.length - teams.length} label="ส่งแบบเดี่ยว" detail="จำนวนผลงานประเภทบุคคล"/>
+        </MetricGroup>
       </section>
 
       <section className="report-grid">
@@ -194,53 +197,43 @@ export default async function DailyReportPage() {
         </article>
 
         <article className="admin-panel report-panel">
-          <header><BarChart3/><div><h2>สังกัดที่ส่งผลงานมากที่สุด</h2><p>จัดอันดับจากจำนวนผลงานที่ส่งเข้าระบบ</p></div></header>
-          <div className="report-rank-list">
-            {topOrgStats.length ? topOrgStats.map((item, index) => <div className="report-rank-row" key={item.label}>
-              <b>{(index + 1).toLocaleString("th-TH")}</b>
-              <span>{item.shortLabel} • {item.label}</span>
-              <strong>{item.submissions.toLocaleString("th-TH")}</strong>
-            </div>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
+          <header><CheckCircle2/><div><h2>สถานะผลงาน</h2><p>ดูความคืบหน้าการตรวจและงานที่ควรติดตามต่อ</p></div></header>
+          <div className="report-status-dashboard">
+            <div className="report-status-overview">
+              <div className="report-status-dial" style={{ "--progress": `${reviewPercent}%` } as CSSProperties}>
+                <b>{reviewPercent.toLocaleString("th-TH")}%</b>
+                <span>ตรวจแล้ว</span>
+              </div>
+              <div className="report-status-insight">
+                <strong>{pendingReview ? `ยังรอตรวจ ${pendingReview.toLocaleString("th-TH")} รายการ` : "ตรวจครบทุกผลงานแล้ว"}</strong>
+                <p>{submittedToday.length ? `วันนี้มีผลงานใหม่ ${submittedToday.length.toLocaleString("th-TH")} รายการ ควรจัดคิวตรวจต่อ` : "วันนี้ยังไม่มีผลงานใหม่เพิ่มเติม"}</p>
+              </div>
+            </div>
+            <div className="report-status-kpi-grid">
+              <StatusKpi label="ใหม่วันนี้" value={submittedToday.length} detail="ผลงานส่งเข้าระบบวันนี้"/>
+              <StatusKpi label="รอตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวม"/>
+              <StatusKpi label="ผ่านเกณฑ์" value={qualified.length} detail="สถานะล่าสุดผ่านเกณฑ์"/>
+              <StatusKpi label="ไม่ผ่านเกณฑ์" value={rejected.length} detail="สถานะล่าสุดไม่ผ่านเกณฑ์"/>
+            </div>
+            <div className="report-status-list">
+              {statusStats.map((item) => <div key={item.label}>
+                <span>{item.label}<small>{item.percent.toLocaleString("th-TH")}% ของทั้งหมด</small></span>
+                <b>{item.count.toLocaleString("th-TH")}</b>
+                <i><span style={{ width: `${item.percent}%` }}/></i>
+              </div>)}
+            </div>
           </div>
         </article>
-
-        <article className="admin-panel report-panel">
-          <header><CheckCircle2/><div><h2>สถานะผลงาน</h2><p>นับตามสถานะล่าสุดในระบบรับสมัคร</p></div></header>
-          <div className="report-status-list">
-            {statusStats.map((item) => <div key={item.label}>
-              <span>{item.label}</span>
-              <b>{item.count.toLocaleString("th-TH")}</b>
-              <i><span style={{ width: `${item.percent}%` }}/></i>
-            </div>)}
-          </div>
-        </article>
-      </section>
-
-      <section className="admin-panel report-panel">
-        <header className="admin-section-head">
-          <BarChart3/>
-          <div><h2>ผลงานแยกตามโครงสร้างหน่วยงาน ตร.</h2><p>อ้างอิงโครงสร้างหน่วยงานในสังกัดจากเว็บไซต์สำนักงานตำรวจแห่งชาติ แสดงระดับ บช./สำนักงาน และเปิดดู บก./หน่วยย่อยได้</p></div>
-        </header>
-        <div className="report-org-overview">
-          {orgSectionSummaries.map((summary) => <OrgSectionOverview key={summary.section} summary={summary}/>)}
-        </div>
-        <div className="report-org-chart report-org-chart-v2">
-          {orgSections.map((section) => {
-            const rows = commandStats.filter((item) => item.section === section);
-            if (!rows.length) return null;
-            const summary = orgSectionSummaries.find((item) => item.section === section);
-            return <OrgSectionBlock key={section} section={section} rows={rows} summary={summary}/>;
-          })}
-        </div>
       </section>
 
       <section className="admin-panel report-panel">
         <header className="admin-section-head">
           <FileText/>
-          <div><h2>ผลงานที่ส่งมาแล้ว</h2><p>รายการล่าสุดทั้งหมดที่ดึงจากระบบรับสมัคร</p></div>
+          <div><h2>ผลงานที่ส่งมาแล้ว</h2><p>แสดง 10 รายการล่าสุดจากระบบรับสมัคร</p></div>
+          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ดูทั้งหมด</Link></div>
         </header>
         <div className="submission-report-list">
-          {submissions.length ? submissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
+          {recentSubmissions.length ? recentSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
         </div>
       </section>
     </div>
@@ -285,6 +278,26 @@ function Metric({ icon, value, label, detail }: { icon: ReactNode; value: number
       <small>{detail}</small>
     </div>
   </article>;
+}
+
+function MetricGroup({ title, detail, children }: { title: string; detail: string; children: ReactNode }) {
+  return <section className="report-metric-group">
+    <header>
+      <div>
+        <h2>{title}</h2>
+        <p>{detail}</p>
+      </div>
+    </header>
+    <div className="report-metric-grid">{children}</div>
+  </section>;
+}
+
+function StatusKpi({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return <div>
+    <b>{value.toLocaleString("th-TH")}</b>
+    <span>{label}</span>
+    <small>{detail}</small>
+  </div>;
 }
 
 function VisitTrend({ stats }: { stats: SiteStats }) {
@@ -505,11 +518,11 @@ function buildStatusStats(submissions: SubmissionListItem[]) {
   const counts = new Map<string, number>();
   for (const item of submissions) counts.set(statusLabel(item.status), (counts.get(statusLabel(item.status)) ?? 0) + 1);
   if (!counts.size) counts.set("ยังไม่มีข้อมูล", 0);
-  const max = Math.max(1, ...counts.values());
+  const total = Math.max(1, submissions.length);
   return [...counts.entries()].map(([label, count]) => ({
     label,
     count,
-    percent: Math.round((count / max) * 100),
+    percent: Math.round((count / total) * 100),
   }));
 }
 

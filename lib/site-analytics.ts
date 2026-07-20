@@ -67,7 +67,7 @@ export async function getSiteStats(): Promise<SiteStats> {
 
 function shouldTrackPath(pathname: string) {
   const clean = pathname.trim();
-  if (!clean || clean.startsWith("/api") || clean.startsWith("/admin") || clean === "/daily-report") return false;
+  if (!clean || clean.startsWith("/api") || clean.startsWith("/admin") || clean.startsWith("/daily-report")) return false;
   return true;
 }
 
