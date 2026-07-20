@@ -26,77 +26,96 @@ import { getSiteStats, type SiteStats } from "../../lib/site-analytics";
 export const dynamic = "force-dynamic";
 
 type OrgSection =
-  | "สำนักงานผู้บัญชาการตำรวจแห่งชาติ"
+  | "ส่วนบังคับบัญชา"
   | "ส่วนป้องกันและปราบปรามอาชญากรรม"
-  | "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม"
+  | "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม"
   | "ส่วนการศึกษา"
   | "ส่วนบริการ"
+  | "หน่วยงานอื่นๆ"
   | "อื่น ๆ";
 
-type OrganizationUnit = {
+type OrgBureau = {
   label: string;
-  section: OrgSection;
   aliases: string[];
 };
 
-type OrgStat = OrganizationUnit & {
+type OrgCommand = {
+  label: string;
+  shortLabel: string;
+  section: OrgSection;
+  aliases: string[];
+  bureaus: OrgBureau[];
+};
+
+type BureauStat = OrgBureau & {
   registrations: number;
   submissions: number;
   percent: number;
   unmatched?: boolean;
 };
 
+type CommandStat = Omit<OrgCommand, "bureaus"> & {
+  registrations: number;
+  submissions: number;
+  percent: number;
+  bureaus: BureauStat[];
+};
+
 type OrgSectionSummary = {
   section: OrgSection;
   registrations: number;
   submissions: number;
-  activeUnits: number;
-  totalUnits: number;
+  activeCommands: number;
+  totalCommands: number;
   percent: number;
-  topUnit: OrgStat | null;
+  topCommand: CommandStat | null;
 };
 
 const orgSections: OrgSection[] = [
-  "สำนักงานผู้บัญชาการตำรวจแห่งชาติ",
+  "ส่วนบังคับบัญชา",
   "ส่วนป้องกันและปราบปรามอาชญากรรม",
-  "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม",
+  "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม",
   "ส่วนการศึกษา",
   "ส่วนบริการ",
+  "หน่วยงานอื่นๆ",
   "อื่น ๆ",
 ];
 
-const organizationUnits: OrganizationUnit[] = [
-  unit("สำนักงานส่งกำลังบำรุง", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สกบ.", "สกบ"]),
-  unit("สำนักงานยุทธศาสตร์ตำรวจ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สยศ.ตร.", "สยศ"]),
-  unit("สำนักงานงบประมาณและการเงิน", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สงป.", "สงป"]),
-  unit("สำนักงานกำลังพล", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สกพ.", "สกพ"]),
-  unit("สำนักงานกฎหมายและคดี", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["กมค.", "กมค"]),
-  unit("สำนักงานจเรตำรวจ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["จต.", "จเรตำรวจ"]),
-  unit("สำนักงานตรวจสอบภายใน", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สตส.", "ตรวจสอบภายใน"]),
-  unit("สำนักงานคณะกรรมการข้าราชการตำรวจ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["ก.ตร.", "กตร"]),
-  unit("สำนักงานเลขานุการตำรวจแห่งชาติ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สลก.ตร.", "สลก"]),
-  unit("สำนักงานคณะกรรมการนโยบายตำรวจแห่งชาติ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["ก.ต.ช.", "กตช"]),
-  unit("กองวินัย", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["วินัย"]),
-  unit("กองสารนิเทศ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["สารนิเทศ"]),
-  unit("กองบินตำรวจ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["บินตำรวจ"]),
-  unit("กองต่างประเทศ", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["ต่างประเทศ"]),
-  unit("สถาบันฝึกอบรมระหว่างประเทศว่าด้วยการดำเนินการให้เป็นไปตามกฎหมาย", "สำนักงานผู้บัญชาการตำรวจแห่งชาติ", ["ileta", "สถาบันฝึกอบรมระหว่างประเทศ"]),
-  unit("กองบัญชาการตำรวจนครบาล", "ส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.น.", "บชน", "กองบัญชาการตำรวจนครบาล"]),
-  ...rangeUnits("กองบังคับการตำรวจนครบาล", "ส่วนป้องกันและปราบปรามอาชญากรรม", (n) => [`บก.น.${n}`, `บกน${n}`, `บก น ${n}`, `นครบาล ${n}`, `ตำรวจนครบาล ${n}`]),
-  ...rangeUnits("ตำรวจภูธร ภาค", "ส่วนป้องกันและปราบปรามอาชญากรรม", (n) => [`ภ.${n}`, `ภาค ${n}`, `ตำรวจภูธรภาค ${n}`, `ตำรวจภูธร ภาค ${n}`]),
-  unit("ตำรวจภูธรจังหวัด", "ส่วนป้องกันและปราบปรามอาชญากรรม", ["ภ.จว.", "ภจว", "ตำรวจภูธรจังหวัด"]),
-  unit("กองบัญชาการตำรวจปราบปรามยาเสพติด", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.ปส.", "บชปส", "ปราบปรามยาเสพติด"]),
-  unit("กองบัญชาการตำรวจสอบสวนกลาง", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.ก.", "บชก", "สอบสวนกลาง"]),
-  unit("กองบัญชาการตำรวจสันติบาล", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.ส.", "บชส", "สันติบาล"]),
-  unit("สำนักงานตรวจคนเข้าเมือง", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["สตม.", "สตม", "ตรวจคนเข้าเมือง"]),
-  unit("สำนักงานพิสูจน์หลักฐานตำรวจ", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["สพฐ.ตร.", "สพฐ", "พิสูจน์หลักฐาน"]),
-  unit("กองบัญชาการตำรวจตระเวนชายแดน", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.ตชด.", "ตชด", "ตระเวนชายแดน"]),
-  unit("สำนักงานเทคโนโลยีสารสนเทศและการสื่อสาร", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["สทส.", "สทส", "เทคโนโลยีสารสนเทศ"]),
-  unit("กองบัญชาการตำรวจท่องเที่ยว", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.ทท.", "บชทท", "ตำรวจท่องเที่ยว"]),
-  unit("กองบัญชาการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี", "ส่วนสนับสนุนส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.สอท.", "บชสอท", "อาชญากรรมทางเทคโนโลยี", "ไซเบอร์"]),
-  unit("กองบัญชาการศึกษา", "ส่วนการศึกษา", ["บช.ศ.", "บชศ", "กองบัญชาการศึกษา"]),
-  unit("โรงเรียนนายร้อยตำรวจ", "ส่วนการศึกษา", ["รร.นรต.", "รรนรต", "นายร้อยตำรวจ"]),
-  unit("โรงพยาบาลตำรวจ", "ส่วนบริการ", ["รพ.ตร.", "รพตร", "โรงพยาบาลตำรวจ"]),
+const orgCommands: OrgCommand[] = [
+  command("สำนักงานยุทธศาสตร์ตำรวจ", "สยศ.ตร.", "ส่วนบังคับบัญชา", ["สยศ.ตร.", "สยศ"], ["ฝ่ายอำนวยการ (ฝอ.)", "กองยุทธศาสตร์ (ยศ.)", "กองแผนงานอาชญากรรม (ผอ.)", "กองแผนงานกิจการพิเศษ (ผก.)", "กองแผนงานความมั่นคง (ผค.)", "กองวิจัย (วจ.)"]),
+  command("สำนักงานส่งกำลังบำรุง", "สกบ.", "ส่วนบังคับบัญชา", ["สกบ.", "สกบ"], ["กองบังคับการอำนวยการ (บก.อก.)", "กองพลาธิการ (พธ.)", "กองโยธาธิการ (ยธ.)", "กองสรรพาวุธ (สพ.)"]),
+  command("สำนักงานกำลังพล", "สกพ.", "ส่วนบังคับบัญชา", ["สกพ.", "สกพ"], ["ฝ่ายอำนวยการ (ฝอ.)", "กลุ่มงานพัฒนาทรัพยากรบุคคล (พท.)", "กองอัตรากำลัง (อต.)", "กองทะเบียนพล (ทพ.)", "กองสวัสดิการ (สก.)"]),
+  command("สำนักงานงบประมาณและการเงิน", "สงป.", "ส่วนบังคับบัญชา", ["สงป.", "สงป"], ["ฝ่ายอำนวยการ (ฝอ.)", "ฝ่ายเทคโนโลยีสารสนเทศด้านงบประมาณและการเงิน (ฝทง.)", "กองงบประมาณ (งป.)", "กองการเงิน (กง.)", "กองบัญชี (กช.)"]),
+  command("สำนักงานกฎหมายและคดี", "กมค.", "ส่วนบังคับบัญชา", ["กมค.", "กมค"], ["ฝ่ายอำนวยการ (ฝอ.)", "กองกฎหมาย (กม.)", "กองคดีอาญา (คด.)", "กองคดีปกครองและคดีแพ่ง (คพ.)", "สถาบันส่งเสริมงานสอบสวน (สบส.)", "ส่วนตรวจสอบสำนวนคดีอุทธรณ์และฎีกา (อฎ.)"]),
+  command("สำนักงานคณะกรรมการข้าราชการตำรวจ", "สง.ก.ตร.", "ส่วนบังคับบัญชา", ["สง.ก.ตร.", "ก.ตร.", "กตร"], ["ฝ่ายอำนวยการ (ฝอ.)", "กองตรวจสอบและทะเบียนประวัติ (ตป.)", "กองมาตรฐานวินัย (มน.)", "กองอุทธรณ์ (อธ.)", "กองร้องทุกข์ (รท.)"]),
+  command("สำนักงานจเรตำรวจ", "จต.", "ส่วนบังคับบัญชา", ["จต.", "จเรตำรวจ"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองตรวจราชการ", "กต.", 10)]),
+  command("สำนักงานตรวจสอบภายใน", "สตส.", "ส่วนบังคับบัญชา", ["สตส.", "ตรวจสอบภายใน"], ["ฝ่ายอำนวยการ (ฝอ.)", "กลุ่มงานพัฒนาการตรวจสอบภายใน (พตส.)", "กองตรวจสอบภายใน 1 (ตส.1)", "กองตรวจสอบภายใน 2 (ตส.2)", "กองตรวจสอบภายใน 3 (ตส.3)"]),
+  command("สำนักงานเลขานุการตำรวจแห่งชาติ", "สลก.ตร.", "ส่วนบังคับบัญชา", ["สลก.ตร.", "สลก"], []),
+  command("กองการต่างประเทศ", "ตท.", "ส่วนบังคับบัญชา", ["ตท.", "ต่างประเทศ"], []),
+  command("กองสารนิเทศ", "สท.", "ส่วนบังคับบัญชา", ["สท.", "สารนิเทศ"], []),
+  command("สำนักงานคณะกรรมการนโยบายตำรวจแห่งชาติ", "สง.ก.ต.ช.", "ส่วนบังคับบัญชา", ["สง.ก.ต.ช.", "ก.ต.ช.", "กตช"], []),
+  command("กองบินตำรวจ", "บ.ตร.", "ส่วนบังคับบัญชา", ["บ.ตร.", "กองบินตำรวจ"], []),
+  command("กองวินัย", "วน.", "ส่วนบังคับบัญชา", ["วน.", "วินัย"], []),
+  command("สถาบันฝึกอบรมระหว่างประเทศ ว่าด้วยการดำเนินการให้เป็นไปตามกฎหมาย", "ILEA", "ส่วนบังคับบัญชา", ["ILEA", "สถาบันฝึกอบรมระหว่างประเทศ"], []),
+  command("กองบัญชาการตำรวจนครบาล", "บช.น.", "ส่วนป้องกันและปราบปรามอาชญากรรม", ["บช.น.", "บชน", "นครบาล"], ["กองบังคับการอำนวยการ (บก.อก.)", "กองบังคับการตำรวจจราจร (บก.จร.)", ...numbered("กองบังคับการตำรวจนครบาล", "บก.น.", 9), "กองบังคับการสืบสวนสอบสวน (บก.สส.)", "กองบังคับการสายตรวจและปฏิบัติการพิเศษ (บก.สปพ.)", "กองบังคับการอารักขาและควบคุมฝูงชน (บก.อคฝ.)", "ศูนย์ฝึกอบรม (ศฝร.)", "กองกำกับการสวัสดิภาพเด็กและสตรี (กก.ดส.)"]),
+  ...provincialCommands(),
+  command("กองบัญชาการตำรวจสอบสวนกลาง", "บช.ก.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["บช.ก.", "บชก", "สอบสวนกลาง"], ["กองบังคับการอำนวยการ (บก.อก.)", "กองบังคับการปราบปราม (บก.ป.)", "กองบังคับการตำรวจทางหลวง (บก.ทล.)", "กองบังคับการตำรวจรถไฟ (บก.รฟ.)", "กองบังคับการตำรวจน้ำ (บก.รน.)", "กองบังคับการปราบปรามการกระทำความผิดเกี่ยวกับทรัพยากรธรรมชาติและสิ่งแวดล้อม (บก.ปทส.)", "กองบังคับการปราบปรามการค้ามนุษย์ (บก.ปคม.)", "กองบังคับการปราบปรามการกระทำความผิดเกี่ยวกับอาชญากรรมทางเศรษฐกิจ (บก.ปอศ.)", "กองบังคับการป้องกันปราบปรามการทุจริตและประพฤติมิชอบ (บก.ปปป.)", "กองบังคับการปราบปรามการกระทำความผิดเกี่ยวกับการคุ้มครองผู้บริโภค (บก.ปคบ.)", "กองบังคับการปราบปรามการกระทำความผิดเกี่ยวกับอาชญากรรมทางเทคโนโลยี (บก.ปอท.)", "กองบังคับการปฏิบัติการพิเศษ (บก.ปพ.)", "ศูนย์ฝึกอบรม (ศฝร.)"]),
+  command("กองบัญชาการตำรวจปราบปรามยาเสพติด", "บช.ปส.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["บช.ปส.", "บชปส", "ปราบปรามยาเสพติด"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตำรวจปราบปรามยาเสพติด", "บก.ปส.", 4), "กองบังคับการข่าวกรองยาเสพติด (บก.ขส.)", "กองบังคับการสกัดกั้นการลำเลียงยาเสพติด (บก.สกส.)", "กองกำกับการปฏิบัติการพิเศษ (กก.ปพ.)"]),
+  command("กองบัญชาการตำรวจสันติบาล", "บช.ส.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["บช.ส.", "บชส", "สันติบาล"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตำรวจสันติบาล", "บก.ส.", 4), "ศูนย์พัฒนาด้านการข่าว (ศพข.)", "กลุ่มงานผู้เชี่ยวชาญด้านการข่าว (กชข.)"]),
+  command("สำนักงานตรวจคนเข้าเมือง", "สตม.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["สตม.", "ตรวจคนเข้าเมือง"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตรวจคนเข้าเมือง", "บก.ตม.", 6), "กองบังคับการสืบสวนสอบสวน (บก.สส.)", "ศูนย์เทคโนโลยีตรวจคนเข้าเมือง (ศท.ตม.)", "ศูนย์ฝึกอบรมตรวจคนเข้าเมือง (ศฝร.ตม.)"]),
+  command("กองบัญชาการตำรวจตระเวนชายแดน", "ตชด.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["ตชด.", "บช.ตชด.", "ตระเวนชายแดน"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตำรวจตระเวนชายแดนภาค", "บก.ตชด.ภาค", 4), "กองบังคับการฝึกพิเศษ (บก.กฝ.)", "กองบังคับการสนับสนุน (บก.สสน.)", "กองบังคับการสนับสนุนทางอากาศ (บก.สอ.)", "ศูนย์อำนวยการโครงการพัฒนาตามแนวพระราชดำริ (ศอพ.)"]),
+  command("สำนักงานพิสูจน์หลักฐานตำรวจ", "สพฐ.ตร.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["สพฐ.ตร.", "สพฐ", "พิสูจน์หลักฐาน"], ["กองบังคับการอำนวยการ (บก.อก.)", "กองพิสูจน์หลักฐานกลาง (พฐก.)", "กองทะเบียนประวัติอาชญากร (ทว.)", ...numbered("ศูนย์พิสูจน์หลักฐาน", "ศพฐ.", 10), "สถาบันฝึกอบรมและวิจัยการพิสูจน์หลักฐานตำรวจ (สฝจ.)", "กลุ่มงานพิสูจน์เอกลักษณ์บุคคล (กพอ.)", "ศูนย์ข้อมูลวัตถุระเบิด (ศขบ.)"]),
+  command("สำนักงานเทคโนโลยีสารสนเทศและการสื่อสาร", "สทส.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["สทส.", "เทคโนโลยีสารสนเทศ"], ["กองบังคับการอำนวยการ (บก.อก.)", "กองตำรวจสื่อสาร (สส.)", "กองบังคับการสนับสนุนทางเทคโนโลยี (บก.สสท.)", "ศูนย์เทคโนโลยีสารสนเทศกลาง (ศทก.)"]),
+  command("กองบัญชาการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี", "บช.สอท.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["บช.สอท.", "บชสอท", "อาชญากรรมทางเทคโนโลยี", "ไซเบอร์"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตำรวจสืบสวนสอบสวนอาชญากรรมทางเทคโนโลยี", "บก.สอท.", 5), "กองบังคับการตรวจสอบและวิเคราะห์อาชญากรรมทางเทคโนโลยี (บก.ตอท.)"]),
+  command("กองบัญชาการตำรวจท่องเที่ยว", "บช.ทท.", "ส่วนสนับสนุนการป้องกันและปราบปรามอาชญากรรม", ["บช.ทท.", "บชทท", "ตำรวจท่องเที่ยว"], ["กองบังคับการอำนวยการ (บก.อก.)", ...numbered("กองบังคับการตำรวจท่องเที่ยว", "บก.ทท.", 3), "กองกำกับการควบคุมธุรกิจนำเที่ยวและมัคคุเทศก์ (กก.คธม.)"]),
+  command("กองบัญชาการศึกษา", "บช.ศ.", "ส่วนการศึกษา", ["บช.ศ.", "บชศ", "กองบัญชาการศึกษา"], ["กองบังคับการอำนวยการ (บก.อก.)", "สำนักการศึกษาและประกันคุณภาพ (สศป.)", "วิทยาลัยการตำรวจ (วตร.)", "กองบังคับการฝึกอบรมตำรวจกลาง (บก.ฝรก.)", "กองการสอบ (กส.)", "กลุ่มงานอาจารย์ (กอจ.)", "ศูนย์ฝึกยุทธวิธีตำรวจกลาง (ศยก.)"]),
+  command("โรงเรียนนายร้อยตำรวจ", "รร.นรต.", "ส่วนการศึกษา", ["รร.นรต.", "นายร้อยตำรวจ"], []),
+  command("โรงพยาบาลตำรวจ", "รพ.ตร.", "ส่วนบริการ", ["รพ.ตร.", "รพตร", "โรงพยาบาลตำรวจ"], ["กองบังคับการอำนวยการ (บก.อก.)", "วิทยาลัยพยาบาลตำรวจ (วพ.)", "สถาบันนิติเวชวิทยา (นต.)", "วิทยาลัยแพทยศาสตร์ (วพศ.)", "โรงพยาบาลดารารัศมี (ดร.)", "โรงพยาบาลนวุติสมเด็จย่า (นย.)", "โรงพยาบาลยะลาสิริรัตนรักษ์ (ยส.)"]),
+  command("โรงพิมพ์ตำรวจ", "โรงพิมพ์ตำรวจ", "หน่วยงานอื่นๆ", ["โรงพิมพ์ตำรวจ"], []),
+  command("กองทุนเพื่อการสืบสวนและการสอบสวนคดีอาญา", "กองทุนฯ", "หน่วยงานอื่นๆ", ["กองทุนเพื่อการสืบสวน", "กองทุน"], []),
+  command("ศูนย์บริการข้อมูลคนหายและศพนิรนาม", "ศูนย์คนหาย", "หน่วยงานอื่นๆ", ["ศูนย์บริการข้อมูลคนหาย", "ศพนิรนาม"], []),
+  command("สายด่วนรถหาย", "สายด่วนรถหาย", "หน่วยงานอื่นๆ", ["สายด่วนรถหาย"], []),
+  command("ป้องกันภัยออนไลน์", "ป้องกันภัยออนไลน์", "หน่วยงานอื่นๆ", ["ป้องกันภัยออนไลน์", "คณะทำงานสร้างเสริมภูมิคุ้มกันภัย"], []),
 ];
 
 export default async function DailyReportPage() {
@@ -113,10 +132,10 @@ export default async function DailyReportPage() {
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const orgStats = buildOrgStats(activeParticipants, submissions);
-  const orgSectionSummaries = buildOrgSectionSummaries(orgStats);
-  const orgsWithSubmissions = orgStats.filter((item) => item.submissions > 0).length;
-  const topOrgStats = [...orgStats]
+  const commandStats = buildCommandStats(activeParticipants, submissions);
+  const orgSectionSummaries = buildOrgSectionSummaries(commandStats);
+  const orgsWithSubmissions = commandStats.filter((item) => item.submissions > 0).length;
+  const topOrgStats = [...commandStats]
     .filter((item) => item.submissions > 0)
     .sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations || a.label.localeCompare(b.label, "th"))
     .slice(0, 8);
@@ -163,7 +182,7 @@ export default async function DailyReportPage() {
         <Metric icon={<Users/>} value={activeParticipants.length} label="คนสมัคร / ลงทะเบียนทั้งหมด" detail={`วันนี้ +${registeredToday.length.toLocaleString("th-TH")} คน`}/>
         <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินแล้ว" detail={`รอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
         <Metric icon={<FileText/>} value={submissions.length} label="ผลงานที่ส่งแล้ว" detail={`วันนี้ +${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
-        <Metric icon={<Building2/>} value={orgsWithSubmissions} label="สังกัดที่มีผลงาน" detail={`จาก ${organizationUnits.length.toLocaleString("th-TH")} หน่วยตามผัง`}/>
+        <Metric icon={<Building2/>} value={orgsWithSubmissions} label="บช./สำนักงานที่มีผลงาน" detail={`จาก ${orgCommands.length.toLocaleString("th-TH")} หน่วยตามโครงสร้าง ตร.`}/>
         <Metric icon={<Trophy/>} value={scored.length} label="ผลงานที่มีคะแนนแล้ว" detail={`ยังรอตรวจ ${(submissions.length - scored.length).toLocaleString("th-TH")} รายการ`}/>
         <Metric icon={<ClipboardList/>} value={teams.length} label="ส่งแบบทีม" detail={`ส่งเดี่ยว ${(submissions.length - teams.length).toLocaleString("th-TH")} รายการ`}/>
       </section>
@@ -179,7 +198,7 @@ export default async function DailyReportPage() {
           <div className="report-rank-list">
             {topOrgStats.length ? topOrgStats.map((item, index) => <div className="report-rank-row" key={item.label}>
               <b>{(index + 1).toLocaleString("th-TH")}</b>
-              <span>{item.label}</span>
+              <span>{item.shortLabel} • {item.label}</span>
               <strong>{item.submissions.toLocaleString("th-TH")}</strong>
             </div>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
           </div>
@@ -200,14 +219,14 @@ export default async function DailyReportPage() {
       <section className="admin-panel report-panel">
         <header className="admin-section-head">
           <BarChart3/>
-          <div><h2>กราฟผลงานแยกตามสังกัดในผังองค์กร</h2><p>สรุปตามกลุ่มใหญ่ก่อน แล้วแสดงรายละเอียดรายหน่วยด้านล่าง ตัวเลขคือผลงาน / ผู้ลงทะเบียน</p></div>
+          <div><h2>ผลงานแยกตามโครงสร้างหน่วยงาน ตร.</h2><p>อ้างอิงโครงสร้างหน่วยงานในสังกัดจากเว็บไซต์สำนักงานตำรวจแห่งชาติ แสดงระดับ บช./สำนักงาน และเปิดดู บก./หน่วยย่อยได้</p></div>
         </header>
         <div className="report-org-overview">
           {orgSectionSummaries.map((summary) => <OrgSectionOverview key={summary.section} summary={summary}/>)}
         </div>
         <div className="report-org-chart report-org-chart-v2">
           {orgSections.map((section) => {
-            const rows = orgStats.filter((item) => item.section === section);
+            const rows = commandStats.filter((item) => item.section === section);
             if (!rows.length) return null;
             const summary = orgSectionSummaries.find((item) => item.section === section);
             return <OrgSectionBlock key={section} section={section} rows={rows} summary={summary}/>;
@@ -229,7 +248,7 @@ export default async function DailyReportPage() {
 }
 
 function OrgSectionOverview({ summary }: { summary: OrgSectionSummary }) {
-  const activeLabel = `${summary.activeUnits.toLocaleString("th-TH")}/${summary.totalUnits.toLocaleString("th-TH")} หน่วยมีผลงาน`;
+  const activeLabel = `${summary.activeCommands.toLocaleString("th-TH")}/${summary.totalCommands.toLocaleString("th-TH")} บช./สำนักงานมีผลงาน`;
   return <article className={summary.submissions > 0 ? "report-org-overview-card" : "report-org-overview-card is-quiet"}>
     <div>
       <span>{summary.section}</span>
@@ -237,22 +256,22 @@ function OrgSectionOverview({ summary }: { summary: OrgSectionSummary }) {
       <small>ผลงาน • {activeLabel}</small>
     </div>
     <i aria-hidden="true"><span style={{ width: `${summary.submissions > 0 ? Math.max(summary.percent, 6) : 0}%` }}/></i>
-    <em>{summary.topUnit ? `มากสุด: ${summary.topUnit.label} (${summary.topUnit.submissions.toLocaleString("th-TH")})` : "ยังไม่มีผลงาน"}</em>
+    <em>{summary.topCommand ? `มากสุด: ${summary.topCommand.shortLabel} (${summary.topCommand.submissions.toLocaleString("th-TH")})` : "ยังไม่มีผลงาน"}</em>
   </article>;
 }
 
-function OrgSectionBlock({ section, rows, summary }: { section: OrgSection; rows: OrgStat[]; summary?: OrgSectionSummary }) {
+function OrgSectionBlock({ section, rows, summary }: { section: OrgSection; rows: CommandStat[]; summary?: OrgSectionSummary }) {
   const sortedRows = [...rows].sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations || a.label.localeCompare(b.label, "th"));
   return <section className="report-org-section" key={section}>
     <div className="report-org-section-head">
       <div>
         <h3>{section}</h3>
-        <span>{summary?.activeUnits.toLocaleString("th-TH") ?? "0"} หน่วยมีผลงาน จาก {summary?.totalUnits.toLocaleString("th-TH") ?? rows.length.toLocaleString("th-TH")} หน่วย</span>
+        <span>{summary?.activeCommands.toLocaleString("th-TH") ?? "0"} บช./สำนักงานมีผลงาน จาก {summary?.totalCommands.toLocaleString("th-TH") ?? rows.length.toLocaleString("th-TH")} หน่วย</span>
       </div>
       <strong>{(summary?.submissions ?? 0).toLocaleString("th-TH")}<small>ผลงาน</small></strong>
     </div>
-    <div className="report-bar-list">
-      {sortedRows.map((item) => <OrgBar key={`${section}-${item.label}`} item={item}/>)}
+    <div className="report-command-list">
+      {sortedRows.map((item, index) => <CommandToggle key={`${section}-${item.label}`} item={item} index={index}/>)}
     </div>
   </section>;
 }
@@ -270,33 +289,81 @@ function Metric({ icon, value, label, detail }: { icon: ReactNode; value: number
 
 function VisitTrend({ stats }: { stats: SiteStats }) {
   const max = Math.max(1, ...stats.last7Days.map((item) => item.count));
+  const width = 720;
+  const height = 230;
+  const padX = 34;
+  const padTop = 22;
+  const padBottom = 42;
+  const chartHeight = height - padTop - padBottom;
+  const points = stats.last7Days.map((item, index) => {
+    const x = padX + index * ((width - padX * 2) / Math.max(1, stats.last7Days.length - 1));
+    const y = padTop + chartHeight - (item.count / max) * chartHeight;
+    return { ...item, x, y };
+  });
+  const linePath = points.map((item, index) => `${index === 0 ? "M" : "L"} ${item.x.toFixed(2)} ${item.y.toFixed(2)}`).join(" ");
+  const areaPath = points.length ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${height - padBottom} L ${points[0].x.toFixed(2)} ${height - padBottom} Z` : "";
   return <div className="report-visit-trend">
     <div className="report-visit-summary">
       <span><b>{stats.today.toLocaleString("th-TH")}</b><small>วันนี้</small></span>
       <span><b>{stats.yesterday.toLocaleString("th-TH")}</b><small>เมื่อวาน</small></span>
       <span><b>{stats.peakDay.count.toLocaleString("th-TH")}</b><small>สูงสุด {stats.peakDay.label}</small></span>
     </div>
-    <div className="report-visit-bars">
-      {stats.last7Days.map((item) => {
-        const height = item.count > 0 ? Math.max(10, Math.round((item.count / max) * 100)) : 0;
-        return <div key={item.date}>
-          <b>{item.count.toLocaleString("th-TH")}</b>
-          <i><span style={{ height: `${height}%` }}/></i>
-          <small>{item.label}</small>
-        </div>;
-      })}
+    <div className="report-line-chart" aria-label="ยอดเข้าชมเว็บไซต์ 7 วันล่าสุด">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img">
+        <defs>
+          <linearGradient id="visitLineGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stopColor="#76d6ca"/>
+            <stop offset="100%" stopColor="#dfba33"/>
+          </linearGradient>
+          <linearGradient id="visitAreaGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#76d6ca" stopOpacity="0.28"/>
+            <stop offset="100%" stopColor="#76d6ca" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          const y = padTop + chartHeight * ratio;
+          return <line key={ratio} className="report-line-grid" x1={padX} x2={width - padX} y1={y} y2={y}/>;
+        })}
+        {areaPath && <path className="report-line-area" d={areaPath}/>}
+        {linePath && <path className="report-line-path" d={linePath}/>}
+        {points.map((item) => <g key={item.date}>
+          <circle className="report-line-dot" cx={item.x} cy={item.y} r="5"/>
+          <text className="report-line-value" x={item.x} y={Math.max(14, item.y - 12)}>{item.count.toLocaleString("th-TH")}</text>
+          <text className="report-line-label" x={item.x} y={height - 14}>{item.label}</text>
+        </g>)}
+      </svg>
     </div>
   </div>;
 }
 
-function OrgBar({ item }: { item: OrgStat }) {
+function CommandToggle({ item, index }: { item: CommandStat; index: number }) {
   const width = item.submissions > 0 ? Math.max(item.percent, 3) : 0;
-  return <div className={`report-bar-row${item.submissions === 0 ? " is-zero" : ""}${item.unmatched ? " is-unmatched" : ""}`}>
-    <div className="report-bar-label">
-      <span>{item.label}</span>
-      <small>{item.unmatched ? "ไม่พบในผังองค์กรที่แนบ" : item.section}</small>
+  const activeBureaus = item.bureaus.filter((bureau) => bureau.submissions > 0).length;
+  return <details className={`report-command-toggle${item.submissions === 0 ? " is-zero" : ""}`} open={index < 3 && item.submissions > 0}>
+    <summary>
+      <span className="report-command-rank">{(index + 1).toLocaleString("th-TH")}</span>
+      <div className="report-command-title">
+        <b>{item.shortLabel}</b>
+        <span>{item.label}</span>
+        <small>{activeBureaus.toLocaleString("th-TH")} บก./หน่วยย่อยมีผลงาน จาก {item.bureaus.length.toLocaleString("th-TH")} หน่วย</small>
+      </div>
+      <div className="report-command-meter" aria-hidden="true"><span style={{ width: `${width}%` }}/></div>
+      <strong><b>{item.submissions.toLocaleString("th-TH")}</b><small>ผลงาน</small></strong>
+    </summary>
+    <div className="report-bureau-list">
+      {item.bureaus.map((bureau) => <BureauRow key={`${item.label}-${bureau.label}`} item={bureau}/>)}
     </div>
-    <div className="report-bar-track" aria-hidden="true"><span style={{ width: `${width}%` }}/></div>
+  </details>;
+}
+
+function BureauRow({ item }: { item: BureauStat }) {
+  const width = item.submissions > 0 ? Math.max(item.percent, 4) : 0;
+  return <div className={`report-bureau-row${item.submissions === 0 ? " is-zero" : ""}${item.unmatched ? " is-unmatched" : ""}`}>
+    <div>
+      <span>{item.label}</span>
+      <small>{item.unmatched ? "ข้อมูลที่กรอกไม่ตรงกับ บก./หน่วยย่อยในโครงสร้าง" : "บก./หน่วยย่อย"}</small>
+    </div>
+    <i aria-hidden="true"><span style={{ width: `${width}%` }}/></i>
     <strong><b>{item.submissions.toLocaleString("th-TH")}</b><small>/ {item.registrations.toLocaleString("th-TH")}</small></strong>
   </div>;
 }
@@ -313,87 +380,125 @@ function SubmissionReportItem({ item }: { item: SubmissionListItem }) {
   </article>;
 }
 
-function buildOrgStats(participants: RegistrationRecord[], submissions: SubmissionListItem[]) {
-  const stats = new Map<string, OrgStat>();
-  const unmatched = new Map<string, OrgStat>();
+function buildCommandStats(participants: RegistrationRecord[], submissions: SubmissionListItem[]) {
+  const stats = new Map<string, CommandStat>();
 
-  for (const item of organizationUnits) {
-    stats.set(item.label, { ...item, registrations: 0, submissions: 0, percent: 0 });
+  for (const item of orgCommands) {
+    const bureaus = item.bureaus.length
+      ? item.bureaus.map((bureau) => ({ ...bureau, registrations: 0, submissions: 0, percent: 0 }))
+      : [{ label: "ไม่ระบุ บก./หน่วยย่อย", aliases: ["ไม่ระบุ"], registrations: 0, submissions: 0, percent: 0 }];
+    stats.set(item.label, { ...item, registrations: 0, submissions: 0, percent: 0, bureaus });
   }
 
   for (const item of participants) {
-    incrementOrgStat(stats, unmatched, item.division, item.bureau, "registrations");
+    incrementCommandStat(stats, item.division, item.bureau, "registrations");
   }
   for (const item of submissions) {
-    incrementOrgStat(stats, unmatched, item.division, item.bureau, "submissions");
+    incrementCommandStat(stats, item.division, item.bureau, "submissions");
   }
 
-  const rows = [...stats.values(), ...unmatched.values()].filter((item) => !item.unmatched || item.registrations > 0 || item.submissions > 0);
+  const rows = [...stats.values()].map((commandStat) => {
+    const maxBureau = Math.max(1, ...commandStat.bureaus.map((bureau) => bureau.submissions));
+    return {
+      ...commandStat,
+      bureaus: commandStat.bureaus
+        .map((bureau) => ({ ...bureau, percent: Math.round((bureau.submissions / maxBureau) * 100) }))
+        .sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations || a.label.localeCompare(b.label, "th")),
+    };
+  });
   const max = Math.max(1, ...rows.map((item) => item.submissions));
   return rows.map((item) => ({ ...item, percent: Math.round((item.submissions / max) * 100) }));
 }
 
-function buildOrgSectionSummaries(stats: OrgStat[]): OrgSectionSummary[] {
+function buildOrgSectionSummaries(stats: CommandStat[]): OrgSectionSummary[] {
   const summaries = orgSections.map((section) => {
     const rows = stats.filter((item) => item.section === section);
     const submissions = rows.reduce((sum, item) => sum + item.submissions, 0);
     const registrations = rows.reduce((sum, item) => sum + item.registrations, 0);
-    const activeUnits = rows.filter((item) => item.submissions > 0).length;
-    const topUnit = [...rows].sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations)[0] ?? null;
+    const activeCommands = rows.filter((item) => item.submissions > 0).length;
+    const topCommand = [...rows].sort((a, b) => b.submissions - a.submissions || b.registrations - a.registrations)[0] ?? null;
     return {
       section,
       registrations,
       submissions,
-      activeUnits,
-      totalUnits: rows.length,
+      activeCommands,
+      totalCommands: rows.length,
       percent: 0,
-      topUnit: topUnit && topUnit.submissions > 0 ? topUnit : null,
+      topCommand: topCommand && topCommand.submissions > 0 ? topCommand : null,
     };
   });
   const max = Math.max(1, ...summaries.map((item) => item.submissions));
   return summaries.map((item) => ({ ...item, percent: Math.round((item.submissions / max) * 100) }));
 }
 
-function incrementOrgStat(
-  stats: Map<string, OrgStat>,
-  unmatched: Map<string, OrgStat>,
+function incrementCommandStat(
+  stats: Map<string, CommandStat>,
   division: string,
   bureau: string,
   key: "registrations" | "submissions",
 ) {
-  const unitMatch = matchOrganizationUnit(division, bureau);
-  if (unitMatch) {
-    const current = stats.get(unitMatch.label);
-    if (current) current[key] += 1;
-    return;
+  const match = matchCommandAndBureau(division, bureau);
+  let commandStat = stats.get(match.command.label);
+  if (!commandStat) {
+    commandStat = { ...match.command, registrations: 0, submissions: 0, percent: 0, bureaus: [] };
+    stats.set(match.command.label, commandStat);
+  }
+  commandStat[key] += 1;
+
+  const bureauLabel = match.bureau?.label ?? "ไม่ระบุ บก./หน่วยย่อย";
+  let bureauStat = commandStat.bureaus.find((item) => item.label === bureauLabel);
+  if (!bureauStat) {
+    bureauStat = { label: bureauLabel, aliases: match.bureau?.aliases ?? [], registrations: 0, submissions: 0, percent: 0, unmatched: !match.bureau };
+    commandStat.bureaus.push(bureauStat);
+  }
+  bureauStat[key] += 1;
+}
+
+function matchCommandAndBureau(division: string, bureau: string) {
+  const command =
+    matchCommandText(bureau) ??
+    matchCommandText(`${bureau} ${division}`) ??
+    matchCommandByBureauText(division);
+  if (command) {
+    return {
+      command,
+      bureau: matchBureauText(command, division) ?? matchBureauText(command, bureau),
+    };
   }
 
-  const label = [division, bureau].map((item) => item.trim()).filter(Boolean).join(" / ") || "ไม่ระบุสังกัด";
-  const normalized = normalizeText(label);
-  const current = unmatched.get(normalized) ?? {
-    label,
-    section: "อื่น ๆ",
-    aliases: [],
-    registrations: 0,
-    submissions: 0,
-    percent: 0,
-    unmatched: true,
+  const other = statsFallbackCommand();
+  return {
+    command: other,
+    bureau: {
+      label: [division, bureau].map((item) => item.trim()).filter(Boolean).join(" / ") || "ไม่ระบุสังกัด",
+      aliases: [],
+    },
   };
-  current[key] += 1;
-  unmatched.set(normalized, current);
 }
 
-function matchOrganizationUnit(division: string, bureau: string) {
-  return matchOrganizationText(division) ?? matchOrganizationText(bureau) ?? matchOrganizationText(`${division} ${bureau}`);
-}
-
-function matchOrganizationText(value: string) {
+function matchCommandText(value: string) {
   const text = normalizeText(value);
   if (!text) return null;
-  return organizationUnits.find((item) => item.aliases.some((alias) => {
+  return orgCommands.find((item) => aliasesMatch(text, item.aliases)) ?? null;
+}
+
+function matchCommandByBureauText(value: string) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  return orgCommands.find((commandItem) => commandItem.bureaus.some((bureau) => aliasesMatch(text, bureau.aliases))) ?? null;
+}
+
+function matchBureauText(commandItem: OrgCommand, value: string) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  return commandItem.bureaus.find((item) => aliasesMatch(text, item.aliases)) ?? null;
+}
+
+function aliasesMatch(text: string, aliases: string[]) {
+  return aliases.some((alias) => {
     const normalizedAlias = normalizeText(alias);
     return text === normalizedAlias || text.includes(normalizedAlias);
-  })) ?? null;
+  });
 }
 
 function buildStatusStats(submissions: SubmissionListItem[]) {
@@ -408,19 +513,62 @@ function buildStatusStats(submissions: SubmissionListItem[]) {
   }));
 }
 
-function rangeUnits(prefix: string, section: OrgSection, aliases: (n: number) => string[]) {
-  return Array.from({ length: 9 }, (_, index) => {
+function command(label: string, shortLabel: string, section: OrgSection, aliases: string[], bureaus: string[]): OrgCommand {
+  return {
+    label,
+    shortLabel,
+    section,
+    aliases: [label, shortLabel, ...aliases],
+    bureaus: bureaus.map((item) => bureauUnit(item)),
+  };
+}
+
+function bureauUnit(label: string): OrgBureau {
+  const abbreviation = label.match(/\(([^)]+)\)/)?.[1] ?? "";
+  return {
+    label,
+    aliases: [label, abbreviation, abbreviation.replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))].filter(Boolean),
+  };
+}
+
+function numbered(prefix: string, abbreviationPrefix: string, count: number) {
+  return Array.from({ length: count }, (_, index) => {
     const n = index + 1;
-    return unit(`${prefix} ${n}`, section, aliases(n));
+    return `${prefix} ${n} (${abbreviationPrefix}${n})`;
   });
 }
 
-function unit(label: string, section: OrgSection, aliases: string[] = []): OrganizationUnit {
-  return { label, section, aliases: [label, ...aliases] };
+function provincialCommands(): OrgCommand[] {
+  const provinces = [
+    ["ตำรวจภูธร ภาค 1", "ภ.1", ["สมุทรปราการ", "นนทบุรี", "ปทุมธานี", "พระนครศรีอยุธยา", "อ่างทอง", "สิงห์บุรี", "ชัยนาท", "ลพบุรี", "สระบุรี"]],
+    ["ตำรวจภูธร ภาค 2", "ภ.2", ["จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ตราด", "นครนายก", "ปราจีนบุรี", "ระยอง", "สระแก้ว"]],
+    ["ตำรวจภูธร ภาค 3", "ภ.3", ["ชัยภูมิ", "นครราชสีมา", "บุรีรัมย์", "ยโสธร", "ศรีสะเกษ", "สุรินทร์", "อำนาจเจริญ", "อุบลราชธานี"]],
+    ["ตำรวจภูธร ภาค 4", "ภ.4", ["กาฬสินธุ์", "ขอนแก่น", "นครพนม", "บึงกาฬ", "มหาสารคาม", "มุกดาหาร", "ร้อยเอ็ด", "เลย", "สกลนคร", "หนองคาย", "หนองบัวลำภู", "อุดรธานี"]],
+    ["ตำรวจภูธร ภาค 5", "ภ.5", ["เชียงใหม่", "เชียงราย", "ลำพูน", "ลำปาง", "แพร่", "พะเยา", "น่าน", "แม่ฮ่องสอน"]],
+    ["ตำรวจภูธร ภาค 6", "ภ.6", ["กำแพงเพชร", "ตาก", "นครสวรรค์", "พิจิตร", "พิษณุโลก", "เพชรบูรณ์", "สุโขทัย", "อุตรดิตถ์", "อุทัยธานี"]],
+    ["ตำรวจภูธร ภาค 7", "ภ.7", ["กาญจนบุรี", "นครปฐม", "ประจวบคีรีขันธ์", "เพชรบุรี", "ราชบุรี", "สมุทรสงคราม", "สมุทรสาคร", "สุพรรณบุรี"]],
+    ["ตำรวจภูธร ภาค 8", "ภ.8", ["สุราษฎร์ธานี", "นครศรีธรรมราช", "ภูเก็ต", "กระบี่", "ชุมพร", "พังงา", "ระนอง"]],
+    ["ตำรวจภูธร ภาค 9", "ภ.9", ["สงขลา", "พัทลุง", "สตูล", "ตรัง", "นราธิวาส", "ยะลา", "ปัตตานี"]],
+  ] as const;
+  return provinces.map(([label, shortLabel, provinceList]) => command(
+    label,
+    shortLabel,
+    "ส่วนป้องกันและปราบปรามอาชญากรรม",
+    [shortLabel.replace(".", ""), `ตำรวจภูธรภาค ${shortLabel.replace("ภ.", "")}`, `ภาค ${shortLabel.replace("ภ.", "")}`],
+    ["กองบังคับการอำนวยการ (บก.อก.)", "กองบังคับการกฎหมายและคดี (บก.กค.)", "กองบังคับการสืบสวนสอบสวน (บก.สส.)", ...provinceList.map((province) => `ตำรวจภูธรจังหวัด${province} (ภ.จว.${province})`), "ศูนย์ฝึกอบรม (ศฝร.)", "กองกำกับการปฏิบัติการพิเศษ (กก.ปพ.)"],
+  ));
+}
+
+function statsFallbackCommand(): OrgCommand {
+  return command("ไม่พบในโครงสร้างหน่วยงาน", "อื่น ๆ", "อื่น ๆ", ["ไม่พบ", "อื่น ๆ"], []);
 }
 
 function normalizeText(value: string) {
-  return value.toLowerCase().replace(/[.\s\-_/()]/g, "").replace(/สำนักงานตำรวจแห่งชาติ/g, "ตร");
+  return value
+    .toLowerCase()
+    .replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))
+    .replace(/[.\s\-_/()]/g, "")
+    .replace(/สำนักงานตำรวจแห่งชาติ/g, "ตร");
 }
 
 function statusLabel(status: string) {
