@@ -228,7 +228,7 @@ async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback
 
 function AuditLogPanel({ events, total }: { events: AuditEventRecord[]; total: number }) {
   return <section className="admin-panel">
-    <header className="admin-section-head"><ClipboardList/><div><h2>Audit Log</h2><p>แสดงเฉพาะ 10 รายการล่าสุดของการลงทะเบียนเข้าร่วมงานและสมัครประกวด ย้อนหลังสูงสุด 90 วัน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/audit-log"><Eye/>ดูทั้งหมด</Link></div></header>
+    <header className="admin-section-head"><ClipboardList/><div><h2>Audit Log</h2><p>แสดงเฉพาะ 10 รายการล่าสุดของการสร้าง แก้ไข ลบ หรือเปลี่ยนสถานะข้อมูล ย้อนหลังสูงสุด 90 วัน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/audit-log"><Eye/>ดูทั้งหมด</Link></div></header>
     <form className="audit-quick-search" action="/admin/audit-log" method="get">
       <label>ค้นหา Audit Log
         <div><Search/><input name="q" placeholder="ค้นอีเมล รหัส REG/SUB หรือข้อความใน log"/><button className="secondary" type="submit">ค้นหา</button></div>
@@ -242,7 +242,7 @@ function AuditLogPanel({ events, total }: { events: AuditEventRecord[]; total: n
       </div>
       <span>{actorLabel(event.actor)}</span>
       <small>{auditEntityLabel(event.entityType)}</small>
-    </article>) : <div className="participant-empty">ยังไม่มี log การลงทะเบียนหรือสมัครประกวดใน 90 วันที่ผ่านมา</div>}</div>
+    </article>) : <div className="participant-empty">ยังไม่มี log การเปลี่ยนแปลงข้อมูลใน 90 วันที่ผ่านมา</div>}</div>
     {total > events.length && <p className="audit-log-more">มีทั้งหมด {total.toLocaleString("th-TH")} รายการ กด “ดูทั้งหมด” เพื่อเปิดหน้ารายการย้อนหลังแบบแบ่งหน้า</p>}
   </section>;
 }
@@ -702,16 +702,28 @@ function auditActionLabel(action: string) {
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";
-  if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
-  if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board PDF";
   if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
+  if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
+  if (action === "admin_user.created") return "เพิ่มแอดมิน";
+  if (action === "admin_user.updated") return "แก้ไขแอดมิน";
+  if (action === "admin_user.password_link_sent") return "ส่งลิงก์รหัสผ่านแอดมิน";
+  if (action === "admin_user.password_set") return "ตั้งรหัสผ่านแอดมิน";
+  if (action === "admin_user.deleted") return "ลบแอดมิน";
+  if (action === "news.created") return "เพิ่มข่าวประชาสัมพันธ์";
+  if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
+  if (action === "winner.created") return "เพิ่มประกาศผล";
+  if (action === "winner.deleted") return "ลบประกาศผล";
   return action;
 }
 
 function auditEntityLabel(entityType: string) {
   if (entityType === "registration") return "ลงทะเบียน";
   if (entityType === "submission") return "ใบสมัคร";
+  if (entityType === "settings") return "ตั้งค่าระบบ";
+  if (entityType === "admin_user") return "แอดมิน";
+  if (entityType === "news") return "ข่าว";
+  if (entityType === "winner") return "ประกาศผล";
   return entityType;
 }
 

@@ -56,7 +56,7 @@ async function setPasswordAction(formData: FormData) {
   const account = await setAdminPasswordByResetToken(token, password);
   await recordAuditEvent({
     actor: { type: "admin", email: account.email },
-    action: "auth.admin_password_set",
+    action: "admin_user.password_set",
     entityType: "admin_user",
     entityId: account.id,
     summary: `Admin ตั้ง/รีเซ็ตรหัสผ่าน ${account.email}`,

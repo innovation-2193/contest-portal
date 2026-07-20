@@ -53,6 +53,19 @@ const allowedAuditActions = new Set([
   "registration.checked_in",
   "submission.created",
   "submission.updated",
+  "submission.deleted",
+  "submission.review.assigned",
+  "submission.score.submitted",
+  "admin.settings.updated",
+  "admin_user.created",
+  "admin_user.updated",
+  "admin_user.password_link_sent",
+  "admin_user.password_set",
+  "admin_user.deleted",
+  "news.created",
+  "news.deleted",
+  "winner.created",
+  "winner.deleted",
 ]);
 const allowedActionList = [...allowedAuditActions];
 
@@ -109,6 +122,7 @@ export type AuditEventListOptions = {
   days?: number;
   action?: string;
   actorType?: AuditActor["type"] | "admin_any";
+  actorEmail?: string;
   query?: string;
   from?: string;
   to?: string;
@@ -140,6 +154,10 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       where.push("actor_type = ?");
       values.push(normalized.actorType);
     }
+  }
+  if (normalized.actorEmail) {
+    where.push("LOWER(actor_email) = ?");
+    values.push(normalized.actorEmail.toLowerCase());
   }
   if (normalized.query) {
     where.push("(summary LIKE ? OR entity_id LIKE ? OR actor_email LIKE ? OR action LIKE ?)");
@@ -173,6 +191,7 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
     const filtered = filterLocalAuditEvents(await readLocalAuditEvents(), {
       actions,
       actorType: normalized.actorType,
+      actorEmail: normalized.actorEmail,
       query: normalized.query,
       from: dateRange.from,
       to: dateRange.to,
@@ -274,10 +293,11 @@ function normalizeListOptions(options: AuditEventListOptions | number) {
   const days = Math.min(Math.max(Number(raw.days ?? maxAuditAgeDays), 1), maxAuditAgeDays);
   const action = typeof raw.action === "string" ? raw.action : "";
   const actorType: AuditActorFilter = isAuditActorFilter(raw.actorType) ? raw.actorType : "";
+  const actorEmail = typeof raw.actorEmail === "string" ? raw.actorEmail.trim().toLowerCase().slice(0, 255) : "";
   const query = typeof raw.query === "string" ? raw.query.replace(/\s+/g, " ").trim().slice(0, 120) : "";
   const from = typeof raw.from === "string" ? raw.from : "";
   const to = typeof raw.to === "string" ? raw.to : "";
-  return { limit, offset, days, action, actorType, query, from, to };
+  return { limit, offset, days, action, actorType, actorEmail, query, from, to };
 }
 
 function isAuditActorFilter(value: unknown): value is AuditActorFilter {
@@ -313,6 +333,7 @@ function minIso(left: string, right?: string) {
 function filterLocalAuditEvents(events: AuditEventRecord[], filters: {
   actions: string[];
   actorType?: AuditActor["type"] | "admin_any" | "";
+  actorEmail?: string;
   query?: string;
   from: string;
   to: string;
@@ -326,6 +347,7 @@ function filterLocalAuditEvents(events: AuditEventRecord[], filters: {
       if (filters.actorType === "admin_any") return event.actor.type === "admin" || event.actor.type === "super_admin";
       return event.actor.type === filters.actorType;
     })
+    .filter((event) => !filters.actorEmail || event.actor.email?.toLowerCase() === filters.actorEmail.toLowerCase())
     .filter((event) => {
       if (!query) return true;
       return [

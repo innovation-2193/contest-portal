@@ -316,14 +316,20 @@ nav a.active::after {
 .add-member,
 .downloads button,
 .downloads a,
-.remove-member {
+.remove-member,
+.danger-btn,
+.small-action,
+.disabled-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 46px;
   border-radius: var(--radius);
   font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  vertical-align: middle;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
@@ -368,7 +374,16 @@ nav a.active::after {
 .compact svg,
 .primary svg,
 .secondary svg,
-.ghost-action svg { width: 18px; height: 18px; }
+.ghost-action svg,
+.danger-btn svg,
+.small-action svg,
+.disabled-action svg {
+  display: block;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
 
 .menu {
   display: none;
@@ -3038,6 +3053,7 @@ body:has(.prelander-page)::before {
 .admin-form label {
   display: grid;
   gap: 6px;
+  min-width: 0;
   color: #dce4f3;
   font-weight: 700;
   font-size: 13px;
@@ -3048,12 +3064,37 @@ body:has(.prelander-page)::before {
 .admin-form textarea,
 .admin-login input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 40px;
   padding: 8px 11px;
   border: 1px solid rgba(68, 99, 145, 0.95);
   border-radius: var(--radius);
   background: rgba(1, 9, 22, 0.9);
   color: var(--text);
+}
+
+.admin-form input[type="date"],
+.admin-form input[type="datetime-local"],
+.audit-filter-form input[type="date"] {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.admin-form input[type="datetime-local"]::-webkit-datetime-edit,
+.admin-form input[type="date"]::-webkit-datetime-edit,
+.audit-filter-form input[type="date"]::-webkit-datetime-edit {
+  min-width: 0;
+  padding: 0;
+}
+
+.admin-form input[type="datetime-local"]::-webkit-date-and-time-value,
+.admin-form input[type="date"]::-webkit-date-and-time-value,
+.audit-filter-form input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
 }
 
 .admin-user-form {
@@ -5915,6 +5956,12 @@ body:has(.prelander-page)::before {
   }
   .audit-filter-form {
     grid-template-columns: 1fr;
+  }
+  .admin-form input[type="date"],
+  .admin-form input[type="datetime-local"],
+  .audit-filter-form input[type="date"] {
+    padding-inline: 9px;
+    font-size: 13px;
   }
   .audit-filter-actions {
     display: grid;

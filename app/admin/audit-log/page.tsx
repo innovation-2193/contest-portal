@@ -9,6 +9,27 @@ export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 const actorFilterValues = ["", "public", "admin_any", "admin", "super_admin"] as const;
+const actionOptions = [
+  ["registration.created", "ลงทะเบียนใหม่"],
+  ["registration.checked_in", "เช็คอินหน้างาน"],
+  ["registration.updated", "แก้ไขข้อมูลผู้เข้าร่วม"],
+  ["registration.deleted", "ลบข้อมูลผู้เข้าร่วม"],
+  ["submission.created", "สมัครประกวดนวัตกรรม"],
+  ["submission.updated", "แก้ไขใบสมัครประกวด"],
+  ["submission.deleted", "ลบใบสมัครประกวด"],
+  ["submission.review.assigned", "แจกงานตรวจรอบแรก"],
+  ["submission.score.submitted", "ส่งคะแนนรอบแรก"],
+  ["admin.settings.updated", "แก้ไขตั้งค่าระบบ"],
+  ["admin_user.created", "เพิ่มแอดมิน"],
+  ["admin_user.updated", "แก้ไขแอดมิน"],
+  ["admin_user.password_link_sent", "ส่งลิงก์รหัสผ่าน"],
+  ["admin_user.password_set", "ตั้งรหัสผ่านแอดมิน"],
+  ["admin_user.deleted", "ลบแอดมิน"],
+  ["news.created", "เพิ่มข่าวประชาสัมพันธ์"],
+  ["news.deleted", "ลบข่าวประชาสัมพันธ์"],
+  ["winner.created", "เพิ่มประกาศผล"],
+  ["winner.deleted", "ลบประกาศผล"],
+] as const;
 
 type ActorFilter = typeof actorFilterValues[number];
 
@@ -22,7 +43,8 @@ type AuditLogSearchParams = {
 };
 
 export default async function AuditLogPage({ searchParams }: { searchParams: Promise<AuditLogSearchParams> }) {
-  const session = await requireSuperAdmin();
+  const session = await requireAdmin();
+  const isSuperAdmin = session.role === "super_admin";
   const params = await searchParams;
   const currentPage = Math.max(Number(params.page ?? 1) || 1, 1);
   const filters = normalizeFilters(params);
@@ -30,7 +52,8 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     action: filters.action,
-    actorType: filters.actor || undefined,
+    actorType: isSuperAdmin ? filters.actor || undefined : session.role,
+    actorEmail: isSuperAdmin ? undefined : session.email,
     query: filters.q,
     from: filters.from,
     to: filters.to,
@@ -46,9 +69,9 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
       <div className="admin-topline">
         <div>
           <span className="eyebrow">Audit Log</span>
-          <h1>ประวัติการลงทะเบียนและสมัครประกวด</h1>
-          <p>แสดงเฉพาะรายการลงทะเบียนเข้าร่วมงานและสมัครประกวดนวัตกรรม ย้อนหลังได้ไม่เกิน 90 วัน</p>
-          <small className="admin-role-badge"><ShieldCheck/>Super Admin • {session.email}</small>
+          <h1>ประวัติการเปลี่ยนแปลงข้อมูล</h1>
+          <p>แสดงเฉพาะรายการที่เกี่ยวข้องกับการสร้าง แก้ไข ลบ หรือเปลี่ยนสถานะข้อมูลในระบบ ย้อนหลังได้ไม่เกิน 90 วัน</p>
+          <small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small>
         </div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
@@ -66,15 +89,10 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <label>ประเภท
             <select name="action" defaultValue={filters.action}>
               <option value="">ทั้งหมด</option>
-              <option value="registration.created">ลงทะเบียนใหม่</option>
-              <option value="registration.checked_in">เช็คอินหน้างาน</option>
-              <option value="registration.updated">แก้ไขข้อมูลผู้เข้าร่วม</option>
-              <option value="registration.deleted">ลบข้อมูลผู้เข้าร่วม</option>
-              <option value="submission.created">สมัครประกวดนวัตกรรม</option>
-              <option value="submission.updated">แก้ไขใบสมัครประกวด</option>
+              {actionOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </label>
-          <label>ผู้ทำรายการ
+          {isSuperAdmin && <label>ผู้ทำรายการ
             <select name="actor" defaultValue={filters.actor}>
               <option value="">ทั้งหมด</option>
               <option value="public">ผู้ใช้งานหน้าเว็บ</option>
@@ -82,7 +100,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
               <option value="admin">Admin</option>
               <option value="super_admin">Super Admin</option>
             </select>
-          </label>
+          </label>}
           <label>ตั้งแต่วันที่<input type="date" name="from" defaultValue={filters.from}/></label>
           <label>ถึงวันที่<input type="date" name="to" defaultValue={filters.to}/></label>
           <label className="audit-filter-search">ค้นหา
@@ -92,7 +110,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
             <button className="primary" type="submit"><Search/>ค้นหา</button>
             <Link className="secondary" href="/admin/audit-log"><X/>ล้างตัวกรอง</Link>
           </div>
-          <p><Filter/>ดูย้อนหลังได้ไม่เกิน 90 วัน ระบบจะแสดงเฉพาะรายการลงทะเบียนและใบสมัครประกวด</p>
+          <p><Filter/>ดูย้อนหลังได้ไม่เกิน 90 วัน ระบบไม่บันทึกการคลิกเปิดหน้า เปิดไฟล์ พิมพ์ หรือ export ที่ไม่เปลี่ยนข้อมูล</p>
         </form>
 
         <div className="audit-log-list">
@@ -104,7 +122,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
             </div>
             <span>{actorLabel(event.actor)}</span>
             <small>{auditEntityLabel(event.entityType)}</small>
-          </article>) : <div className="participant-empty">ยังไม่มี log การลงทะเบียนหรือสมัครประกวดใน 90 วันที่ผ่านมา</div>}
+          </article>) : <div className="participant-empty">ยังไม่มี log การเปลี่ยนแปลงข้อมูลใน 90 วันที่ผ่านมา</div>}
         </div>
 
         <nav className="audit-pagination" aria-label="Audit log pagination">
@@ -123,10 +141,10 @@ function PaginationLink({ href, disabled, label, icon }: { href: string; disable
   return <Link className="secondary" href={href}>{content}</Link>;
 }
 
-async function requireSuperAdmin() {
+async function requireAdmin() {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
-  if (!session || session.role !== "super_admin") redirect("/admin");
+  if (!session) redirect("/admin");
   return session;
 }
 
@@ -148,16 +166,28 @@ function auditActionLabel(action: string) {
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";
-  if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
-  if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board PDF";
   if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
+  if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
+  if (action === "admin_user.created") return "เพิ่มแอดมิน";
+  if (action === "admin_user.updated") return "แก้ไขแอดมิน";
+  if (action === "admin_user.password_link_sent") return "ส่งลิงก์รหัสผ่านแอดมิน";
+  if (action === "admin_user.password_set") return "ตั้งรหัสผ่านแอดมิน";
+  if (action === "admin_user.deleted") return "ลบแอดมิน";
+  if (action === "news.created") return "เพิ่มข่าวประชาสัมพันธ์";
+  if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
+  if (action === "winner.created") return "เพิ่มประกาศผล";
+  if (action === "winner.deleted") return "ลบประกาศผล";
   return action;
 }
 
 function auditEntityLabel(entityType: string) {
   if (entityType === "registration") return "ลงทะเบียน";
   if (entityType === "submission") return "ใบสมัคร";
+  if (entityType === "settings") return "ตั้งค่าระบบ";
+  if (entityType === "admin_user") return "แอดมิน";
+  if (entityType === "news") return "ข่าว";
+  if (entityType === "winner") return "ประกาศผล";
   return entityType;
 }
 
