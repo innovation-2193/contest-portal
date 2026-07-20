@@ -155,7 +155,7 @@ export default async function DailyReportPage() {
         <div>
           <span className="eyebrow">Daily Report</span>
           <h1>รายงานสรุปประจำวัน</h1>
-          <p>{formatFullThaiDate(new Date())} • หน้าสรุปสำหรับผู้บังคับบัญชา</p>
+          <p>{formatFullThaiDate(new Date())} • หน้าสรุปสำหรับ<wbr/>ผู้บังคับบัญชา</p>
         </div>
         <div className="admin-actions">
           <AdminPrintButton label="พิมพ์ / บันทึก PDF"/>
@@ -166,8 +166,8 @@ export default async function DailyReportPage() {
       <section className="report-hero-panel">
         <div>
           <span className="eyebrow">ภาพรวมวันนี้</span>
-          <h2>ลงทะเบียนแล้ว {activeParticipants.length.toLocaleString("th-TH")} คน ส่งผลงานแล้ว {submissions.length.toLocaleString("th-TH")} รายการ</h2>
-          <p>สรุปยอดประจำวัน ยอดเข้าชมเว็บไซต์ และกราฟแยกตามสังกัดในผังองค์กร ตร.</p>
+          <h2>ลงทะเบียนแล้ว {activeParticipants.length.toLocaleString("th-TH")} คน <wbr/>ส่งผลงานแล้ว {submissions.length.toLocaleString("th-TH")} รายการ</h2>
+          <p>สรุปยอดประจำวัน <wbr/>ยอดเข้าชมเว็บไซต์ <wbr/>และกราฟแยกตามสังกัด<wbr/>ในผังองค์กร ตร.</p>
         </div>
         <div className="report-pulse">
           <Eye/>

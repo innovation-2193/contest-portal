@@ -6448,28 +6448,31 @@ body:has(.prelander-page)::before {
   width: min(1280px, calc(100% - 40px));
 }
 
+body:has(.report-page) .brand b {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
 .report-page h1,
 .report-page h2,
 .report-page h3,
-.report-page p,
-.report-page span,
-.report-page b,
-.report-page small,
-.report-page em,
-.report-page strong {
-  overflow-wrap: anywhere;
-  line-break: anywhere;
+.report-page p {
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-break: strict;
 }
 
 .report-page h1,
 .report-page h2,
 .report-page h3 {
+  word-break: keep-all;
   text-wrap: balance;
 }
 
 .report-page p,
 .report-page small,
 .report-page span {
+  word-break: normal;
   text-wrap: pretty;
 }
 
