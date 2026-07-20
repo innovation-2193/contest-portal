@@ -3,11 +3,13 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Download, Pencil, Trash2 } from "lucide-react";
+import { AdminNotice } from "../../../../components/AdminNotice";
 import { AdminPrintButton } from "../../../../components/AdminPrintButton";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import { deleteParticipant, updateParticipant } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
+import { adminNoticePath } from "../../../../lib/admin-flash";
 import { findRegistrationByCode } from "../../../../lib/registration-lookup";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
@@ -19,10 +21,11 @@ const participantStatuses = [
   ["cancelled", "ยกเลิก"],
 ] as const;
 
-export default async function AdminParticipantDetail({ params }: { params: Promise<{ code: string }> }) {
+export default async function AdminParticipantDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ notice?: string }> }) {
   await requireAdmin();
 
   const { code } = await params;
+  const query = await searchParams;
   const item = await findRegistrationByCode(code);
   const issuedAt = formatAdminDate(new Date().toISOString());
 
@@ -36,6 +39,7 @@ export default async function AdminParticipantDetail({ params }: { params: Promi
         </div>
         <div className="admin-actions"><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>{item && <AdminPrintButton />}</div>
       </div>
+      <AdminNotice code={query.notice}/>
       {item ? <article className="admin-panel printable-sheet">
         <header className="print-heading"><img className="print-brand-mark" src="/favicon.png" alt="Police Innovation Contest"/><div className="print-heading-copy"><span className="eyebrow">Registration Confirmation</span><h2>{item.registration_code}</h2><p>ลงทะเบียนเมื่อ {formatAdminDate(item.registered_at)}</p></div><div className="print-heading-meta"><b>ใบยืนยันการลงทะเบียน</b><span>ออกเอกสาร {issuedAt}</span></div></header>
         <section className="admin-detail-summary">
@@ -137,7 +141,7 @@ async function updateParticipantAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/participants/${encodeURIComponent(registrationCode)}`);
-  redirect(`/admin/participants/${encodeURIComponent(registrationCode)}`);
+  redirect(adminNoticePath(`/admin/participants/${encodeURIComponent(registrationCode)}`, "participant_saved"));
 }
 
 async function deleteParticipantAction(formData: FormData) {
@@ -154,7 +158,7 @@ async function deleteParticipantAction(formData: FormData) {
     summary: `ลบข้อมูลผู้เข้าร่วมงาน ${registrationCode}`,
   }, requestHeaders);
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "participant_deleted"));
 }
 
 async function requireAdmin() {

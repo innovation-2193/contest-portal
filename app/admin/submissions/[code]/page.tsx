@@ -3,11 +3,13 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, ExternalLink, FileText, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
+import { AdminNotice } from "../../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { ScoreSubmitConfirmButton } from "../../../../components/ScoreSubmitConfirmButton";
 import { cookieName, getAdminSession, requestSuperAdminOtp, verifySuperAdminOtp } from "../../../../lib/admin-auth";
 import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
+import { adminNoticePath } from "../../../../lib/admin-flash";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +49,7 @@ const paperScreeningCriteria = [
   { name: "impactScore", label: "ความคุ้มค่าและการขยายผล", max: 20, field: "review_impact_score" },
 ] as const;
 
-export default async function AdminSubmissionDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ deleteOtp?: string }> }) {
+export default async function AdminSubmissionDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ deleteOtp?: string; notice?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -69,6 +71,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
         </div>
         <div className="admin-actions"><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>{item && <a className="primary" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a>}</div>
       </div>
+      <AdminNotice code={query.notice}/>
       {item ? <article className="admin-panel printable-sheet">
         <header className="print-heading"><img className="print-brand-mark" src="/favicon.png" alt="Police Innovation Contest"/><div className="print-heading-copy"><span className="eyebrow">Innovation Submission</span><h2>{item.submission_code}</h2><p>ส่งข้อมูลเมื่อ {formatAdminDate(item.submitted_at)} • สถานะ {item.status}</p></div><div className="print-heading-meta"><b>รายละเอียดใบสมัครประกวด</b><span>ออกเอกสาร {issuedAt}</span></div></header>
         <section className="admin-detail-block">
@@ -273,7 +276,7 @@ async function updateSubmissionAction(formData: FormData) {
   });
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
+  redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "submission_saved"));
 }
 
 async function saveScoreAction(formData: FormData) {
@@ -302,7 +305,7 @@ async function saveScoreAction(formData: FormData) {
   });
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
+  redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "score_saved"));
 }
 
 async function requestDeleteSubmissionOtpAction(formData: FormData) {
@@ -350,7 +353,7 @@ async function deleteSubmissionAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/submissions");
-  redirect("/admin/submissions");
+  redirect(adminNoticePath("/admin/submissions", "submission_deleted"));
 }
 
 async function requireSuperAdmin() {

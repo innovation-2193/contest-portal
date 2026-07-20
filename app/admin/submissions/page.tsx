@@ -3,16 +3,18 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Eye, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
 import { assignSubmissionReviewer, listSubmissions } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
+import { adminNoticePath } from "../../../lib/admin-flash";
 
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -49,6 +51,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจ และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
         <div className="admin-actions"><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ Scoreboard PDF</a><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link></div>
       </div>
+      <AdminNotice code={params.notice}/>
       <section className="admin-panel">
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
@@ -101,7 +104,7 @@ async function assignSubmissionAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/submissions");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  redirect("/admin/submissions");
+  redirect(adminNoticePath("/admin/submissions", "assignment_saved"));
 }
 
 function Pagination({ basePath, q, page, totalPages }: { basePath: string; q: string; page: number; totalPages: number }) {

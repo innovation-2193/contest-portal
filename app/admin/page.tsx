@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import {
   adminClientKey,
@@ -27,6 +28,7 @@ import {
   verifyAdminAccountPassword,
 } from "../../lib/admin-users";
 import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEventRecord } from "../../lib/audit-log";
+import { adminNoticePath } from "../../lib/admin-flash";
 import {
   addWinner,
   addNews,
@@ -54,7 +56,7 @@ const awardLabels: Record<string, string> = {
 type ParticipantSort = "newest" | "oldest";
 const dashboardLimit = 10;
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
@@ -110,6 +112,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
+    <AdminNotice code={params.notice}/>
     <section className="admin-grid">
       {isSuperAdmin && <article className="admin-panel settings-panel">
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
@@ -513,6 +516,7 @@ async function saveSettingsAction(formData: FormData) {
     entityType: "settings",
     summary: "แก้ไขการตั้งค่า Pre-lander และสถานะเปิดรับสมัคร",
   }, requestHeaders);
+  redirect(adminNoticePath("/admin", "settings_saved"));
 }
 
 async function addWinnerAction(formData: FormData) {
@@ -538,7 +542,7 @@ async function addWinnerAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "winner_added"));
 }
 
 async function deleteWinnerAction(formData: FormData) {
@@ -556,7 +560,7 @@ async function deleteWinnerAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "winner_deleted"));
 }
 
 async function addNewsAction(formData: FormData) {
@@ -585,7 +589,7 @@ async function addNewsAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "news_added"));
 }
 
 async function deleteNewsAction(formData: FormData) {
@@ -603,7 +607,7 @@ async function deleteNewsAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "news_deleted"));
 }
 
 async function assignSubmissionAction(formData: FormData) {
@@ -623,7 +627,7 @@ async function assignSubmissionAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "assignment_saved"));
 }
 
 async function addAdminAction(formData: FormData) {
@@ -643,7 +647,7 @@ async function addAdminAction(formData: FormData) {
     summary: `เพิ่มแอดมิน ${account.email}`,
   }, requestHeaders);
   revalidatePath("/admin");
-  redirect(`/admin/admins/${encodeURIComponent(account.id)}`);
+  redirect(adminNoticePath(`/admin/admins/${encodeURIComponent(account.id)}`, "admin_added"));
 }
 
 async function requireAdmin() {

@@ -3,16 +3,18 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Image as ImageIcon, Newspaper, Search } from "lucide-react";
+import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { deleteNews, listNews } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
+import { adminNoticePath } from "../../../lib/admin-flash";
 
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminNewsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+export default async function AdminNewsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session || session.role !== "super_admin") redirect("/admin");
@@ -31,6 +33,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
         <div><span className="eyebrow">News</span><h1>ข่าวประชาสัมพันธ์ทั้งหมด</h1><p>Super Admin จัดการข่าวประชาสัมพันธ์แบบแบ่งหน้า</p></div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
+      <AdminNotice code={params.notice}/>
       <section className="admin-panel">
         <header className="admin-section-head"><Newspaper/><div><h2>รายการข่าว</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
@@ -77,7 +80,7 @@ async function deleteNewsAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin");
   revalidatePath("/admin/news");
-  redirect("/admin/news");
+  redirect(adminNoticePath("/admin/news", "news_deleted"));
 }
 
 function Pagination({ basePath, q, page, totalPages }: { basePath: string; q: string; page: number; totalPages: number }) {

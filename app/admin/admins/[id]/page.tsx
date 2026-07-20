@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Mail, Pencil, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
+import { AdminNotice } from "../../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import {
@@ -13,12 +14,14 @@ import {
   type AdminAccount,
 } from "../../../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
+import { adminNoticePath } from "../../../../lib/admin-flash";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAccountDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminAccountDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string }> }) {
   const session = await requireSuperAdmin();
   const { id } = await params;
+  const query = await searchParams;
   const account = await findAdminAccountById(id);
 
   return <div className="admin-page admin-detail-page">
@@ -32,6 +35,7 @@ export default async function AdminAccountDetail({ params }: { params: Promise<{
         </div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
+      <AdminNotice code={query.notice}/>
 
       {account ? <article className="admin-panel printable-sheet">
         <header className="print-heading">
@@ -119,7 +123,7 @@ async function updateAccountAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/admins/${encodeURIComponent(id)}`);
-  redirect(`/admin/admins/${encodeURIComponent(id)}`);
+  redirect(adminNoticePath(`/admin/admins/${encodeURIComponent(id)}`, "admin_saved"));
 }
 
 async function resendPasswordLinkAction(formData: FormData) {
@@ -137,7 +141,7 @@ async function resendPasswordLinkAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/admins/${encodeURIComponent(id)}`);
-  redirect(`/admin/admins/${encodeURIComponent(id)}`);
+  redirect(adminNoticePath(`/admin/admins/${encodeURIComponent(id)}`, "password_link_sent"));
 }
 
 async function deleteAccountAction(formData: FormData) {
@@ -154,7 +158,7 @@ async function deleteAccountAction(formData: FormData) {
     summary: "ลบแอดมิน",
   }, requestHeaders);
   revalidatePath("/admin");
-  redirect("/admin");
+  redirect(adminNoticePath("/admin", "admin_deleted"));
 }
 
 async function requireSuperAdmin() {
