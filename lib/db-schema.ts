@@ -94,6 +94,13 @@ async function ensureAppAuditEventsTable() {
       INDEX idx_audit_actor (actor_type, actor_email)
     ) ENGINE=InnoDB
   `);
+  await db.execute("ALTER TABLE app_audit_events MODIFY actor_type ENUM('public','admin','super_admin','system') NOT NULL");
+  await ensureColumn("app_audit_events", "actor_email", "ALTER TABLE app_audit_events ADD COLUMN actor_email VARCHAR(255) NULL AFTER actor_type");
+  await ensureColumn("app_audit_events", "entity_type", "ALTER TABLE app_audit_events ADD COLUMN entity_type VARCHAR(80) NOT NULL DEFAULT '' AFTER action");
+  await ensureColumn("app_audit_events", "entity_id", "ALTER TABLE app_audit_events ADD COLUMN entity_id VARCHAR(120) NULL AFTER entity_type");
+  await ensureColumn("app_audit_events", "payload", "ALTER TABLE app_audit_events ADD COLUMN payload JSON NULL AFTER summary");
+  await ensureColumn("app_audit_events", "ip_address", "ALTER TABLE app_audit_events ADD COLUMN ip_address VARCHAR(64) NULL AFTER payload");
+  await ensureColumn("app_audit_events", "user_agent", "ALTER TABLE app_audit_events ADD COLUMN user_agent VARCHAR(500) NULL AFTER ip_address");
 }
 
 async function ensureColumn(tableName: string, columnName: string, alterSql: string) {

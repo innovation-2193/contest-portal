@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { db } from "./db";
+import { ensureDatabaseSchema } from "./db-schema";
 import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { AdminSession } from "./admin-auth";
 
@@ -92,7 +93,7 @@ export async function recordAuditEvent(input: AuditEventInput, headers?: Headers
   };
 
   try {
-    await ensureAuditEventsTable();
+    await ensureDatabaseSchema();
     const values: Array<string | null> = [
       record.id,
       record.actor.type,
@@ -167,7 +168,7 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
   const whereSql = where.join(" AND ");
 
   try {
-    await ensureAuditEventsTable();
+    await ensureDatabaseSchema();
     const [rows] = await db.execute(
       `SELECT id,actor_type,actor_email,action,entity_type,entity_id,summary,payload,ip_address,user_agent,created_at
        FROM app_audit_events
@@ -187,8 +188,10 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       offset: normalized.offset,
     };
   } catch (error) {
-    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
-    const filtered = filterLocalAuditEvents(await readLocalAuditEvents(), {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("audit log list failed", error);
+    }
+    const filtered = filterLocalAuditEvents(await safeReadLocalAuditEvents(), {
       actions,
       actorType: normalized.actorType,
       actorEmail: normalized.actorEmail,
@@ -203,27 +206,6 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       offset: normalized.offset,
     };
   }
-}
-
-async function ensureAuditEventsTable() {
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS app_audit_events (
-      id CHAR(36) PRIMARY KEY,
-      actor_type ENUM('public','admin','super_admin','system') NOT NULL,
-      actor_email VARCHAR(255) NULL,
-      action VARCHAR(120) NOT NULL,
-      entity_type VARCHAR(80) NOT NULL,
-      entity_id VARCHAR(120) NULL,
-      summary VARCHAR(500) NOT NULL,
-      payload JSON NULL,
-      ip_address VARCHAR(64) NULL,
-      user_agent VARCHAR(500) NULL,
-      created_at VARCHAR(40) NOT NULL,
-      INDEX idx_audit_created (created_at),
-      INDEX idx_audit_action (action),
-      INDEX idx_audit_actor (actor_type, actor_email)
-    ) ENGINE=InnoDB
-  `);
 }
 
 function rowToRecord(row: AuditEventRow): AuditEventRecord {
@@ -262,6 +244,15 @@ async function readLocalAuditEvents(): Promise<AuditEventRecord[]> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
+  }
+}
+
+async function safeReadLocalAuditEvents(): Promise<AuditEventRecord[]> {
+  try {
+    return await readLocalAuditEvents();
+  } catch (error) {
+    console.error("local audit log read failed", error);
+    return [];
   }
 }
 
