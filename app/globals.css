@@ -6448,6 +6448,31 @@ body:has(.prelander-page)::before {
   width: min(1280px, calc(100% - 40px));
 }
 
+.report-page h1,
+.report-page h2,
+.report-page h3,
+.report-page p,
+.report-page span,
+.report-page b,
+.report-page small,
+.report-page em,
+.report-page strong {
+  overflow-wrap: anywhere;
+  line-break: anywhere;
+}
+
+.report-page h1,
+.report-page h2,
+.report-page h3 {
+  text-wrap: balance;
+}
+
+.report-page p,
+.report-page small,
+.report-page span {
+  text-wrap: pretty;
+}
+
 .report-topline {
   align-items: flex-start;
 }
@@ -7307,6 +7332,13 @@ body:has(.prelander-page)::before {
   .report-hero-panel {
     grid-template-columns: 1fr;
   }
+  .report-hero-panel h2 {
+    max-width: 100%;
+    font-size: clamp(28px, 5vw, 38px);
+  }
+  .report-hero-panel p {
+    max-width: 100%;
+  }
   .report-pulse {
     min-height: 130px;
   }
@@ -7666,6 +7698,19 @@ body:has(.prelander-page)::before {
   }
   .report-hero-panel {
     padding: 18px;
+  }
+  .report-topline h1 {
+    font-size: clamp(28px, 8vw, 34px);
+    line-height: 1.18;
+  }
+  .report-hero-panel h2 {
+    font-size: clamp(26px, 7vw, 32px);
+    line-height: 1.22;
+  }
+  .report-hero-panel p,
+  .report-confidential-alert span {
+    font-size: 13px;
+    line-height: 1.65;
   }
   .report-metric-grid {
     grid-template-columns: 1fr;

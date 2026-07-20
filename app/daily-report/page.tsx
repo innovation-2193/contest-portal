@@ -167,7 +167,7 @@ export default async function DailyReportPage() {
         <div>
           <span className="eyebrow">ภาพรวมวันนี้</span>
           <h2>ลงทะเบียนแล้ว {activeParticipants.length.toLocaleString("th-TH")} คน ส่งผลงานแล้ว {submissions.length.toLocaleString("th-TH")} รายการ</h2>
-          <p>สรุปยอดประจำวัน ยอดเข้าชมเว็บไซต์ และกราฟแยกตามสังกัดในผังองค์กร สตช. โดยหน่วยที่ระบุ 1-9 แยกเป็นรายหน่วย</p>
+          <p>สรุปยอดประจำวัน ยอดเข้าชมเว็บไซต์ และกราฟแยกตามสังกัดในผังองค์กร ตร.</p>
         </div>
         <div className="report-pulse">
           <Eye/>
