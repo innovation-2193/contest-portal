@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Activity, BarChart3, Lightbulb, Menu, PenLine, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, Lightbulb, Menu, PenLine, Phone, TrendingUp } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
@@ -167,7 +167,7 @@ export function Footer({ stats }: { stats?: SiteStats | null }) {
       <p><TrendingUp/>วันที่สูงสุดใน 7 วัน: {stats.peakDay.label} ({formatNumber(stats.peakDay.count)} ครั้ง)</p>
     </section>}
     <div><b>นโยบาย</b><Link href="/privacy">Privacy Policy</Link><Link href="/pdpa">PDPA Consent</Link></div>
-    <div id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></div>
+    <div id="contact"><b>ติดต่อ</b><p>กลุ่มงานวิจัยและพัฒนานวัตกรรมทางเทคโนโลยี</p><a href="tel:022052193"><Phone/>0 2205 2193</a><a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></div>
   </div></footer>;
 }
 

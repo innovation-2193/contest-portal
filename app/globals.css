@@ -5215,6 +5215,22 @@ body:has(.prelander-page)::before {
   line-height: 1.75;
 }
 
+.footer-grid a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-grid a + a {
+  margin-top: 4px;
+}
+
+.footer-grid a svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
 .footer-stats {
   position: relative;
   display: grid;
