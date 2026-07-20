@@ -22,6 +22,7 @@ export async function ensureDatabaseSchema() {
 async function runSchemaRepair() {
   await ensureRegistrationColumns();
   await ensureSubmissionColumns();
+  await ensureSatisfactionEvaluationsTable();
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
 }
@@ -29,10 +30,12 @@ async function runSchemaRepair() {
 async function ensureRegistrationColumns() {
   if (!await tableExists("registrations")) return;
   await db.execute("ALTER TABLE registrations MODIFY status ENUM('registered','attended','cancelled') NOT NULL DEFAULT 'registered'");
+  await ensureColumn("registrations", "participant_role", "ALTER TABLE registrations ADD COLUMN participant_role VARCHAR(32) NOT NULL DEFAULT 'Guest' AFTER user_id");
   await ensureColumn("registrations", "position", "ALTER TABLE registrations ADD COLUMN position VARCHAR(255) NOT NULL DEFAULT '' AFTER phone");
   await ensureColumn("registrations", "division", "ALTER TABLE registrations ADD COLUMN division VARCHAR(255) NOT NULL DEFAULT '' AFTER position");
   await ensureColumn("registrations", "bureau", "ALTER TABLE registrations ADD COLUMN bureau VARCHAR(255) NOT NULL DEFAULT '' AFTER division");
   await ensureColumn("registrations", "checked_in_at", "ALTER TABLE registrations ADD COLUMN checked_in_at TIMESTAMP(3) NULL AFTER status");
+  await ensureColumn("registrations", "checked_in_by_email", "ALTER TABLE registrations ADD COLUMN checked_in_by_email VARCHAR(255) NULL AFTER checked_in_at");
 }
 
 async function ensureSubmissionColumns() {
@@ -56,6 +59,50 @@ async function ensureSubmissionColumns() {
   await ensureColumn("submission_members", "position", "ALTER TABLE submission_members ADD COLUMN position VARCHAR(255) NOT NULL DEFAULT '' AFTER email");
   await ensureColumn("submission_members", "division", "ALTER TABLE submission_members ADD COLUMN division VARCHAR(255) NOT NULL DEFAULT '' AFTER position");
   await ensureColumn("submission_members", "bureau", "ALTER TABLE submission_members ADD COLUMN bureau VARCHAR(255) NOT NULL DEFAULT '' AFTER division");
+}
+
+async function ensureSatisfactionEvaluationsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS satisfaction_evaluations (
+      id CHAR(36) PRIMARY KEY,
+      registration_code VARCHAR(32) NOT NULL UNIQUE,
+      gender VARCHAR(60) NOT NULL,
+      gender_other VARCHAR(255) NULL,
+      age_range VARCHAR(60) NOT NULL,
+      organization_type VARCHAR(120) NOT NULL,
+      organization_other VARCHAR(255) NULL,
+      attendee_status VARCHAR(120) NOT NULL,
+      attendee_status_other VARCHAR(255) NULL,
+      q1 TINYINT UNSIGNED NOT NULL,
+      q2 TINYINT UNSIGNED NOT NULL,
+      q3 TINYINT UNSIGNED NOT NULL,
+      q4 TINYINT UNSIGNED NOT NULL,
+      q5 TINYINT UNSIGNED NOT NULL,
+      q6 TINYINT UNSIGNED NOT NULL,
+      q7 TINYINT UNSIGNED NOT NULL,
+      q8 TINYINT UNSIGNED NOT NULL,
+      q9 TINYINT UNSIGNED NOT NULL,
+      q10 TINYINT UNSIGNED NOT NULL,
+      q11 TINYINT UNSIGNED NOT NULL,
+      q12 TINYINT UNSIGNED NOT NULL,
+      q13 TINYINT UNSIGNED NOT NULL,
+      q14 TINYINT UNSIGNED NOT NULL,
+      q15 TINYINT UNSIGNED NOT NULL,
+      q16 TINYINT UNSIGNED NOT NULL,
+      q17 TINYINT UNSIGNED NOT NULL,
+      q18 TINYINT UNSIGNED NOT NULL,
+      impressive_text VARCHAR(1000) NOT NULL DEFAULT '',
+      suggestion_text VARCHAR(1000) NOT NULL DEFAULT '',
+      submitted_at VARCHAR(40) NOT NULL,
+      lucky_draw_prize TINYINT UNSIGNED NULL,
+      lucky_drawn_at VARCHAR(40) NULL,
+      lucky_drawn_by_email VARCHAR(255) NULL,
+      lucky_notified_at VARCHAR(40) NULL,
+      CONSTRAINT fk_evaluation_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
+      UNIQUE KEY uq_lucky_draw_prize (lucky_draw_prize),
+      INDEX idx_evaluation_submitted (submitted_at)
+    ) ENGINE=InnoDB
+  `);
 }
 
 async function ensureNewsPostsTable() {

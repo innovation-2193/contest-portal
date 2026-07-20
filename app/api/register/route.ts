@@ -9,6 +9,7 @@ import {
   createLocalRegistration,
   findLocalRegistrationByCode,
   isDatabaseUnavailable,
+  normalizeParticipantRole,
   type RegistrationRecord,
   type RegistrationInput,
 } from "../../../lib/local-registrations";
@@ -100,8 +101,10 @@ function toRecord(input: RegistrationInput, registrationCode: string): Registrat
     position: input.position,
     division: input.division,
     bureau: input.bureau,
+    participant_role: "Guest",
     status: "registered",
     checked_in_at: null,
+    checked_in_by_email: null,
     registered_at: new Date().toISOString(),
     email: input.email.trim().toLowerCase(),
     provider: input.provider,
@@ -115,8 +118,9 @@ export async function GET(request: Request) {
   let row: unknown;
   try {
     await ensureDatabaseSchema();
-    const [rows] = await db.execute("SELECT r.registration_code,r.title,r.first_name,r.last_name,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",[codeValue]);
-    row=(rows as unknown[])[0];
+    const [rows] = await db.execute("SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",[codeValue]);
+    const record = (rows as RegistrationRecord[])[0];
+    row = record ? { ...record, participant_role: normalizeParticipantRole(record.participant_role) } : undefined;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     row = await findLocalRegistrationByCode(codeValue);

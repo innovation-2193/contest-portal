@@ -5,6 +5,7 @@ import { code } from "./codes";
 export type RegistrationInput = {
   email: string;
   provider: "google" | "microsoft" | "local";
+  participantRole?: ParticipantRole;
   title: string;
   firstName: string;
   lastName: string;
@@ -16,9 +17,11 @@ export type RegistrationInput = {
 };
 
 export type RegistrationStatus = "registered" | "attended" | "cancelled";
+export type ParticipantRole = "VIP" | "Guest" | "Exhibitor";
 
 export type RegistrationRecord = {
   registration_code: string;
+  participant_role: ParticipantRole;
   title: string;
   first_name: string;
   last_name: string;
@@ -29,13 +32,15 @@ export type RegistrationRecord = {
   bureau: string;
   status: RegistrationStatus;
   checked_in_at?: string | null;
+  checked_in_by_email?: string | null;
   registered_at: string;
   email: string;
   provider: "google" | "microsoft" | "local";
 };
 
-export type RegistrationUpdateInput = RegistrationInput & {
+export type RegistrationUpdateInput = Omit<RegistrationInput, "participantRole"> & {
   registrationCode: string;
+  participantRole: ParticipantRole;
   status: RegistrationStatus;
 };
 
@@ -62,6 +67,8 @@ const schemaFallbackCodes = new Set([
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const storePath = path.join(storageDir, "dev-registrations.json");
+export const defaultParticipantRole: ParticipantRole = "Guest";
+export const participantRoles = ["VIP", "Guest", "Exhibitor"] as const;
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
@@ -105,6 +112,7 @@ export async function createLocalRegistration(input: RegistrationInput) {
 
     const record: RegistrationRecord = {
       registration_code: registrationCode,
+      participant_role: input.participantRole ?? defaultParticipantRole,
       title: input.title,
       first_name: input.firstName,
       last_name: input.lastName,
@@ -115,6 +123,7 @@ export async function createLocalRegistration(input: RegistrationInput) {
       bureau: input.bureau,
       status: "registered",
       checked_in_at: null,
+      checked_in_by_email: null,
       registered_at: new Date().toISOString(),
       email,
       provider: input.provider,
@@ -161,6 +170,7 @@ export async function updateLocalRegistration(input: RegistrationUpdateInput) {
       ...current,
       email: input.email.trim().toLowerCase(),
       provider: input.provider,
+      participant_role: input.participantRole,
       title: input.title,
       first_name: input.firstName,
       last_name: input.lastName,
@@ -171,6 +181,7 @@ export async function updateLocalRegistration(input: RegistrationUpdateInput) {
       bureau: input.bureau,
       status: input.status,
       checked_in_at: input.status === "attended" ? current.checked_in_at ?? new Date().toISOString() : null,
+      checked_in_by_email: input.status === "attended" ? current.checked_in_by_email ?? null : null,
     };
     await writeStore(store);
     return store.registrations[index];
@@ -197,7 +208,7 @@ export async function deleteLocalRegistration(registrationCode: string) {
   return result;
 }
 
-export async function checkInLocalRegistration(registrationCode: string) {
+export async function checkInLocalRegistration(registrationCode: string, checkedInByEmail?: string | null) {
   const work = async () => {
     const store = await readStore();
     const index = store.registrations.findIndex(
@@ -208,13 +219,15 @@ export async function checkInLocalRegistration(registrationCode: string) {
       throw Object.assign(new Error("registration cancelled"), { code: "CANCELLED" });
     }
     const now = new Date().toISOString();
+    const wasAlreadyCheckedIn = Boolean(store.registrations[index].checked_in_at);
     store.registrations[index] = {
       ...store.registrations[index],
       status: "attended",
       checked_in_at: store.registrations[index].checked_in_at ?? now,
+      checked_in_by_email: store.registrations[index].checked_in_by_email ?? checkedInByEmail ?? null,
     };
     await writeStore(store);
-    return store.registrations[index];
+    return { ...store.registrations[index], wasAlreadyCheckedIn };
   };
 
   const result = writeQueue.then(work, work);
@@ -233,7 +246,12 @@ async function readStore(): Promise<RegistrationStore> {
     const raw = await readFile(storePath, "utf8");
     const parsed = JSON.parse(raw) as Partial<RegistrationStore>;
     return {
-      registrations: Array.isArray(parsed.registrations) ? parsed.registrations : [],
+      registrations: Array.isArray(parsed.registrations)
+        ? parsed.registrations.map((item) => ({
+          ...item,
+          participant_role: normalizeParticipantRole((item as Partial<RegistrationRecord>).participant_role),
+        }))
+        : [],
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -241,6 +259,10 @@ async function readStore(): Promise<RegistrationStore> {
     }
     throw error;
   }
+}
+
+export function normalizeParticipantRole(value: unknown): ParticipantRole {
+  return participantRoles.includes(value as ParticipantRole) ? value as ParticipantRole : defaultParticipantRole;
 }
 
 async function writeStore(store: RegistrationStore) {

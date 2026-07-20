@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Activity, BarChart3, Lightbulb, Mail, Menu, PenLine, Phone, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, Lightbulb, Mail, Menu, Phone, TrendingUp } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
@@ -91,7 +91,7 @@ export function SiteVisitTracker() {
   return null;
 }
 
-export function Header({ registrationOpen = true }: { registrationOpen?: boolean }) {
+export function Header() {
   const [open,setOpen]=useState(false);
   const [activeHash, setActiveHash] = useState("#project");
   const manualActiveUntil = useRef(0);
@@ -145,7 +145,6 @@ export function Header({ registrationOpen = true }: { registrationOpen?: boolean
         return <a key={item.hash} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} onClick={()=>{manualActiveUntil.current=Date.now()+1200;setActiveHash(item.hash);setOpen(false);}} href={item.href}>{item.label}</a>;
       })}
     </nav>
-    {registrationOpen ? <Link className="primary compact" href="/register"><PenLine /> ลงทะเบียนสมัคร</Link> : <span className="primary compact disabled-action" aria-disabled="true"><PenLine /> ปิดรับสมัคร</span>}
     <button className="menu" aria-label={open?"ปิดเมนู":"เปิดเมนู"} aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Menu /></button>
   </div></header>;
 }

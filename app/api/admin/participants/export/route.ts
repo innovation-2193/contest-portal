@@ -53,14 +53,16 @@ async function participantsPdf(participants: RegistrationRecord[]) {
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
   const columns = [
-    ["เลขลงทะเบียน", 90],
-    ["ชื่อ-สกุล", 110],
-    ["บัตรประชาชน", 82],
-    ["โทร", 74],
-    ["ตำแหน่ง", 86],
-    ["สังกัด / หน่วยงาน", 153],
-    ["สถานะ", 82],
-    ["เช็คอิน", 112],
+    ["เลขลงทะเบียน", 86],
+    ["ชื่อ-สกุล", 102],
+    ["Role", 50],
+    ["บัตรประชาชน", 78],
+    ["โทร", 64],
+    ["ตำแหน่ง", 76],
+    ["สังกัด / หน่วยงาน", 120],
+    ["สถานะ", 70],
+    ["เช็คอิน", 75],
+    ["สแกนโดย", 68],
   ] as const;
   const rowHeight = 42;
   const tableX = 26;
@@ -149,12 +151,14 @@ function drawParticipantRow(
   const values = [
     item.registration_code,
     `${item.title}${item.first_name} ${item.last_name}`,
+    item.participant_role,
     item.citizen_id,
     item.phone,
     item.position || "-",
     `${item.division || "-"} / ${item.bureau || "-"}`,
     statusLabel(item.status),
     item.checked_in_at ? formatPdfThaiDateTime(item.checked_in_at, "short") : "-",
+    item.checked_in_by_email || "-",
   ];
   let cursor = x;
   values.forEach((value, valueIndex) => {
@@ -169,10 +173,10 @@ function drawParticipantRow(
       cursor + 6,
       y + 8,
       columns[valueIndex][1] - 12,
-      valueIndex === 7 ? 7.5 : 8,
+      valueIndex >= 8 ? 7.2 : 8,
       font,
       color,
-      valueIndex === 1 || valueIndex === 4 || valueIndex === 5 ? 2 : 1,
+      valueIndex === 1 || valueIndex === 5 || valueIndex === 6 || valueIndex === 9 ? 2 : 1,
     );
     cursor += columns[valueIndex][1];
   });

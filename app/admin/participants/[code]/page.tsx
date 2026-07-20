@@ -10,6 +10,7 @@ import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import { deleteParticipant, updateParticipant } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { adminNoticePath } from "../../../../lib/admin-flash";
+import { participantRoles, type ParticipantRole } from "../../../../lib/local-registrations";
 import { findRegistrationByCode } from "../../../../lib/registration-lookup";
 import { isThaiCitizenId } from "../../../../lib/validation";
 
@@ -48,6 +49,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
             <h3>{item.title}{item.first_name} {item.last_name}</h3>
             <dl className="admin-detail-list">
               <Detail label="อีเมล" value={item.email}/>
+              <Detail label="Role ผู้เข้าร่วม" value={item.participant_role}/>
               <Detail label="เลขบัตรประชาชน" value={item.citizen_id}/>
               <Detail label="เบอร์ติดต่อ" value={item.phone}/>
               <Detail label="ตำแหน่ง" value={item.position}/>
@@ -55,6 +57,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
               <Detail label="หน่วยงาน" value={item.bureau}/>
               <Detail label="สถานะ" value={statusLabel(item.status)}/>
               <Detail label="เช็คอิน" value={item.checked_in_at ? formatAdminDate(item.checked_in_at) : "-"}/>
+              <Detail label="ผู้สแกน QR Code" value={item.checked_in_by_email || "-"}/>
             </dl>
             <div className="admin-actions print-hidden"><a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} target="_blank" rel="noreferrer"><Download/>เปิด PDF ยืนยัน</a></div>
           </div>
@@ -70,6 +73,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
                 <label>ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
                 <label>นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
                 <label>อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
+                <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue={item.participant_role}>{participantRoles.map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
                 <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
                 <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
                 <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
@@ -113,14 +117,17 @@ async function updateParticipantAction(formData: FormData) {
   const citizenId = text(formData, "citizenId");
   const phone = text(formData, "phone");
   const status = text(formData, "status") || "registered";
+  const participantRole = text(formData, "participantRole") as ParticipantRole;
   if (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId)) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
   if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
   if (!["registered", "attended", "cancelled"].includes(status)) throw new Error("สถานะไม่ถูกต้อง");
+  if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
   const registrationCode = text(formData, "registrationCode");
   await updateParticipant({
     registrationCode,
     email: text(formData, "email"),
     provider: text(formData, "provider") as "google" | "microsoft" | "local",
+    participantRole,
     title: text(formData, "title"),
     firstName: text(formData, "firstName"),
     lastName: text(formData, "lastName"),
@@ -137,7 +144,7 @@ async function updateParticipantAction(formData: FormData) {
     entityType: "registration",
     entityId: registrationCode,
     summary: `แก้ไขข้อมูลผู้เข้าร่วมงาน ${registrationCode}`,
-    payload: { status },
+    payload: { status, participantRole },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/participants/${encodeURIComponent(registrationCode)}`);

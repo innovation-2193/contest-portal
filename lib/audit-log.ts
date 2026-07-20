@@ -51,6 +51,7 @@ const allowedAuditActions = new Set([
   "registration.created",
   "registration.updated",
   "registration.deleted",
+  "registration.bulk_deleted",
   "registration.checked_in",
   "submission.created",
   "submission.updated",
@@ -67,6 +68,7 @@ const allowedAuditActions = new Set([
   "news.deleted",
   "winner.created",
   "winner.deleted",
+  "evaluation.lucky_draw",
 ]);
 const allowedActionList = [...allowedAuditActions];
 

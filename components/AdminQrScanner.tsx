@@ -1,24 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CheckCircle2, Loader2, QrCode, RotateCcw, X, XCircle } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, X, XCircle } from "lucide-react";
 import jsQR from "jsqr";
 
 type ScanResult = {
   registrationCode: string;
   name: string;
+  participantRole: "VIP" | "Guest" | "Exhibitor";
   phone: string;
   position: string;
   division: string;
   bureau: string;
   status: string;
   checkedInAt?: string | null;
+  checkedInByEmail?: string | null;
+  wasAlreadyCheckedIn?: boolean;
 };
 
 export function AdminQrScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const detectorRef = useRef<{ detect(video: HTMLVideoElement): Promise<Array<{ rawValue: string }>> } | null>(null);
   const scanningRef = useRef(false);
   const loopRef = useRef<number | null>(null);
   const [manualCode, setManualCode] = useState("");
@@ -53,6 +57,7 @@ export function AdminQrScanner() {
       scanningRef.current = true;
       const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector?: new (options: { formats: string[] }) => { detect(video: HTMLVideoElement): Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
       const detector = BarcodeDetectorCtor ? new BarcodeDetectorCtor({ formats: ["qr_code"] }) : null;
+      detectorRef.current = detector;
       setCameraStatus(detector ? "กำลังสแกน QR Code ด้วยระบบของเบราว์เซอร์" : "กำลังสแกน QR Code ด้วยระบบสำรอง");
       scanLoop(detector);
     } catch (cameraError) {
@@ -72,6 +77,7 @@ export function AdminQrScanner() {
     loopRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    detectorRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
   }
 
@@ -82,10 +88,6 @@ export function AdminQrScanner() {
       if (code) {
         scanningRef.current = false;
         await submitCode(code);
-        loopRef.current = window.setTimeout(() => {
-          scanningRef.current = true;
-          scanLoop(detector);
-        }, 1800);
         return;
       }
     } catch {
@@ -153,6 +155,10 @@ export function AdminQrScanner() {
     setResult(null);
     setError("");
     setManualCode("");
+    if (streamRef.current && videoRef.current) {
+      scanningRef.current = true;
+      scanLoop(detectorRef.current);
+    }
   }
 
   return <div className="scanner-shell">
@@ -160,13 +166,13 @@ export function AdminQrScanner() {
       <video ref={videoRef} playsInline muted />
       <canvas ref={canvasRef} hidden />
       <div className="scanner-frame"><span/><span/><span/><span/></div>
-      {result && <div className="scanner-success-overlay">
-        <CheckCircle2/>
-        <b>เช็คอินสำเร็จ</b>
+      {result && <div className={result.wasAlreadyCheckedIn ? "scanner-success-overlay already" : "scanner-success-overlay"}>
+        {result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}
+        <b>{result.wasAlreadyCheckedIn ? "เช็คอินแล้ว" : "เช็คอินสำเร็จ"}</b>
         <span>{result.registrationCode}</span>
         <button type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์การเช็คอิน"><X/></button>
       </div>}
-      <div className="scanner-camera-label">{result ? <CheckCircle2/> : <QrCode/>}{result ? "ลงทะเบียนเข้าร่วมงานแล้ว พร้อมสแกนคนถัดไป" : "วาง QR Code ให้อยู่ในกรอบ"}</div>
+      <div className="scanner-camera-label">{result ? result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/> : <QrCode/>}{result ? result.wasAlreadyCheckedIn ? "รายการนี้เคยเช็คอินแล้ว พร้อมสแกนคนถัดไป" : "เช็คอินเรียบร้อยแล้ว พร้อมสแกนคนถัดไป" : "วาง QR Code ให้อยู่ในกรอบ"}</div>
     </section>
     <section className="scanner-controls">
       <div className="scanner-control-head">
@@ -174,28 +180,6 @@ export function AdminQrScanner() {
         <h2>สแกน QR Code ผู้เข้าร่วมงาน</h2>
         <p>{cameraStatus}</p>
       </div>
-      {result && <div className="scan-success-hero" role="status" aria-live="polite">
-        <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
-        <div className="scan-success-heading">
-          <div className="scan-success-mark"><CheckCircle2/></div>
-          <div className="scan-success-copy">
-            <span>ยืนยันการเข้าร่วมงาน</span>
-            <h3>ลงทะเบียนเข้าร่วมงานแล้ว</h3>
-            <p>{result.name || "-"}</p>
-          </div>
-        </div>
-        <dl className="scan-success-details">
-          <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
-          <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>
-          <div><dt>สถานะ</dt><dd>เข้าร่วมงานแล้ว</dd></div>
-          <div><dt>เบอร์โทร</dt><dd>{result.phone || "-"}</dd></div>
-          <div><dt>หน่วยงาน</dt><dd>{[result.division, result.bureau].filter(Boolean).join(" / ") || "-"}</dd></div>
-          <div><dt>ตำแหน่ง</dt><dd>{result.position || "-"}</dd></div>
-        </dl>
-        <div className="scan-success-actions">
-          <button className="primary" type="button" onClick={clearResult}><RotateCcw/>สแกนคนถัดไป</button>
-        </div>
-      </div>}
       <div className="scanner-buttons">
         <button className="primary" type="button" onClick={startCamera}><Camera/>เปิดกล้อง</button>
         <button className="secondary" type="button" onClick={stopCamera}><QrCode/>หยุดสแกน</button>
@@ -212,6 +196,34 @@ export function AdminQrScanner() {
       </div>
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
+    {result && <div className="scan-result-modal" role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
+      <div className={result.wasAlreadyCheckedIn ? "scan-success-hero already" : "scan-success-hero"} role="status" aria-live="polite">
+        <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
+        <div className="scan-success-heading">
+          <div className="scan-success-mark">{result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}</div>
+          <div className="scan-success-copy">
+            <span>QR CHECK-IN</span>
+            <h3 id="scan-result-title">{result.wasAlreadyCheckedIn ? "รายการนี้เช็คอินแล้ว" : "เช็คอินเรียบร้อยแล้ว"}</h3>
+            <p>{result.wasAlreadyCheckedIn ? "ระบบพบว่าผู้เข้าร่วมงานได้เช็คอินก่อนหน้านี้" : "บันทึกสถานะเข้าร่วมงานเรียบร้อยแล้ว"}</p>
+          </div>
+        </div>
+        <div className="scan-role-band"><span>ระดับผู้เข้าร่วมงาน</span><b>{result.participantRole?.toUpperCase() || "GUEST"}</b></div>
+        <dl className="scan-success-details">
+          <div><dt>ชื่อ-นามสกุล</dt><dd>{result.name || "-"}</dd></div>
+          <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
+          {result.wasAlreadyCheckedIn && <div><dt>เช็คอินครั้งแรกเมื่อ</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
+          {!result.wasAlreadyCheckedIn && <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
+          <div><dt>ผู้สแกน QR Code</dt><dd>{result.checkedInByEmail || "-"}</dd></div>
+          <div><dt>สถานะ</dt><dd>เข้าร่วมงานแล้ว</dd></div>
+          <div><dt>เบอร์โทร</dt><dd>{result.phone || "-"}</dd></div>
+          <div><dt>หน่วยงาน</dt><dd>{[result.division, result.bureau].filter(Boolean).join(" / ") || "-"}</dd></div>
+          <div><dt>ตำแหน่ง</dt><dd>{result.position || "-"}</dd></div>
+        </dl>
+        <div className="scan-success-actions">
+          <button className="primary" type="button" onClick={clearResult}><RotateCcw/>สแกนผู้เข้าร่วมงานคนถัดไป</button>
+        </div>
+      </div>
+    </div>}
   </div>;
 }
 

@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import {
@@ -42,6 +42,7 @@ import {
   listWinners,
   saveAdminSettings,
 } from "../../lib/admin-store";
+import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} /></AdminShell>;
   }
 
-  const { settings, participants, submissions, winners, news, adminAccounts, auditEvents } = await loadAdminPageData(session);
+  const { settings, participants, submissions, winners, news, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
@@ -79,6 +80,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.title,
     item.first_name,
     item.last_name,
+    item.participant_role,
     item.position,
     item.division,
     item.bureau,
@@ -104,6 +106,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   ]);
   const filteredParticipants = filteredParticipantsAll.slice(0, dashboardLimit);
   const filteredSubmissions = filteredSubmissionsAll.slice(0, dashboardLimit);
+  const attendedParticipants = participants.filter((item) => item.status === "attended");
+  const activeRegistrations = participants.filter((item) => item.status !== "cancelled");
+  const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
+  const recentRegisteredParticipants = [...activeRegistrations]
+    .sort((a, b) => new Date(b.registered_at ?? "").getTime() - new Date(a.registered_at ?? "").getTime())
+    .slice(0, 6);
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
   const scoreBoard = submissions
@@ -131,6 +139,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
               <span><b>เปิดรับสมัครประกวดนวัตกรรม</b><small>ผู้สมัครสามารถส่งข้อมูลผลงานและไฟล์แนบ</small></span>
             </label>
             <label className="settings-toggle">
+              <input type="checkbox" name="satisfactionEvaluationEnabled" defaultChecked={settings.satisfactionEvaluationEnabled}/>
+              <span><b>เปิดแบบประเมินความพึงพอใจ</b><small>เฉพาะผู้เข้าร่วมงานที่เช็คอินแล้วจึงจะเห็นปุ่มทำแบบประเมิน</small></span>
+            </label>
+            <label className="settings-toggle">
               <input type="checkbox" name="showSiteStats" defaultChecked={settings.showSiteStats}/>
               <span><b>แสดงสถิติการเข้าเว็บ</b><small>แสดงยอดเข้าชมทั้งหมดและรายวันใน footer หน้าเว็บ</small></span>
             </label>
@@ -141,8 +153,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
         </form>
       </article>}
-      <aside className="admin-panel stats-panel"><span className="eyebrow">ภาพรวมระบบ</span><div className="stat-panel"><Users/><b>{participants.length}</b><span>ผู้เข้าร่วมงาน</span></div><div className="stat-panel"><Settings/><b>{submissions.length}</b><span>ผู้สมัครประกวด</span></div><div className="stat-panel"><Newspaper/><b>{news.length}</b><span>ข่าวประชาสัมพันธ์</span></div><div className="stat-panel"><Trophy/><b>{winners.length}</b><span>ผู้ชนะที่บันทึก</span></div></aside>
+      <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length} recentRegistrations={recentRegisteredParticipants}/>
     </section>
+    <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <section className="admin-panel">
@@ -192,6 +205,7 @@ const fallbackAdminSettings: Awaited<ReturnType<typeof getAdminSettings>> = {
   prelanderEnabled: false,
   eventRegistrationEnabled: true,
   contestSubmissionEnabled: true,
+  satisfactionEvaluationEnabled: false,
   showSiteStats: true,
   openAt: "",
   closeAt: "",
@@ -206,6 +220,21 @@ const emptyAuditEvents: Awaited<ReturnType<typeof listAuditEvents>> = {
   offset: 0,
 };
 
+const emptyEvaluationSummary: EvaluationSummary = {
+  total: 0,
+  average: 0,
+  sections: [],
+  questions: [],
+  profiles: {
+    gender: [],
+    ageRange: [],
+    organizationType: [],
+    attendeeStatus: [],
+  },
+  comments: [],
+  winners: [],
+};
+
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
   const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
@@ -217,7 +246,8 @@ async function loadAdminPageData(session: AdminSession) {
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
     isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
   ]);
-  return { settings, participants, submissions, winners, news, adminAccounts, auditEvents };
+  const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
+  return { settings, participants, submissions, winners, news, adminAccounts, auditEvents, evaluationSummary };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -254,6 +284,34 @@ function AdminShell({ children }: { children: React.ReactNode }) {
   return <div className="admin-page"><div className="wide">{children}</div></div>;
 }
 
+function SystemOverview({
+  registrations,
+  attended,
+  waiting,
+  submissions,
+  recentRegistrations,
+}: {
+  registrations: number;
+  attended: number;
+  waiting: number;
+  submissions: number;
+  recentRegistrations: Awaited<ReturnType<typeof listParticipants>>;
+}) {
+  return <aside className="admin-panel stats-panel system-overview">
+    <span className="eyebrow">ภาพรวมระบบ</span>
+    <h2>ลงทะเบียนเข้าร่วมงานแล้ว {registrations.toLocaleString("th-TH")} คน</h2>
+    <div className="stat-panel"><Users/><b>{registrations.toLocaleString("th-TH")}</b><span>ลงทะเบียนเข้าร่วมงาน</span></div>
+    <div className="stat-panel"><UserCheck/><b>{attended.toLocaleString("th-TH")}</b><span>เช็คอินเข้าร่วมงานแล้ว</span></div>
+    <div className="stat-panel"><QrCode/><b>{waiting.toLocaleString("th-TH")}</b><span>ลงทะเบียนแล้ว รอเช็คอิน</span></div>
+    <div className="stat-panel"><Settings/><b>{submissions.toLocaleString("th-TH")}</b><span>สมัครประกวดนวัตกรรม</span></div>
+    <div className="overview-attended-list">
+      <b>ใครลงทะเบียนเข้าร่วมงานแล้วบ้าง</b>
+      <small>แสดงรายชื่อลงทะเบียนล่าสุด พร้อมสถานะเช็คอิน</small>
+      {recentRegistrations.length ? recentRegistrations.map((item) => <span key={item.registration_code}>{item.title}{item.first_name} {item.last_name}<small>{item.participant_role} • {item.status === "attended" ? `เช็คอินแล้ว ${formatAdminDate(item.checked_in_at)}` : "ยังไม่เช็คอิน"}</small></span>) : <em>ยังไม่มีผู้ลงทะเบียนเข้าร่วมงาน</em>}
+    </div>
+  </aside>;
+}
+
 function LoginPanel({ message }: { message: string }) {
   return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>Super Admin ใช้รหัส OTP ทางอีเมล ส่วน Admin ใช้อีเมลและรหัสผ่านที่ได้รับจากลิงก์เชิญ</p>{message && <div className="admin-login-alert">{message}</div>}
     <div className="admin-login-grid">
@@ -288,6 +346,30 @@ function AdminManagementPanel({ admins, search, total }: { admins: Awaited<Retur
     <SearchBox name="adminSearch" value={search} label="ค้นหาแอดมิน" placeholder="ชื่อ อีเมล สถานะ หรือรหัสผ่าน"/>
     <AdminAccountsTable admins={admins}/>
     <CardMore total={total} shown={admins.length} href="/admin/admins"/>
+  </section>;
+}
+
+function EvaluationAdminPanel({ summary, evaluationEnabled }: { summary: EvaluationSummary; evaluationEnabled: boolean }) {
+  return <section className="admin-panel evaluation-admin-panel">
+    <header className="admin-section-head">
+      <Star/>
+      <div><h2>แบบประเมินความพึงพอใจ</h2><p>สรุปภาพรวมแบบย่อ ดูคะแนนรายข้อ คำตอบ และ Lucky Draw ได้ในหน้ารายละเอียด</p></div>
+      <div className="admin-actions">
+        <span className={`status-pill ${evaluationEnabled ? "attended" : "registered"}`}>{evaluationEnabled ? "เปิดให้ประเมิน" : "ยังไม่เปิด"}</span>
+        <Link className="primary" href="/admin/evaluations"><Eye/>ดูสรุปคะแนน</Link>
+      </div>
+    </header>
+    <div className="evaluation-dashboard-summary">
+      <div className="stat-panel"><Star/><b>{summary.total.toLocaleString("th-TH")}</b><span>ผู้ทำแบบประเมิน</span></div>
+      <div className="stat-panel"><Trophy/><b>{summary.average ? summary.average.toFixed(2) : "-"}</b><span>คะแนนเฉลี่ยรวม / 5</span></div>
+      <div className="stat-panel"><Gift/><b>{summary.winners.length.toLocaleString("th-TH")}/3</b><span>ผู้โชคดี Lucky Draw</span></div>
+    </div>
+    <div className="evaluation-dashboard-section">
+      {summary.sections.length ? summary.sections.map((section) => <article key={section.key}>
+        <span>{section.title}</span>
+        <b>{section.average ? section.average.toFixed(2) : "-"}/5</b>
+      </article>) : <div className="participant-empty">ยังไม่มีผลประเมิน</div>}
+    </div>
   </section>;
 }
 
@@ -368,16 +450,24 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
     ["attended", "เข้าร่วมงานแล้ว"],
     ["cancelled", "ยกเลิก"],
   ];
-  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
-    <td><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</td>
-    <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
-    <td>{item.email}<small>{item.phone}</small></td>
-    <td>{item.position}</td>
-    <td>{item.division}</td>
-    <td>{item.bureau}</td>
-    <td><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span></td>
-    <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
-  </tr>) : <tr><td colSpan={8}>ยังไม่มีข้อมูลผู้เข้าร่วมงาน</td></tr>}</tbody></table></div>;
+  return <form action="/api/admin/participants/bulk-delete" method="post" className="bulk-delete-form">
+    <input type="hidden" name="returnTo" value="/admin"/>
+    <div className="bulk-delete-bar">
+      <span>ติ๊ก checkbox หน้าแถวที่ต้องการลบ แล้วกดลบรายการที่เลือก</span>
+      <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
+    </div>
+    <div className="admin-table-wrap"><table className="admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
+      <td><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
+      <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+      <td><span className="status-pill role-pill">{item.participant_role}</span></td>
+      <td>{item.email}<small>{item.phone}</small></td>
+      <td>{item.position}</td>
+      <td>{item.division}</td>
+      <td>{item.bureau}</td>
+      <td><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
+      <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
+    </tr>) : <tr><td colSpan={9}>ยังไม่มีข้อมูลผู้เข้าร่วมงาน</td></tr>}</tbody></table></div>
+  </form>;
 }
 
 function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
@@ -499,6 +589,7 @@ async function saveSettingsAction(formData: FormData) {
     prelanderEnabled: formData.get("prelanderEnabled") === "on",
     eventRegistrationEnabled: formData.get("eventRegistrationEnabled") === "on",
     contestSubmissionEnabled: formData.get("contestSubmissionEnabled") === "on",
+    satisfactionEvaluationEnabled: formData.get("satisfactionEvaluationEnabled") === "on",
     showSiteStats: formData.get("showSiteStats") === "on",
     openAt: String(formData.get("openAt") ?? ""),
     closeAt: String(formData.get("closeAt") ?? ""),
@@ -509,6 +600,7 @@ async function saveSettingsAction(formData: FormData) {
   revalidatePath("/register");
   revalidatePath("/register/form");
   revalidatePath("/submit");
+  revalidatePath("/evaluation");
   revalidatePath("/admin");
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -689,6 +781,14 @@ function toInputDate(value: string) {
 
 function formatAward(rank: string) {
   return awardLabels[rank] ?? awardLabels.honorable;
+}
+
+function profileLabel(key: string) {
+  if (key === "gender") return "เพศ";
+  if (key === "ageRange") return "อายุ";
+  if (key === "organizationType") return "ประเภทหน่วยงาน";
+  if (key === "attendeeStatus") return "สถานภาพ";
+  return key;
 }
 
 function actorLabel(actor: AuditEventRecord["actor"]) {

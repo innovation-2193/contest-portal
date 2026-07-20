@@ -224,6 +224,7 @@ async function updateSubmissionAction(formData: FormData) {
   const submissionType = text(formData, "submissionType");
   const status = text(formData, "status");
   const email = text(formData, "email").toLowerCase();
+  const summary = text(formData, "summary").slice(0, 500);
   const includedMembers = new Set(formData.getAll("includeMember").map(String));
   const members = [1, 2, 3]
     .filter((order) => order === 1 || submissionType === "team" && includedMembers.has(String(order)))
@@ -243,7 +244,7 @@ async function updateSubmissionAction(formData: FormData) {
   if (!submissionStatuses.some(([value]) => value === status)) throw new Error("สถานะใบสมัครไม่ถูกต้อง");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("อีเมลบัญชีไม่ถูกต้อง");
   if (submissionType === "team" && !text(formData, "teamName")) throw new Error("กรุณาระบุชื่อทีม");
-  if (text(formData, "summary").length < 20 || text(formData, "summary").length > 500) throw new Error("คำอธิบายย่อต้องมี 20-500 ตัวอักษร");
+  if (summary.length < 20) throw new Error("คำอธิบายย่อต้องมีอย่างน้อย 20 ตัวอักษร");
   const videoUrl = text(formData, "videoUrl");
   if (videoUrl) new URL(videoUrl);
 
@@ -261,7 +262,7 @@ async function updateSubmissionAction(formData: FormData) {
     teamName: text(formData, "teamName") || null,
     titleTh: text(formData, "titleTh"),
     titleEn: text(formData, "titleEn"),
-    summary: text(formData, "summary"),
+    summary,
     videoUrl,
     status: status as "draft" | "submitted" | "screening" | "qualified" | "rejected",
     members,

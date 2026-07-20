@@ -6,6 +6,7 @@ import { ensureDatabaseSchema } from "./db-schema";
 import {
   checkInLocalRegistration,
   deleteLocalRegistration,
+  normalizeParticipantRole,
   isDatabaseSchemaFallback,
   isDatabaseUnavailable,
   listLocalRegistrations,
@@ -27,6 +28,7 @@ export type AdminSettings = {
   prelanderEnabled: boolean;
   eventRegistrationEnabled: boolean;
   contestSubmissionEnabled: boolean;
+  satisfactionEvaluationEnabled: boolean;
   showSiteStats: boolean;
   openAt: string;
   closeAt: string;
@@ -162,6 +164,7 @@ const defaultSettings: AdminSettings = {
   prelanderEnabled: false,
   eventRegistrationEnabled: true,
   contestSubmissionEnabled: true,
+  satisfactionEvaluationEnabled: false,
   showSiteStats: true,
   openAt: "",
   closeAt: "",
@@ -178,6 +181,7 @@ export async function saveAdminSettings(input: Partial<AdminSettings>) {
     prelanderEnabled: Boolean(input.prelanderEnabled),
     eventRegistrationEnabled: input.eventRegistrationEnabled !== false,
     contestSubmissionEnabled: input.contestSubmissionEnabled !== false,
+    satisfactionEvaluationEnabled: input.satisfactionEvaluationEnabled === true,
     showSiteStats: input.showSiteStats !== false,
     openAt: input.openAt ?? "",
     closeAt: input.closeAt ?? "",
@@ -196,6 +200,10 @@ export function isContestSubmissionOpen(settings: AdminSettings) {
   return settings.contestSubmissionEnabled !== false;
 }
 
+export function isSatisfactionEvaluationOpen(settings: AdminSettings) {
+  return settings.satisfactionEvaluationEnabled === true;
+}
+
 export function isPrelanderActive(settings: AdminSettings, now = new Date()) {
   if (!settings.prelanderEnabled) return false;
   const openAt = parseDate(settings.openAt);
@@ -207,9 +215,9 @@ export async function listParticipants() {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
     );
-    return rows as RegistrationRecord[];
+    return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
   } catch (error) {
     if (isDatabaseSchemaFallback(error)) return listParticipantsCompat();
     if (!isDatabaseUnavailable(error)) throw error;
@@ -221,11 +229,12 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
   try {
     await ensureDatabaseSchema();
     await db.execute(
-      "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=?,u.provider=?,u.display_name=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=?,r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END WHERE r.registration_code=?",
+      "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=?,u.provider=?,u.display_name=?,r.participant_role=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=?,r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END,r.checked_in_by_email=CASE WHEN ?='attended' THEN r.checked_in_by_email ELSE NULL END WHERE r.registration_code=?",
       [
         input.email.trim().toLowerCase(),
         input.provider,
         `${input.firstName} ${input.lastName}`,
+        input.participantRole,
         input.title,
         input.firstName,
         input.lastName,
@@ -234,6 +243,7 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
         input.position,
         input.division,
         input.bureau,
+        input.status,
         input.status,
         input.status,
         input.registrationCode,
@@ -254,24 +264,41 @@ export async function deleteParticipant(registrationCode: string) {
   }
 }
 
-export async function checkInParticipant(registrationCode: string) {
+export async function deleteParticipants(registrationCodes: string[]) {
+  const codes = [...new Set(registrationCodes.map((item) => item.trim()).filter(Boolean))];
+  for (const registrationCode of codes) {
+    await deleteParticipant(registrationCode);
+  }
+  return codes.length;
+}
+
+export async function checkInParticipant(registrationCode: string, checkedInByEmail?: string | null) {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
+      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
       [registrationCode.trim()],
     );
     const record = (rows as RegistrationRecord[])[0];
     if (!record) throw Object.assign(new Error("registration not found"), { code: "NOT_FOUND" });
     if (record.status === "cancelled") throw Object.assign(new Error("registration cancelled"), { code: "CANCELLED" });
+    const now = new Date().toISOString();
+    const wasAlreadyCheckedIn = Boolean(record.checked_in_at);
     await db.execute(
-      "UPDATE registrations SET status='attended',checked_in_at=COALESCE(checked_in_at,CURRENT_TIMESTAMP(3)) WHERE registration_code=?",
-      [registrationCode.trim()],
+      "UPDATE registrations SET status='attended',checked_in_at=COALESCE(checked_in_at,CURRENT_TIMESTAMP(3)),checked_in_by_email=COALESCE(checked_in_by_email,?) WHERE registration_code=?",
+      [checkedInByEmail?.trim().toLowerCase() || null, registrationCode.trim()],
     );
-    return { ...record, status: "attended" as RegistrationStatus, checked_in_at: record.checked_in_at ?? new Date().toISOString() };
+    return {
+      ...record,
+      participant_role: normalizeParticipantRole(record.participant_role),
+      status: "attended" as RegistrationStatus,
+      checked_in_at: record.checked_in_at ?? now,
+      checked_in_by_email: record.checked_in_by_email ?? checkedInByEmail ?? null,
+      wasAlreadyCheckedIn,
+    };
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
-    return checkInLocalRegistration(registrationCode);
+    return checkInLocalRegistration(registrationCode, checkedInByEmail);
   }
 }
 
@@ -413,7 +440,7 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
           input.submissionType === "team" ? input.teamName : null,
           input.titleTh,
           input.titleEn || null,
-          input.summary,
+          input.summary.slice(0, 500),
           input.videoUrl || null,
           input.status,
           submission.id,
@@ -820,9 +847,9 @@ async function ensureNewsTable() {
 async function listParticipantsCompat() {
   try {
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,'' AS position,'' AS division,'' AS bureau,r.status,NULL AS checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+      "SELECT r.registration_code,'Guest' AS participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,'' AS position,'' AS division,'' AS bureau,r.status,NULL AS checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
     );
-    return rows as RegistrationRecord[];
+    return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     return listLocalRegistrations();

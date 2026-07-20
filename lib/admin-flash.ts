@@ -11,9 +11,12 @@ export const adminNoticeMessages = {
   admin_deleted: "ลบแอดมินเรียบร้อยแล้ว",
   participant_saved: "บันทึกข้อมูลผู้เข้าร่วมงานเรียบร้อยแล้ว",
   participant_deleted: "ลบข้อมูลผู้เข้าร่วมงานเรียบร้อยแล้ว",
+  participants_deleted: "ลบข้อมูลผู้เข้าร่วมงานที่เลือกเรียบร้อยแล้ว",
+  participant_none_selected: "ยังไม่ได้เลือกรายการผู้เข้าร่วมงานสำหรับลบ",
   submission_saved: "บันทึกข้อมูลใบสมัครประกวดเรียบร้อยแล้ว",
   score_saved: "บันทึกคะแนนเรียบร้อยแล้ว",
   submission_deleted: "ลบใบสมัครประกวดเรียบร้อยแล้ว",
+  lucky_draw_done: "สุ่ม Lucky Draw และส่งอีเมลแจ้งผู้โชคดีเรียบร้อยแล้ว",
 } as const;
 
 export type AdminNoticeCode = keyof typeof adminNoticeMessages;

@@ -89,6 +89,7 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
   const [uploadProgress, setUploadProgress] = useState(0);
   const [openConsent, setOpenConsent] = useState<ConsentKey | null>(null);
   const [summaryLength, setSummaryLength] = useState(0);
+  const [summaryWarning, setSummaryWarning] = useState("");
   const [viewedConsent, setViewedConsent] = useState<Record<ConsentKey, boolean>>({
     rules: false,
     pdpa: false,
@@ -119,12 +120,14 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
     const form = new FormData(e.currentTarget);
     const citizenId = String(form.get("citizenId") ?? "");
     const phone = String(form.get("phone") ?? "");
-    const summary = String(form.get("summary") ?? "").trim();
+    const rawSummary = String(form.get("summary") ?? "").trim();
+    const summary = rawSummary.slice(0, summaryMaxLength);
 
-    if (summary.length < summaryMinLength || summary.length > summaryMaxLength) {
-      setError(`คำอธิบายย่อต้องมีอย่างน้อย ${summaryMinLength} ตัวอักษร และไม่เกิน ${summaryMaxLength} ตัวอักษร`);
+    if (summary.length < summaryMinLength) {
+      setError(`คำอธิบายย่อต้องมีอย่างน้อย ${summaryMinLength} ตัวอักษร`);
       return;
     }
+    setSummaryWarning(rawSummary.length > summaryMaxLength ? `ข้อความเกิน ${summaryMaxLength} ตัวอักษร ระบบตัดและบันทึกเฉพาะ ${summaryMaxLength} ตัวอักษรแรกให้แล้ว` : "");
 
     form.set("summary", summary);
 
@@ -266,15 +269,19 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
             <textarea
               name="summary"
               minLength={summaryMinLength}
-              maxLength={summaryMaxLength}
               required
               placeholder="สรุปปัญหา แนวคิดนวัตกรรม และประโยชน์ที่คาดว่าจะได้รับ อย่างน้อย 20 ตัวอักษร"
-              title={`กรอกคำอธิบายย่ออย่างน้อย ${summaryMinLength} ตัวอักษร และไม่เกิน ${summaryMaxLength} ตัวอักษร`}
-              onInput={(event) => setSummaryLength(event.currentTarget.value.trim().length)}
+              title={`กรอกคำอธิบายย่ออย่างน้อย ${summaryMinLength} ตัวอักษร หากเกินระบบจะบันทึกเฉพาะ ${summaryMaxLength} ตัวอักษรแรก`}
+              onInput={(event) => {
+                const nextLength = event.currentTarget.value.trim().length;
+                setSummaryLength(nextLength);
+                setSummaryWarning(nextLength > summaryMaxLength ? `พิมพ์เกิน ${summaryMaxLength} ตัวอักษรแล้ว ระบบจะตัดส่วนเกินออกให้เมื่อส่งใบสมัคร` : "");
+              }}
             />
             <small className={summaryLength > 0 && summaryLength < summaryMinLength ? "field-help invalid" : "field-help"}>
-              กรอกอย่างน้อย {summaryMinLength} ตัวอักษร • ตอนนี้ {summaryLength}/{summaryMaxLength} ตัวอักษร
+              กรอกอย่างน้อย {summaryMinLength} ตัวอักษร • ตอนนี้ {summaryLength.toLocaleString("th-TH")} ตัวอักษร • บันทึกสูงสุด {summaryMaxLength} ตัวอักษร
             </small>
+            {summaryWarning && <small className="field-help invalid" role="status" aria-live="polite">{summaryWarning}</small>}
           </label>
           <label className="span-2">Link Video<input type="url" name="videoUrl" placeholder="Google Drive, YouTube หรือ OneDrive" /></label>
         </div>

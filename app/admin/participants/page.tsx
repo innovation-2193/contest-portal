@@ -1,15 +1,20 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Eye, Search, Users } from "lucide-react";
+import { revalidatePath } from "next/cache";
+import { ArrowLeft, Eye, Search, Trash2, Users } from "lucide-react";
+import { AdminNotice } from "../../../components/AdminNotice";
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { listParticipants } from "../../../lib/admin-store";
+import { deleteParticipants, listParticipants } from "../../../lib/admin-store";
+import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
+import { adminNoticePath } from "../../../lib/admin-flash";
 
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -24,6 +29,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
     item.phone,
     item.first_name,
     item.last_name,
+    item.participant_role,
     item.position,
     item.division,
     item.bureau,
@@ -39,24 +45,52 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
         <div><span className="eyebrow">Participants</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า</p></div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
+      <AdminNotice code={params.notice}/>
       <section className="admin-panel">
         <header className="admin-section-head"><Users/><div><h2>รายการผู้เข้าร่วมงาน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/></div></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/participants">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
-          <td><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></td>
-          <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
-          <td>{item.email}<small>{item.phone}</small></td>
-          <td>{item.position}<small>{item.division} / {item.bureau}</small></td>
-          <td><span className={`status-pill ${item.status}`}>{participantStatus(item.status)}</span></td>
-          <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
-        </tr>) : <tr><td colSpan={6}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
+        <form action={deleteParticipantsAction} className="bulk-delete-form">
+          <div className="bulk-delete-bar">
+            <span>ติ๊ก checkbox หน้าแถวที่ต้องการลบ แล้วกดลบรายการที่เลือก</span>
+            <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
+          </div>
+          <div className="admin-table-wrap"><table className="admin-table compact-admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
+            <td><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label></td>
+            <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+            <td><span className="status-pill role-pill">{item.participant_role}</span></td>
+            <td>{item.email}<small>{item.phone}</small></td>
+            <td>{item.position}<small>{item.division} / {item.bureau}</small></td>
+            <td><span className={`status-pill ${item.status}`}>{participantStatus(item.status)}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
+            <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
+          </tr>) : <tr><td colSpan={7}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
+        </form>
         <Pagination basePath="/admin/participants" q={q} page={currentPage} totalPages={totalPages}/>
       </section>
     </div>
   </div>;
+}
+
+async function deleteParticipantsAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  const codes = formData.getAll("registrationCode").map(String).filter(Boolean);
+  if (!codes.length) redirect(adminNoticePath("/admin/participants", "participant_none_selected"));
+  const deleted = await deleteParticipants(codes);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.bulk_deleted",
+    entityType: "registration",
+    summary: `ลบข้อมูลผู้เข้าร่วมงาน ${deleted} รายการ`,
+    payload: { registrationCodes: codes },
+  }, await headers());
+  revalidatePath("/admin");
+  revalidatePath("/admin/participants");
+  redirect(adminNoticePath("/admin/participants", deleted > 1 ? "participants_deleted" : "participant_deleted"));
 }
 
 function Pagination({ basePath, q, page, totalPages }: { basePath: string; q: string; page: number; totalPages: number }) {

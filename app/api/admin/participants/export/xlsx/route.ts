@@ -43,6 +43,7 @@ function participantsWorkbook(participants: RegistrationRecord[]) {
     "คำนำหน้า",
     "ชื่อ",
     "นามสกุล",
+    "Role",
     "เลขบัตรประชาชน",
     "โทรศัพท์",
     "ตำแหน่ง",
@@ -52,12 +53,14 @@ function participantsWorkbook(participants: RegistrationRecord[]) {
     "สถานะ",
     "ลงทะเบียนเมื่อ",
     "เช็คอินเมื่อ",
+    "สแกนโดย",
   ];
   const rows = participants.map((item) => [
     item.registration_code,
     item.title,
     item.first_name,
     item.last_name,
+    item.participant_role,
     item.citizen_id,
     item.phone,
     item.position,
@@ -67,6 +70,7 @@ function participantsWorkbook(participants: RegistrationRecord[]) {
     statusLabel(item.status),
     formatThaiDateTime(item.registered_at),
     item.checked_in_at ? formatThaiDateTime(item.checked_in_at) : "",
+    item.checked_in_by_email ?? "",
   ]);
 
   return createXlsx([
@@ -145,7 +149,7 @@ function participantsWorkbook(participants: RegistrationRecord[]) {
 }
 
 function worksheetXml(rows: string[][], columnCount: number) {
-  const columnWidths = [18, 12, 18, 18, 18, 14, 26, 28, 28, 30, 18, 22, 22];
+  const columnWidths = [18, 12, 18, 18, 14, 18, 14, 26, 28, 28, 30, 18, 22, 22];
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <dimension ref="A1:${cellRef(columnCount - 1, Math.max(1, rows.length))}"/>

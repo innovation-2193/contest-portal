@@ -26,7 +26,9 @@ const memberSchema=z.object({title:z.string().min(1),firstName:z.string().min(2)
 export async function POST(request:Request){
   try{
     if(!isContestSubmissionOpen(await getAdminSettings()))return NextResponse.json({error:"ขณะนี้ระบบปิดรับสมัครส่งผลงานประกวดนวัตกรรม"},{status:403});
-    const form=await request.formData(); const data=fields.parse(Object.fromEntries([...form.entries()].filter(([,v])=>typeof v==="string")));
+    const form=await request.formData(); const rawFields=Object.fromEntries([...form.entries()].filter(([,v])=>typeof v==="string"));
+    if (typeof rawFields.summary === "string") rawFields.summary = rawFields.summary.trim().slice(0, 500);
+    const data=fields.parse(rawFields);
     if(data.submissionType==="team"&&!data.teamName?.trim())throw new Error("กรุณาระบุชื่อทีม");
     const teamMembers=z.array(memberSchema).max(2).parse(JSON.parse(String(form.get("teamMembers")||"[]")));
     const files=fileTypes.map(type=>({type,file:form.get(type)}));
