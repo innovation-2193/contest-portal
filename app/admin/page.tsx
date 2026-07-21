@@ -118,41 +118,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <AdminNotice code={params.notice}/>
+    {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
-    <section className="admin-grid">
-      {isSuperAdmin && <article className="admin-panel settings-panel">
-        <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
-        <form action={saveSettingsAction} className="admin-form">
-          <div className="settings-toggle-grid">
-            <label className="settings-toggle">
-              <input type="checkbox" name="prelanderEnabled" defaultChecked={settings.prelanderEnabled}/>
-              <span><b>เปิดใช้งาน pre-lander</b><small>แสดงหน้าเตรียมเปิดระบบตามช่วงเวลาที่กำหนด</small></span>
-            </label>
-            <label className="settings-toggle">
-              <input type="checkbox" name="eventRegistrationEnabled" defaultChecked={settings.eventRegistrationEnabled}/>
-              <span><b>เปิดลงทะเบียนเข้าร่วมงาน</b><small>ผู้เข้าร่วมงานสามารถกรอกข้อมูลและรับ QR Code</small></span>
-            </label>
-            <label className="settings-toggle">
-              <input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/>
-              <span><b>เปิดรับสมัครประกวดนวัตกรรม</b><small>ผู้สมัครสามารถส่งข้อมูลผลงานและไฟล์แนบ</small></span>
-            </label>
-            <label className="settings-toggle">
-              <input type="checkbox" name="satisfactionEvaluationEnabled" defaultChecked={settings.satisfactionEvaluationEnabled}/>
-              <span><b>เปิดแบบประเมินความพึงพอใจ</b><small>เฉพาะผู้เข้าร่วมงานที่เช็คอินแล้วจึงจะเห็นปุ่มทำแบบประเมิน</small></span>
-            </label>
-            <label className="settings-toggle">
-              <input type="checkbox" name="showSiteStats" defaultChecked={settings.showSiteStats}/>
-              <span><b>แสดงสถิติการเข้าเว็บ</b><small>แสดงยอดเข้าชมทั้งหมดและรายวันใน footer หน้าเว็บ</small></span>
-            </label>
-          </div>
-          <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
-          <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
-          <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
-          <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
-        </form>
-      </article>}
-      <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>
-    </section>
+    {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
     <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
@@ -296,6 +264,40 @@ function SystemOverview({
   </aside>;
 }
 
+function SettingsControlPanel({ settings }: { settings: Awaited<ReturnType<typeof getAdminSettings>> }) {
+  return <article className="admin-panel settings-panel admin-control-panel">
+    <header className="admin-section-head"><CalendarClock/><div><span className="eyebrow">System Control</span><h2>จัดการเปิด / ปิดระบบ</h2><p>ควบคุม Pre-lander การลงทะเบียน สมัครประกวด แบบประเมิน และสถิติหน้าเว็บ</p></div></header>
+    <form action={saveSettingsAction} className="admin-form">
+      <div className="settings-toggle-grid">
+        <label className="settings-toggle">
+          <input type="checkbox" name="prelanderEnabled" defaultChecked={settings.prelanderEnabled}/>
+          <span><b>เปิดใช้งาน pre-lander</b><small>แสดงหน้าเตรียมเปิดระบบตามช่วงเวลาที่กำหนด</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="eventRegistrationEnabled" defaultChecked={settings.eventRegistrationEnabled}/>
+          <span><b>เปิดลงทะเบียนเข้าร่วมงาน</b><small>ผู้เข้าร่วมงานสามารถกรอกข้อมูลและรับ QR Code</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="contestSubmissionEnabled" defaultChecked={settings.contestSubmissionEnabled}/>
+          <span><b>เปิดรับสมัครประกวดนวัตกรรม</b><small>ผู้สมัครสามารถส่งข้อมูลผลงานและไฟล์แนบ</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="satisfactionEvaluationEnabled" defaultChecked={settings.satisfactionEvaluationEnabled}/>
+          <span><b>เปิดแบบประเมินความพึงพอใจ</b><small>เฉพาะผู้เข้าร่วมงานที่เช็คอินแล้วจึงจะเห็นปุ่มทำแบบประเมิน</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="showSiteStats" defaultChecked={settings.showSiteStats}/>
+          <span><b>แสดงสถิติการเข้าเว็บ</b><small>แสดงยอดเข้าชมทั้งหมดและรายวันใน footer หน้าเว็บ</small></span>
+        </label>
+      </div>
+      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
+      <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
+      <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
+      <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
+    </form>
+  </article>;
+}
+
 function ReviewQueuePanel({
   submissions,
   total,
@@ -311,23 +313,23 @@ function ReviewQueuePanel({
 }) {
   const pendingReview = allSubmissions.filter((item) => !item.review_submitted_at).length;
   const completedReview = allSubmissions.filter((item) => item.review_submitted_at).length;
-  const unassigned = allSubmissions.filter((item) => !item.review_assigned_admin_email).length;
-  const heading = isSuperAdmin ? "ใบสมัครประกวดที่ต้องจัดการ" : "งานตรวจของคุณ";
+  const assignedCount = allSubmissions.filter((item) => item.review_assigned_admin_email).length;
+  const assignmentLabel = isSuperAdmin ? "assign ผู้ตรวจแล้ว" : "assign ให้คุณแล้ว";
   const description = isSuperAdmin
     ? "ตรวจสถานะใบสมัคร Assign ผู้ตรวจ และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที"
-    : "รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ ไม่ต้องเลื่อนหาจากส่วนอื่น";
+    : "รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ เปิดตรวจได้ทันที";
 
   return <section className="admin-panel review-focus-panel">
     <header className="admin-section-head review-focus-head">
       <ClipboardList/>
-      <div><span className="eyebrow">Review Queue</span><h2>{heading}</h2><p>{description}</p></div>
+      <div><span className="eyebrow">Review Queue</span><h2>ใบสมัครประกวดที่ต้องตรวจ</h2><p>{description}</p></div>
       <div className="admin-actions"><Link className="primary" href="/admin/submissions"><Eye/>เปิดรายการทั้งหมด</Link></div>
     </header>
     <div className="review-focus-summary">
-      <div className="stat-panel review-stat urgent"><ClipboardList/><b>{pendingReview.toLocaleString("th-TH")}</b><span>{isSuperAdmin ? "รายการยังไม่ส่งคะแนน" : "งานรอตรวจ"}</span></div>
+      <div className="stat-panel review-stat urgent"><ClipboardList/><b>{pendingReview.toLocaleString("th-TH")}</b><span>รายการรอตรวจ</span></div>
       <div className="stat-panel review-stat"><Trophy/><b>{completedReview.toLocaleString("th-TH")}</b><span>ส่งคะแนนแล้ว</span></div>
-      {isSuperAdmin && <div className="stat-panel review-stat"><UserCheck/><b>{unassigned.toLocaleString("th-TH")}</b><span>ยังไม่ assign ผู้ตรวจ</span></div>}
-      <div className="stat-panel review-stat"><Settings/><b>{allSubmissions.length.toLocaleString("th-TH")}</b><span>{isSuperAdmin ? "ใบสมัครทั้งหมด" : "งานที่ได้รับมอบหมาย"}</span></div>
+      <div className="stat-panel review-stat"><UserCheck/><b>{assignedCount.toLocaleString("th-TH")}</b><span>{assignmentLabel}</span></div>
+      <div className="stat-panel review-stat"><Settings/><b>{allSubmissions.length.toLocaleString("th-TH")}</b><span>ใบสมัครในคิวนี้</span></div>
     </div>
     <SearchBox name="submissionSearch" value={search} label="ค้นหาใบสมัครประกวด" placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/>
     <ReviewQueueTable submissions={submissions}/>

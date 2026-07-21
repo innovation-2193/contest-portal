@@ -2921,6 +2921,18 @@ body:has(.prelander-page)::before {
 
 .settings-panel { min-height: 100%; }
 
+.admin-panel.admin-control-panel {
+  border-color: rgba(223, 186, 51, 0.5);
+  background:
+    linear-gradient(135deg, rgba(223, 186, 51, 0.1), transparent 30%),
+    linear-gradient(180deg, rgba(7, 22, 50, 0.96), rgba(3, 13, 31, 0.94));
+}
+
+.admin-panel.admin-control-panel header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(64, 89, 128, 0.42);
+}
+
 .admin-panel,
 .admin-login {
   padding: 18px;
@@ -3050,6 +3062,10 @@ body:has(.prelander-page)::before {
   padding: 16px;
 }
 
+.system-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .admin-grid > .stats-panel:only-child {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
@@ -3057,6 +3073,10 @@ body:has(.prelander-page)::before {
 
 .stats-panel > .eyebrow {
   padding: 2px 2px 6px;
+}
+
+.system-overview > .eyebrow {
+  grid-column: 1 / -1;
 }
 
 .system-overview h2 {
@@ -3100,40 +3120,6 @@ body:has(.prelander-page)::before {
 .stat-panel span {
   color: var(--muted);
   font-size: 14px;
-  font-weight: 800;
-}
-
-.overview-attended-list {
-  display: grid;
-  gap: 8px;
-  padding: 13px 14px;
-  border: 1px solid rgba(64, 89, 128, 0.5);
-  border-radius: 8px;
-  background: rgba(1, 9, 22, 0.42);
-}
-
-.overview-attended-list > b {
-  color: var(--ink);
-  line-height: 1.35;
-}
-
-.overview-attended-list > small,
-.overview-attended-list em {
-  color: var(--muted);
-  font-style: normal;
-  font-weight: 800;
-}
-
-.overview-attended-list > span {
-  display: grid;
-  gap: 2px;
-  color: #edf3ff;
-  font-weight: 900;
-  line-height: 1.35;
-}
-
-.overview-attended-list > span small {
-  color: #9fb0c8;
   font-weight: 800;
 }
 
@@ -7711,6 +7697,9 @@ body:has(.report-page) .brand b {
   .admin-grid > .stats-panel:only-child {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .system-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .admin-password-panel {
     grid-template-columns: 1fr;
   }
@@ -7976,6 +7965,9 @@ body:has(.report-page) .brand b {
     width: 100%;
   }
   .admin-grid > .stats-panel:only-child {
+    grid-template-columns: 1fr;
+  }
+  .system-overview {
     grid-template-columns: 1fr;
   }
   .report-page .wide {
