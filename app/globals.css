@@ -2993,6 +2993,56 @@ body:has(.prelander-page)::before {
   line-height: 1.25;
 }
 
+.review-focus-panel {
+  padding: 20px;
+  border-color: rgba(223, 186, 51, 0.46);
+  background:
+    linear-gradient(135deg, rgba(223, 186, 51, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(7, 22, 50, 0.96), rgba(3, 13, 31, 0.94));
+}
+
+.review-focus-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(64, 89, 128, 0.42);
+}
+
+.review-focus-head .eyebrow {
+  display: inline-block;
+  margin-bottom: 2px;
+}
+
+.review-focus-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.review-stat {
+  min-height: 88px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at left center, rgba(223, 186, 51, 0.14), transparent 42%),
+    rgba(2, 11, 27, 0.62);
+}
+
+.review-stat.urgent {
+  border-color: rgba(223, 186, 51, 0.62);
+}
+
+.review-focus-panel .admin-search {
+  margin-bottom: 12px;
+}
+
+.review-focus-table .admin-table {
+  min-width: 760px;
+}
+
+.review-focus-table .small-action {
+  width: 100%;
+  min-width: 104px;
+}
+
 .stats-panel {
   display: grid;
   align-content: start;
@@ -7772,6 +7822,9 @@ body:has(.report-page) .brand b {
   .admin-table td:last-child {
     border-bottom: 0;
   }
+  .review-focus-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .status-pill {
     max-width: 100%;
     white-space: nowrap;
@@ -7911,6 +7964,16 @@ body:has(.report-page) .brand b {
   .admin-topline h1,
   .admin-login h1 {
     font-size: 30px;
+  }
+  .review-focus-panel {
+    padding: 14px;
+  }
+  .review-focus-summary {
+    grid-template-columns: 1fr;
+  }
+  .review-focus-head .admin-actions,
+  .review-focus-head .primary {
+    width: 100%;
   }
   .admin-grid > .stats-panel:only-child {
     grid-template-columns: 1fr;

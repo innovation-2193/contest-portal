@@ -109,9 +109,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const attendedParticipants = participants.filter((item) => item.status === "attended");
   const activeRegistrations = participants.filter((item) => item.status !== "cancelled");
   const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
-  const recentRegisteredParticipants = [...activeRegistrations]
-    .sort((a, b) => new Date(b.registered_at ?? "").getTime() - new Date(a.registered_at ?? "").getTime())
-    .slice(0, 6);
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
   const scoreBoard = submissions
@@ -121,6 +118,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <AdminNotice code={params.notice}/>
+    <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
     <section className="admin-grid">
       {isSuperAdmin && <article className="admin-panel settings-panel">
         <header><CalendarClock/><div><h2>ตั้งค่า Pre-lander</h2><p>เมื่อเปิดใช้งาน หน้าแรกจะแสดงหน้าเตรียมเปิดระบบก่อนถึงเวลาเปิด หรือหลังเวลาปิด</p></div></header>
@@ -153,7 +151,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
         </form>
       </article>}
-      <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length} recentRegistrations={recentRegisteredParticipants}/>
+      <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>
     </section>
     <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
@@ -191,12 +189,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
       <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href="/admin/participants"/>
-    </section>
-    <section className="admin-panel">
-      <header><Settings/><div><h2>ผู้สมัครประกวดนวัตกรรม</h2><p>ดูรายละเอียดใบสมัคร ข้อมูลที่กรอก เอกสารแนบ และค้นหารายการผลงาน</p></div></header>
-      <SearchBox name="submissionSearch" value={submissionSearch} label="ค้นหาใบสมัครประกวด" placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/>
-      <SubmissionsTable submissions={filteredSubmissions}/>
-      <CardMore total={filteredSubmissionsAll.length} shown={filteredSubmissions.length} href="/admin/submissions"/>
     </section>
   </AdminShell>;
 }
@@ -289,27 +281,58 @@ function SystemOverview({
   attended,
   waiting,
   submissions,
-  recentRegistrations,
 }: {
   registrations: number;
   attended: number;
   waiting: number;
   submissions: number;
-  recentRegistrations: Awaited<ReturnType<typeof listParticipants>>;
 }) {
   return <aside className="admin-panel stats-panel system-overview">
     <span className="eyebrow">ภาพรวมระบบ</span>
-    <h2>ลงทะเบียนเข้าร่วมงานแล้ว {registrations.toLocaleString("th-TH")} คน</h2>
     <div className="stat-panel"><Users/><b>{registrations.toLocaleString("th-TH")}</b><span>ลงทะเบียนเข้าร่วมงาน</span></div>
     <div className="stat-panel"><UserCheck/><b>{attended.toLocaleString("th-TH")}</b><span>เช็คอินเข้าร่วมงานแล้ว</span></div>
     <div className="stat-panel"><QrCode/><b>{waiting.toLocaleString("th-TH")}</b><span>ลงทะเบียนแล้ว รอเช็คอิน</span></div>
     <div className="stat-panel"><Settings/><b>{submissions.toLocaleString("th-TH")}</b><span>สมัครประกวดนวัตกรรม</span></div>
-    <div className="overview-attended-list">
-      <b>ใครลงทะเบียนเข้าร่วมงานแล้วบ้าง</b>
-      <small>แสดงรายชื่อลงทะเบียนล่าสุด พร้อมสถานะเช็คอิน</small>
-      {recentRegistrations.length ? recentRegistrations.map((item) => <span key={item.registration_code}>{item.title}{item.first_name} {item.last_name}<small>{item.participant_role} • {item.status === "attended" ? `เช็คอินแล้ว ${formatAdminDate(item.checked_in_at)}` : "ยังไม่เช็คอิน"}</small></span>) : <em>ยังไม่มีผู้ลงทะเบียนเข้าร่วมงาน</em>}
-    </div>
   </aside>;
+}
+
+function ReviewQueuePanel({
+  submissions,
+  total,
+  allSubmissions,
+  search,
+  isSuperAdmin,
+}: {
+  submissions: Awaited<ReturnType<typeof listSubmissions>>;
+  total: number;
+  allSubmissions: Awaited<ReturnType<typeof listSubmissions>>;
+  search: string;
+  isSuperAdmin: boolean;
+}) {
+  const pendingReview = allSubmissions.filter((item) => !item.review_submitted_at).length;
+  const completedReview = allSubmissions.filter((item) => item.review_submitted_at).length;
+  const unassigned = allSubmissions.filter((item) => !item.review_assigned_admin_email).length;
+  const heading = isSuperAdmin ? "ใบสมัครประกวดที่ต้องจัดการ" : "งานตรวจของคุณ";
+  const description = isSuperAdmin
+    ? "ตรวจสถานะใบสมัคร Assign ผู้ตรวจ และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที"
+    : "รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ ไม่ต้องเลื่อนหาจากส่วนอื่น";
+
+  return <section className="admin-panel review-focus-panel">
+    <header className="admin-section-head review-focus-head">
+      <ClipboardList/>
+      <div><span className="eyebrow">Review Queue</span><h2>{heading}</h2><p>{description}</p></div>
+      <div className="admin-actions"><Link className="primary" href="/admin/submissions"><Eye/>เปิดรายการทั้งหมด</Link></div>
+    </header>
+    <div className="review-focus-summary">
+      <div className="stat-panel review-stat urgent"><ClipboardList/><b>{pendingReview.toLocaleString("th-TH")}</b><span>{isSuperAdmin ? "รายการยังไม่ส่งคะแนน" : "งานรอตรวจ"}</span></div>
+      <div className="stat-panel review-stat"><Trophy/><b>{completedReview.toLocaleString("th-TH")}</b><span>ส่งคะแนนแล้ว</span></div>
+      {isSuperAdmin && <div className="stat-panel review-stat"><UserCheck/><b>{unassigned.toLocaleString("th-TH")}</b><span>ยังไม่ assign ผู้ตรวจ</span></div>}
+      <div className="stat-panel review-stat"><Settings/><b>{allSubmissions.length.toLocaleString("th-TH")}</b><span>{isSuperAdmin ? "ใบสมัครทั้งหมด" : "งานที่ได้รับมอบหมาย"}</span></div>
+    </div>
+    <SearchBox name="submissionSearch" value={search} label="ค้นหาใบสมัครประกวด" placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/>
+    <ReviewQueueTable submissions={submissions}/>
+    <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
+  </section>;
 }
 
 function LoginPanel({ message }: { message: string }) {
@@ -470,8 +493,18 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
   </form>;
 }
 
-function SubmissionsTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
-  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ประเภท</th><th>ผู้สมัคร</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{submissions.length?submissions.map(item=><tr key={item.submission_code}><td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td><td>{item.title_th}</td><td>{item.submission_type === "team" ? `ทีม ${item.team_name ?? ""}` : "เดี่ยว"}</td><td>{item.first_name} {item.last_name}<small>{item.email}</small></td><td>{item.position}</td><td>{item.division}</td><td>{item.bureau}</td><td>{item.status}</td><td><div className="table-action-stack"><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link><a className="primary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a></div></td></tr>):<tr><td colSpan={9}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
+function ReviewQueueTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
+  return <div className="admin-table-wrap review-focus-table"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>สถานะตรวจ</th><th></th></tr></thead><tbody>{submissions.length ? submissions.map(item => {
+    const hasScore = item.review_submitted_at !== null && item.review_submitted_at !== undefined;
+    return <tr key={item.submission_code}>
+      <td><b>{item.submission_code}</b><small>ส่งเมื่อ {formatAdminDate(item.submitted_at)}</small></td>
+      <td>{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
+      <td>{item.first_name} {item.last_name}<small>{item.email}</small></td>
+      <td>{item.review_assigned_admin_email || "-"}</td>
+      <td><span className={`status-pill ${hasScore ? "attended" : item.review_assigned_admin_email ? "registered" : "cancelled"}`}>{hasScore ? `ส่งคะแนนแล้ว ${item.review_total_score ?? "-"}/100` : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}</span>{item.review_submitted_at && <small>ส่งคะแนน {formatAdminDate(item.review_submitted_at)}</small>}</td>
+      <td><Link className={hasScore ? "secondary small-action" : "primary small-action"} href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>{hasScore ? "ดูคะแนน" : "เปิดตรวจ"}</Link></td>
+    </tr>;
+  }) : <tr><td colSpan={6}>ยังไม่มีงานตรวจหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
 }
 
 function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>; total: number }) {
