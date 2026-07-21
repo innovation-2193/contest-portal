@@ -6493,7 +6493,7 @@ body:has(.report-page) .brand b {
 .report-page h2,
 .report-page h3,
 .report-page p {
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
   word-break: normal;
   line-break: strict;
 }
@@ -6514,6 +6514,22 @@ body:has(.report-page) .brand b {
 
 .report-topline {
   align-items: flex-start;
+}
+
+.report-topline-meta,
+.report-hero-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+}
+
+.report-topline-meta span:not(:first-child)::before {
+  content: "• ";
+}
+
+.report-topline-meta span:not(:first-child),
+.report-hero-note span {
+  white-space: nowrap;
 }
 
 .report-topline .admin-actions {
@@ -6566,6 +6582,16 @@ body:has(.report-page) .brand b {
   line-height: 1.55;
 }
 
+.report-confidential-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+}
+
+.report-confidential-copy span {
+  white-space: nowrap;
+}
+
 .report-hero-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 0.28fr);
@@ -6589,11 +6615,53 @@ body:has(.report-page) .brand b {
   line-height: 1.18;
 }
 
+.report-hero-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.24em;
+}
+
+.report-hero-title span {
+  white-space: nowrap;
+}
+
 .report-hero-panel p {
   max-width: 780px;
   margin: 0;
   color: #c3d2e8;
   line-height: 1.7;
+}
+
+.report-summary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 10px 24px;
+  margin: 14px 0;
+}
+
+.report-summary-list p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  color: #edf3ff;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.report-summary-list span,
+.report-summary-list strong {
+  white-space: nowrap;
+}
+
+.report-summary-list strong {
+  color: #ffe08a;
+  font-size: 24px;
+  font-weight: 1000;
 }
 
 .report-pulse {
@@ -6726,6 +6794,8 @@ body:has(.report-page) .brand b {
   font-size: 14px;
   font-weight: 1000;
   line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .report-metric small {
@@ -6733,6 +6803,8 @@ body:has(.report-page) .brand b {
   font-size: 12px;
   font-weight: 800;
   line-height: 1.35;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .report-grid {
@@ -7998,6 +8070,16 @@ body:has(.report-page) .brand b {
   .report-confidential-alert span {
     font-size: 13px;
     line-height: 1.65;
+  }
+  .report-summary-list {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .report-summary-list p {
+    font-size: 17px;
+  }
+  .report-summary-list strong {
+    font-size: 20px;
   }
   .report-metric-groups,
   .report-metric-grid {

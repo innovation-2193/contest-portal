@@ -144,7 +144,10 @@ export default async function DailyReportPage() {
         <AlertTriangle/>
         <div>
           <b>ใช้ภายใน ห้ามเผยแพร่</b>
-          <span>ข้อมูลในหน้านี้เป็นรายงานสำหรับผู้บังคับบัญชาเท่านั้น กรุณาไม่ส่งต่อหรือเผยแพร่ภายนอกหน่วยงาน</span>
+          <span className="report-confidential-copy">
+            <span>ข้อมูลในหน้านี้เป็นรายงานสำหรับผู้บังคับบัญชาเท่านั้น</span>
+            <span>กรุณาไม่ส่งต่อหรือเผยแพร่ภายนอกหน่วยงาน</span>
+          </span>
         </div>
       </div>
 
@@ -152,7 +155,10 @@ export default async function DailyReportPage() {
         <div>
           <span className="eyebrow">Daily Report</span>
           <h1>รายงานสรุปประจำวัน</h1>
-          <p>{formatFullThaiDate(new Date())} • หน้าสรุปสำหรับ<wbr/>ผู้บังคับบัญชา</p>
+          <p className="report-topline-meta">
+            <span>{formatFullThaiDate(new Date())}</span>
+            <span>หน้าสรุปสำหรับผู้บังคับบัญชา</span>
+          </p>
         </div>
         <div className="admin-actions">
           <a className="primary report-action-button" href="/api/daily-report/print" target="_blank" rel="noreferrer"><Printer/>พิมพ์ / บันทึก PDF</a>
@@ -163,8 +169,22 @@ export default async function DailyReportPage() {
       <section className="report-hero-panel">
         <div>
           <span className="eyebrow">ภาพรวมวันนี้</span>
-          <h2>ลงทะเบียนแล้ว {activeParticipants.length.toLocaleString("th-TH")} คน <wbr/>ส่งผลงานแล้ว {submissions.length.toLocaleString("th-TH")} รายการ</h2>
-          <p>สรุปยอดประจำวัน <wbr/>ยอดเข้าชมเว็บไซต์ <wbr/>และสถานะผลงานจากระบบรับสมัคร</p>
+          <h2 className="report-hero-title">
+            <span>สรุปจำนวน</span>
+            <span>ผู้เข้าร่วมงาน</span>
+            <span>และผลงานประกวด</span>
+          </h2>
+          <div className="report-summary-list" aria-label="รายงานสรุปประจำวัน">
+            <p><span>ลงทะเบียนเข้าร่วมงาน</span><strong>{activeParticipants.length.toLocaleString("th-TH")} คน</strong></p>
+            <p><span>ส่งผลงานประกวด</span><strong>{submissions.length.toLocaleString("th-TH")} รายการ</strong></p>
+            <p><span>เช็คอินเข้าร่วมงานแล้ว</span><strong>{attended.length.toLocaleString("th-TH")} คน</strong></p>
+            <p><span>รอตรวจผลงานประกวด</span><strong>{pendingReview.toLocaleString("th-TH")} รายการ</strong></p>
+          </div>
+          <p className="report-hero-note">
+            <span>สรุปยอดประจำวัน</span>
+            <span>ยอดเข้าชมเว็บไซต์</span>
+            <span>และสถานะผลงานจากระบบรับสมัคร</span>
+          </p>
         </div>
         <div className="report-pulse">
           <Eye/>
@@ -179,11 +199,11 @@ export default async function DailyReportPage() {
           <Metric icon={<LineChart/>} value={siteStats.total} label="ยอดเข้าชมสะสม" detail={`เฉลี่ย 7 วัน ${siteStats.average7Days.toLocaleString("th-TH")} ครั้ง/วัน`}/>
         </MetricGroup>
         <MetricGroup title="ผู้สมัครและเช็คอิน" detail="สรุปจำนวนผู้เข้าร่วมกิจกรรม">
-          <Metric icon={<Users/>} value={activeParticipants.length} label="คนสมัคร / ลงทะเบียนทั้งหมด" detail={`วันนี้ +${registeredToday.length.toLocaleString("th-TH")} คน`}/>
-          <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินแล้ว" detail={`รอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
+          <Metric icon={<Users/>} value={activeParticipants.length} label="ลงทะเบียนเข้าร่วมงาน" detail={`วันนี้ลงทะเบียนเพิ่ม ${registeredToday.length.toLocaleString("th-TH")} คน`}/>
+          <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินเข้าร่วมงานแล้ว" detail={`ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
         </MetricGroup>
         <MetricGroup title="ผลงานประกวด" detail="สรุปผลงานที่ส่งเข้าระบบ">
-          <Metric icon={<FileText/>} value={submissions.length} label="ผลงานที่ส่งแล้ว" detail={`วันนี้ +${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
+          <Metric icon={<FileText/>} value={submissions.length} label="ส่งผลงานประกวด" detail={`วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
           <Metric icon={<Trophy/>} value={scored.length} label="ผลงานที่มีคะแนนแล้ว" detail={`ยังรอตรวจ ${(submissions.length - scored.length).toLocaleString("th-TH")} รายการ`}/>
           <Metric icon={<ClipboardList/>} value={teams.length} label="ส่งแบบทีม" detail="จำนวนผลงานประเภททีม"/>
           <Metric icon={<User/>} value={submissions.length - teams.length} label="ส่งแบบเดี่ยว" detail="จำนวนผลงานประเภทบุคคล"/>

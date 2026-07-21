@@ -78,9 +78,9 @@ async function dailyReportPdf(
   drawSummaryCards(doc, [
     ["ยอดเข้าชมวันนี้", siteStats.today, `เมื่อวาน ${siteStats.yesterday.toLocaleString("th-TH")} ครั้ง`],
     ["ยอดเข้าชมสะสม", siteStats.total, `เฉลี่ย 7 วัน ${siteStats.average7Days.toLocaleString("th-TH")} ครั้ง/วัน`],
-    ["ผู้ลงทะเบียนทั้งหมด", activeParticipants.length, `วันนี้ +${registeredToday.length.toLocaleString("th-TH")} คน`],
-    ["เช็คอินแล้ว", attended.length, `รอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`],
-    ["ผลงานที่ส่งแล้ว", submissions.length, `วันนี้ +${submittedToday.length.toLocaleString("th-TH")} รายการ`],
+    ["ลงทะเบียนเข้าร่วมงาน", activeParticipants.length, `วันนี้ลงทะเบียนเพิ่ม ${registeredToday.length.toLocaleString("th-TH")} คน`],
+    ["เช็คอินเข้าร่วมงานแล้ว", attended.length, `ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`],
+    ["ส่งผลงานประกวด", submissions.length, `วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`],
     ["ผลงานที่มีคะแนนแล้ว", scored.length, `ส่งแบบทีม ${teams.length.toLocaleString("th-TH")} รายการ`],
   ], margin, y, contentWidth);
 
