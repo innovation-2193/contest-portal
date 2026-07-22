@@ -216,6 +216,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
 
 async function updateSubmissionAction(formData: FormData) {
   "use server";
+  const requestHeaders = await headers();
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -274,7 +275,7 @@ async function updateSubmissionAction(formData: FormData) {
     entityId: submissionCode,
     summary: `แก้ไขใบสมัครประกวด ${submissionCode}`,
     payload: { status, submissionType },
-  });
+  }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "submission_saved"));
@@ -282,6 +283,7 @@ async function updateSubmissionAction(formData: FormData) {
 
 async function saveScoreAction(formData: FormData) {
   "use server";
+  const requestHeaders = await headers();
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -303,7 +305,7 @@ async function saveScoreAction(formData: FormData) {
     entityType: "submission",
     entityId: submissionCode,
     summary: `${session.role === "super_admin" ? "Super Admin แก้ไข" : "Admin ส่ง"}คะแนนรอบแรก ${submissionCode}`,
-  });
+  }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "score_saved"));

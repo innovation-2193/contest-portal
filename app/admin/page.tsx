@@ -98,12 +98,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.bureau,
     item.status,
   ]);
-  const filteredAdminAccounts = filterRecords(adminAccounts, adminSearch, (item) => [
+  const filteredAdminAccounts = sortAdminAccounts(filterRecords(adminAccounts, adminSearch, (item) => [
     item.email,
     item.name,
     item.disabled ? "ปิดใช้งาน disabled" : "ใช้งาน active",
     item.passwordHash ? "ตั้งรหัสผ่านแล้ว password set" : "รอตั้งรหัสผ่าน pending",
-  ]);
+  ]));
   const filteredParticipants = filteredParticipantsAll.slice(0, dashboardLimit);
   const filteredSubmissions = filteredSubmissionsAll.slice(0, dashboardLimit);
   const attendedParticipants = participants.filter((item) => item.status === "attended");
@@ -125,7 +125,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <section className="admin-panel">
-      <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน</p></div></header>
+      <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
         <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
         <label>วันที่ต้องการโพสต์<input type="datetime-local" name="publishAt" defaultValue={toInputDate(new Date().toISOString())} required/></label>
@@ -153,7 +153,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     <section className="admin-panel">
-      <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
+      <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
       <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
       <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href="/admin/participants"/>
@@ -316,8 +316,8 @@ function ReviewQueuePanel({
   const assignedCount = allSubmissions.filter((item) => item.review_assigned_admin_email).length;
   const assignmentLabel = isSuperAdmin ? "assign ผู้ตรวจแล้ว" : "assign ให้คุณแล้ว";
   const description = isSuperAdmin
-    ? "ตรวจสถานะใบสมัคร Assign ผู้ตรวจ และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที"
-    : "รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ เปิดตรวจได้ทันที";
+    ? `ตรวจสถานะใบสมัคร Assign ผู้ตรวจ และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที หน้านี้แสดงล่าสุด ${dashboardLimit.toLocaleString("th-TH")} รายการ`
+    : `รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ เปิดตรวจได้ทันที หน้านี้แสดงล่าสุด ${dashboardLimit.toLocaleString("th-TH")} รายการ`;
 
   return <section className="admin-panel review-focus-panel">
     <header className="admin-section-head review-focus-head">
@@ -362,7 +362,7 @@ function LoginPanel({ message }: { message: string }) {
 
 function AdminManagementPanel({ admins, search, total }: { admins: Awaited<ReturnType<typeof listAdminAccounts>>; search: string; total: number }) {
   return <section className="admin-panel">
-    <header><UserPlus/><div><h2>จัดการแอดมิน</h2><p>ค้นหาแอดมิน ดูรายละเอียด แล้วเข้าไปแก้ไขข้อมูล ส่งลิงก์รีเซ็ต หรือลบรายการในหน้ารายละเอียด</p></div></header>
+    <header><UserPlus/><div><h2>จัดการแอดมิน</h2><p>ค้นหาแอดมิน ดูรายละเอียด แล้วเข้าไปแก้ไขข้อมูล ส่งลิงก์รีเซ็ต หรือลบรายการในหน้ารายละเอียด โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div></header>
     <form action={addAdminAction} className="admin-form admin-user-form">
       <label>ชื่อแอดมิน<input name="name" placeholder="เช่น ฝ่ายประสานงาน" maxLength={120}/></label>
       <label>อีเมล<input type="email" name="email" placeholder="admin@example.com" required/></label>
@@ -400,7 +400,7 @@ function EvaluationAdminPanel({ summary, evaluationEnabled }: { summary: Evaluat
 
 function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; admins: Awaited<ReturnType<typeof listAdminAccounts>>; total: number }) {
   return <section className="admin-panel">
-    <header className="admin-section-head"><UserCheck/><div><h2>แจกงานตรวจรอบแรก</h2><p>Super Admin เลือก Admin ผู้รับผิดชอบตรวจ Paper Screening ในแต่ละใบสมัคร</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <header className="admin-section-head"><UserCheck/><div><h2>แจกงานตรวจรอบแรก</h2><p>Super Admin เลือก Admin ผู้รับผิดชอบตรวจ Paper Screening ในแต่ละใบสมัคร โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
     <div className="assignment-list">
       {submissions.length ? submissions.map((submission) => <form className="assignment-row" action={assignSubmissionAction} key={submission.submission_code}>
         <input type="hidden" name="submissionCode" value={submission.submission_code}/>
@@ -529,8 +529,11 @@ function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>
 }
 
 function CardMore({ total, shown, href }: { total: number; shown: number; href: string }) {
-  if (total <= shown) return null;
-  return <div className="card-more"><span>แสดง {shown.toLocaleString("th-TH")} จาก {total.toLocaleString("th-TH")} รายการ</span><Link className="secondary" href={href}><Eye/>ดูทั้งหมด</Link></div>;
+  if (total <= 0) return null;
+  const label = total > shown
+    ? `แสดง ${shown.toLocaleString("th-TH")} จาก ${total.toLocaleString("th-TH")} รายการ`
+    : `แสดง ${shown.toLocaleString("th-TH")} รายการทั้งหมด`;
+  return <div className="card-more"><span>{label}</span><Link className="secondary" href={href}><Eye/>ดูทั้งหมด</Link></div>;
 }
 
 async function requestOtpAction() {
@@ -804,6 +807,13 @@ function sortParticipants<T extends { registered_at: string }>(records: T[], sor
   return [...records].sort((a, b) => {
     const diff = new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime();
     return sort === "oldest" ? -diff : diff;
+  });
+}
+
+function sortAdminAccounts<T extends { updatedAt: string; createdAt: string; email: string }>(records: T[]) {
+  return [...records].sort((a, b) => {
+    const diff = new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+    return diff || a.email.localeCompare(b.email);
   });
 }
 

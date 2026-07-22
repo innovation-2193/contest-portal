@@ -4,7 +4,7 @@ import path from "path";
 import { db } from "./db";
 import { ensureAppAuditEventsTable } from "./db-schema";
 import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
-import type { AdminSession } from "./admin-auth";
+import { superAdminEmails, type AdminSession } from "./admin-auth";
 
 export type AuditActor = {
   type: "public" | "admin" | "super_admin" | "system";
@@ -87,6 +87,23 @@ export function actorFromAdminSession(session: AdminSession): AuditActor {
     type: session.role === "super_admin" ? "super_admin" : "admin",
     email: session.email,
   };
+}
+
+function actorFromAdminEmail(email?: string | null): AuditActor {
+  const normalized = normalizeActorEmail(email);
+  return {
+    type: normalized && isSuperAdminEmail(normalized) ? "super_admin" : "admin",
+    email: normalized,
+  };
+}
+
+function normalizeActorEmail(email?: string | null) {
+  const normalized = email?.trim().toLowerCase();
+  return normalized || null;
+}
+
+function isSuperAdminEmail(email: string) {
+  return (superAdminEmails as readonly string[]).includes(email);
 }
 
 export async function recordAuditEvent(input: AuditEventInput, headers?: Headers) {
@@ -413,7 +430,7 @@ async function appendRegistrationCheckInEvents(events: AuditEventRecord[]) {
     }>) {
       events.push({
         id: `derived-registration-checked-in-${row.registration_code}`,
-        actor: { type: "admin", email: row.checked_in_by_email },
+        actor: actorFromAdminEmail(row.checked_in_by_email),
         action: "registration.checked_in",
         entityType: "registration",
         entityId: row.registration_code,
@@ -501,7 +518,7 @@ async function appendSubmissionReviewEvents(events: AuditEventRecord[]) {
       if (row.review_assigned_at) {
         events.push({
           id: `derived-submission-review-assigned-${row.submission_code}`,
-          actor: { type: "admin", email: row.review_assigned_admin_email },
+          actor: actorFromAdminEmail(row.review_assigned_admin_email),
           action: "submission.review.assigned",
           entityType: "submission",
           entityId: row.submission_code,
@@ -516,7 +533,7 @@ async function appendSubmissionReviewEvents(events: AuditEventRecord[]) {
         const reviewerEmail = row.review_scored_by_email || row.review_assigned_admin_email;
         events.push({
           id: `derived-submission-score-submitted-${row.submission_code}`,
-          actor: { type: "admin", email: reviewerEmail },
+          actor: actorFromAdminEmail(reviewerEmail),
           action: "submission.score.submitted",
           entityType: "submission",
           entityId: row.submission_code,
@@ -557,10 +574,7 @@ function legacyRowToRecord(row: LegacyAuditEventRow): AuditEventRecord {
   const createdAt = normalizeAuditDate(row.created_at);
   return {
     id: `legacy-${row.id ?? `${row.action}-${row.entity_id ?? ""}-${createdAt}`}`,
-    actor: {
-      type: "public",
-      email: row.actor_email ?? null,
-    },
+    actor: legacyActor(row),
     action: row.action,
     entityType: row.entity_type,
     entityId: legacyEntityId(row),
@@ -570,6 +584,35 @@ function legacyRowToRecord(row: LegacyAuditEventRow): AuditEventRecord {
     userAgent: null,
     createdAt,
   };
+}
+
+function legacyActor(row: LegacyAuditEventRow): AuditActor {
+  const email = normalizeActorEmail(row.actor_email);
+  if (email && isSuperAdminEmail(email)) return { type: "super_admin", email };
+  if (isAdminAuditAction(row.action)) return { type: "admin", email };
+  return { type: "public", email };
+}
+
+function isAdminAuditAction(action: string) {
+  return action.startsWith("admin.") ||
+    action.startsWith("admin_user.") ||
+    action === "registration.updated" ||
+    action === "registration.deleted" ||
+    action === "registration.bulk_deleted" ||
+    action === "registration.checked_in" ||
+    action === "registration.export_pdf" ||
+    action === "registration.export_xlsx" ||
+    action === "submission.updated" ||
+    action === "submission.deleted" ||
+    action === "submission.delete_otp_requested" ||
+    action === "submission.file_opened" ||
+    action === "submission.print_packet" ||
+    action === "submission.review.assigned" ||
+    action === "submission.score.submitted" ||
+    action === "submission.scoreboard_pdf" ||
+    action.startsWith("news.") ||
+    action.startsWith("winner.") ||
+    action.startsWith("evaluation.");
 }
 
 async function legacyAuditTableExists() {

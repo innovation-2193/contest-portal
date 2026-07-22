@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { KeyRound, ShieldCheck } from "lucide-react";
 import {
@@ -54,13 +54,14 @@ async function setPasswordAction(formData: FormData) {
   const confirmPassword = String(formData.get("confirmPassword") ?? "");
   if (password !== confirmPassword) throw new Error("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
   const account = await setAdminPasswordByResetToken(token, password);
+  const requestHeaders = await headers();
   await recordAuditEvent({
     actor: { type: "admin", email: account.email },
     action: "admin_user.password_set",
     entityType: "admin_user",
     entityId: account.id,
     summary: `Admin ตั้ง/รีเซ็ตรหัสผ่าน ${account.email}`,
-  });
+  }, requestHeaders);
   const cookieStore = await cookies();
   cookieStore.set(cookieName, createAdminSessionToken({ email: account.email, role: "admin" }), {
     httpOnly: true,
