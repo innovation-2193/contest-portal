@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { db } from "./db";
-import { ensureDatabaseSchema } from "./db-schema";
+import { ensureAppAuditEventsTable } from "./db-schema";
 import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { AdminSession } from "./admin-auth";
 
@@ -103,7 +103,7 @@ export async function recordAuditEvent(input: AuditEventInput, headers?: Headers
   };
 
   try {
-    await ensureDatabaseSchema();
+    await ensureAppAuditEventsTable();
     const values: Array<string | null> = [
       record.id,
       record.actor.type,
@@ -189,7 +189,7 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
   const whereSql = where.join(" AND ");
 
   try {
-    await ensureDatabaseSchema();
+    await ensureAppAuditEventsTable();
     const fetchLimit = normalized.limit + normalized.offset;
     const [rows] = await db.execute(
       `SELECT id,actor_type,actor_email,action,entity_type,entity_id,summary,payload,ip_address,user_agent,created_at
@@ -214,10 +214,18 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       to: dateRange.to,
       limit: fetchLimit,
     });
-    const events = [...modernEvents, ...legacy.events].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const localEvents = filterLocalAuditEvents(await safeReadLocalAuditEvents(), {
+      actions,
+      actorType: normalized.actorType,
+      actorEmail: normalized.actorEmail,
+      query: normalized.query,
+      from: dateRange.from,
+      to: dateRange.to,
+    });
+    const events = mergeAuditEventSources(modernEvents, legacy.events, localEvents);
     return {
       events: events.slice(normalized.offset, normalized.offset + normalized.limit),
-      total: modernTotal + legacy.total,
+      total: modernTotal + legacy.total + localEvents.length,
       limit: normalized.limit,
       offset: normalized.offset,
     };
@@ -240,6 +248,18 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
       offset: normalized.offset,
     };
   }
+}
+
+function mergeAuditEventSources(...sources: AuditEventRecord[][]) {
+  const seen = new Set<string>();
+  return sources
+    .flat()
+    .filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      return true;
+    })
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 async function listLegacyAuditEvents(filters: {

@@ -122,7 +122,7 @@ async function ensureNewsPostsTable() {
   `);
 }
 
-async function ensureAppAuditEventsTable() {
+export async function ensureAppAuditEventsTable() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS app_audit_events (
       id CHAR(36) PRIMARY KEY,

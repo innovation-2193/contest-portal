@@ -324,6 +324,8 @@ nav a.active::after {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
   min-height: 46px;
   border-radius: var(--radius);
   font-weight: 900;
@@ -7852,6 +7854,9 @@ body:has(.report-page) .brand b {
     border-radius: 0;
   }
   .admin-table,
+  .review-focus-table .admin-table,
+  .participant-table,
+  .participants-manage-table,
   .compact-admin-table,
   .admin-table thead,
   .admin-table tbody,
@@ -7882,6 +7887,12 @@ body:has(.report-page) .brand b {
   }
   .admin-table td:last-child {
     border-bottom: 0;
+  }
+  .review-focus-table .small-action,
+  .admin-table .small-action {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
   }
   .review-focus-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7945,6 +7956,9 @@ body:has(.report-page) .brand b {
   .secondary,
   .oauth,
   .ghost-action,
+  .danger-btn,
+  .small-action,
+  .disabled-action,
   .submit,
   .add-member,
   .remove-member,
@@ -8497,6 +8511,9 @@ body:has(.report-page) .brand b {
     border-radius: 0;
   }
   .admin-table,
+  .review-focus-table .admin-table,
+  .participant-table,
+  .participants-manage-table,
   .compact-admin-table,
   .admin-table thead,
   .admin-table tbody,
@@ -8527,6 +8544,12 @@ body:has(.report-page) .brand b {
   }
   .admin-table td:last-child {
     border-bottom: 0;
+  }
+  .review-focus-table .small-action,
+  .admin-table .small-action {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
   }
   .admin-table td b {
     overflow-wrap: anywhere;
