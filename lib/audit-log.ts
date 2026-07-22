@@ -103,7 +103,7 @@ export async function recordAuditEvent(input: AuditEventInput, headers?: Headers
   };
 
   try {
-    await ensureAppAuditEventsTable();
+    await ensureAuditTableBestEffort();
     const values: Array<string | null> = [
       record.id,
       record.actor.type,
@@ -163,41 +163,75 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
   const actions = normalized.action && allowedAuditActions.has(normalized.action)
     ? [normalized.action]
     : allowedActionList;
+  const sourceFilters = {
+    actions,
+    actorType: normalized.actorType,
+    actorEmail: normalized.actorEmail,
+    query: normalized.query,
+    from: dateRange.from,
+    to: dateRange.to,
+    limit: normalized.limit + normalized.offset,
+  };
+
+  const [modern, legacy, derived, localEvents] = await Promise.all([
+    listModernAuditEvents(sourceFilters),
+    listLegacyAuditEvents(sourceFilters),
+    listDerivedAuditEvents(sourceFilters),
+    safeReadLocalAuditEvents().then((events) => filterAuditEventRecords(events, sourceFilters)),
+  ]);
+  const events = mergeAuditEventSources(modern.events, legacy.events, localEvents, derived.events);
+
+  return {
+    events: events.slice(normalized.offset, normalized.offset + normalized.limit),
+    total: Math.max(events.length, modern.total + legacy.total + localEvents.length + derived.total),
+    limit: normalized.limit,
+    offset: normalized.offset,
+  };
+}
+
+async function listModernAuditEvents(filters: {
+  actions: string[];
+  actorType?: AuditActor["type"] | "admin_any" | "";
+  actorEmail?: string;
+  query?: string;
+  from: string;
+  to: string;
+  limit: number;
+}) {
   const where = [
-    `action IN (${actions.map(() => "?").join(",")})`,
+    `action IN (${filters.actions.map(() => "?").join(",")})`,
     "created_at >= ?",
     "created_at <= ?",
   ];
-  const values: Array<string | number> = [...actions, dateRange.from, dateRange.to];
-  if (normalized.actorType) {
-    if (normalized.actorType === "admin_any") {
+  const values: Array<string | number> = [...filters.actions, filters.from, filters.to];
+  if (filters.actorType) {
+    if (filters.actorType === "admin_any") {
       where.push("actor_type IN ('admin','super_admin')");
     } else {
       where.push("actor_type = ?");
-      values.push(normalized.actorType);
+      values.push(filters.actorType);
     }
   }
-  if (normalized.actorEmail) {
+  if (filters.actorEmail) {
     where.push("LOWER(actor_email) = ?");
-    values.push(normalized.actorEmail.toLowerCase());
+    values.push(filters.actorEmail.toLowerCase());
   }
-  if (normalized.query) {
+  if (filters.query) {
     where.push("(summary LIKE ? OR entity_id LIKE ? OR actor_email LIKE ? OR action LIKE ?)");
-    const like = `%${normalized.query}%`;
+    const like = `%${filters.query}%`;
     values.push(like, like, like, like);
   }
   const whereSql = where.join(" AND ");
 
   try {
-    await ensureAppAuditEventsTable();
-    const fetchLimit = normalized.limit + normalized.offset;
+    await ensureAuditTableBestEffort();
     const [rows] = await db.execute(
       `SELECT id,actor_type,actor_email,action,entity_type,entity_id,summary,payload,ip_address,user_agent,created_at
        FROM app_audit_events
        WHERE ${whereSql}
        ORDER BY created_at DESC
        LIMIT ? OFFSET 0`,
-      [...values, fetchLimit],
+      [...values, filters.limit],
     );
     const [countRows] = await db.execute(
       `SELECT COUNT(*) AS total FROM app_audit_events WHERE ${whereSql}`,
@@ -205,61 +239,43 @@ export async function listAuditEvents(options: AuditEventListOptions | number = 
     );
     const modernEvents = (rows as AuditEventRow[]).map(rowToRecord);
     const modernTotal = Number((countRows as Array<{ total: number | string }>)[0]?.total ?? 0);
-    const legacy = await listLegacyAuditEvents({
-      actions,
-      actorType: normalized.actorType,
-      actorEmail: normalized.actorEmail,
-      query: normalized.query,
-      from: dateRange.from,
-      to: dateRange.to,
-      limit: fetchLimit,
-    });
-    const localEvents = filterLocalAuditEvents(await safeReadLocalAuditEvents(), {
-      actions,
-      actorType: normalized.actorType,
-      actorEmail: normalized.actorEmail,
-      query: normalized.query,
-      from: dateRange.from,
-      to: dateRange.to,
-    });
-    const events = mergeAuditEventSources(modernEvents, legacy.events, localEvents);
-    return {
-      events: events.slice(normalized.offset, normalized.offset + normalized.limit),
-      total: modernTotal + legacy.total + localEvents.length,
-      limit: normalized.limit,
-      offset: normalized.offset,
-    };
+    return { events: modernEvents, total: modernTotal };
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
       console.error("audit log list failed", error);
     }
-    const filtered = filterLocalAuditEvents(await safeReadLocalAuditEvents(), {
-      actions,
-      actorType: normalized.actorType,
-      actorEmail: normalized.actorEmail,
-      query: normalized.query,
-      from: dateRange.from,
-      to: dateRange.to,
-    });
-    return {
-      events: filtered.slice(normalized.offset, normalized.offset + normalized.limit),
-      total: filtered.length,
-      limit: normalized.limit,
-      offset: normalized.offset,
-    };
+    return { events: [] as AuditEventRecord[], total: 0 };
+  }
+}
+
+async function ensureAuditTableBestEffort() {
+  try {
+    await ensureAppAuditEventsTable();
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("audit table repair skipped", error);
+    }
   }
 }
 
 function mergeAuditEventSources(...sources: AuditEventRecord[][]) {
   const seen = new Set<string>();
+  const derivedSeen = new Set<string>();
   return sources
     .flat()
     .filter((event) => {
       if (seen.has(event.id)) return false;
       seen.add(event.id);
+      const key = naturalAuditKey(event);
+      if (event.id.startsWith("derived-") && derivedSeen.has(key)) return false;
+      derivedSeen.add(key);
       return true;
     })
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function naturalAuditKey(event: AuditEventRecord) {
+  return `${event.action}|${event.entityType}|${event.entityId ?? ""}`;
 }
 
 async function listLegacyAuditEvents(filters: {
@@ -280,7 +296,7 @@ async function listLegacyAuditEvents(filters: {
       "al.created_at >= ?",
       "al.created_at <= ?",
     ];
-    const values: Array<string | number> = [...filters.actions, filters.from, filters.to];
+    const values: Array<string | number> = [...filters.actions, mysqlDateTime(filters.from), mysqlDateTime(filters.to)];
     if (filters.actorEmail) {
       where.push("LOWER(u.email) = ?");
       values.push(filters.actorEmail.toLowerCase());
@@ -316,6 +332,206 @@ async function listLegacyAuditEvents(filters: {
       console.error("legacy audit log list failed", error);
     }
     return { events: [] as AuditEventRecord[], total: 0 };
+  }
+}
+
+async function listDerivedAuditEvents(filters: {
+  actions: string[];
+  actorType?: AuditActor["type"] | "admin_any" | "";
+  actorEmail?: string;
+  query?: string;
+  from: string;
+  to: string;
+  limit: number;
+}) {
+  const events: AuditEventRecord[] = [];
+  await appendRegistrationCreatedEvents(events);
+  await appendRegistrationCheckInEvents(events);
+  await appendSubmissionCreatedEvents(events);
+  await appendSubmissionReviewEvents(events);
+  const filtered = filterAuditEventRecords(events, filters);
+  return {
+    events: filtered.slice(0, filters.limit),
+    total: filtered.length,
+  };
+}
+
+async function appendRegistrationCreatedEvents(events: AuditEventRecord[]) {
+  try {
+    if (!await tableExists("registrations")) return;
+    const [rows] = await db.execute(
+      `SELECT r.registration_code,r.status,r.registered_at,u.email,r.title,r.first_name,r.last_name
+       FROM registrations r
+       JOIN users u ON u.id = r.user_id
+       ORDER BY r.registered_at DESC
+       LIMIT 5000`,
+    );
+    for (const row of rows as Array<{
+      registration_code: string;
+      status: string;
+      registered_at: string | Date;
+      email: string | null;
+      title: string;
+      first_name: string;
+      last_name: string;
+    }>) {
+      const name = `${row.title ?? ""}${row.first_name ?? ""} ${row.last_name ?? ""}`.trim();
+      events.push({
+        id: `derived-registration-created-${row.registration_code}`,
+        actor: { type: "public", email: row.email },
+        action: "registration.created",
+        entityType: "registration",
+        entityId: row.registration_code,
+        summary: `ลงทะเบียนเข้าร่วมงาน ${row.registration_code}${name ? ` • ${name}` : ""}`,
+        payload: { registrationCode: row.registration_code, status: row.status },
+        ipAddress: null,
+        userAgent: null,
+        createdAt: normalizeAuditDate(row.registered_at),
+      });
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("derived registration audit failed", error);
+    }
+  }
+}
+
+async function appendRegistrationCheckInEvents(events: AuditEventRecord[]) {
+  try {
+    if (!await tableExists("registrations")) return;
+    const [rows] = await db.execute(
+      `SELECT registration_code,checked_in_at,checked_in_by_email
+       FROM registrations
+       WHERE checked_in_at IS NOT NULL
+       ORDER BY checked_in_at DESC
+       LIMIT 5000`,
+    );
+    for (const row of rows as Array<{
+      registration_code: string;
+      checked_in_at: string | Date;
+      checked_in_by_email: string | null;
+    }>) {
+      events.push({
+        id: `derived-registration-checked-in-${row.registration_code}`,
+        actor: { type: "admin", email: row.checked_in_by_email },
+        action: "registration.checked_in",
+        entityType: "registration",
+        entityId: row.registration_code,
+        summary: `เช็คอินผู้เข้าร่วมงาน ${row.registration_code}`,
+        payload: { registrationCode: row.registration_code },
+        ipAddress: null,
+        userAgent: null,
+        createdAt: normalizeAuditDate(row.checked_in_at),
+      });
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("derived check-in audit failed", error);
+    }
+  }
+}
+
+async function appendSubmissionCreatedEvents(events: AuditEventRecord[]) {
+  try {
+    if (!await tableExists("submissions")) return;
+    const [rows] = await db.execute(
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.submitted_at,u.email,m.first_name,m.last_name
+       FROM submissions s
+       JOIN users u ON u.id = s.user_id
+       LEFT JOIN submission_members m ON m.submission_id = s.id AND m.member_order = 1
+       ORDER BY s.submitted_at DESC
+       LIMIT 5000`,
+    );
+    for (const row of rows as Array<{
+      submission_code: string;
+      submission_type: string;
+      team_name: string | null;
+      title_th: string;
+      status: string;
+      submitted_at: string | Date;
+      email: string | null;
+      first_name: string | null;
+      last_name: string | null;
+    }>) {
+      events.push({
+        id: `derived-submission-created-${row.submission_code}`,
+        actor: { type: "public", email: row.email },
+        action: "submission.created",
+        entityType: "submission",
+        entityId: row.submission_code,
+        summary: `สมัครประกวดนวัตกรรม ${row.submission_code} • ${row.title_th}`,
+        payload: {
+          submissionCode: row.submission_code,
+          submissionType: row.submission_type,
+          teamName: row.team_name,
+          status: row.status,
+          applicant: `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim(),
+        },
+        ipAddress: null,
+        userAgent: null,
+        createdAt: normalizeAuditDate(row.submitted_at),
+      });
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("derived submission audit failed", error);
+    }
+  }
+}
+
+async function appendSubmissionReviewEvents(events: AuditEventRecord[]) {
+  try {
+    if (!await tableExists("submissions")) return;
+    const [rows] = await db.execute(
+      `SELECT submission_code,title_th,review_assigned_admin_email,review_assigned_at,review_scored_by_email,review_total_score,review_submitted_at
+       FROM submissions
+       WHERE review_assigned_at IS NOT NULL OR review_submitted_at IS NOT NULL
+       ORDER BY COALESCE(review_submitted_at, review_assigned_at) DESC
+       LIMIT 5000`,
+    );
+    for (const row of rows as Array<{
+      submission_code: string;
+      title_th: string;
+      review_assigned_admin_email: string | null;
+      review_assigned_at: string | Date | null;
+      review_scored_by_email: string | null;
+      review_total_score: number | null;
+      review_submitted_at: string | Date | null;
+    }>) {
+      if (row.review_assigned_at) {
+        events.push({
+          id: `derived-submission-review-assigned-${row.submission_code}`,
+          actor: { type: "admin", email: row.review_assigned_admin_email },
+          action: "submission.review.assigned",
+          entityType: "submission",
+          entityId: row.submission_code,
+          summary: `assign ใบสมัคร ${row.submission_code}${row.review_assigned_admin_email ? ` ให้ ${row.review_assigned_admin_email}` : ""}`,
+          payload: { submissionCode: row.submission_code, titleTh: row.title_th, adminEmail: row.review_assigned_admin_email },
+          ipAddress: null,
+          userAgent: null,
+          createdAt: normalizeAuditDate(row.review_assigned_at),
+        });
+      }
+      if (row.review_submitted_at) {
+        const reviewerEmail = row.review_scored_by_email || row.review_assigned_admin_email;
+        events.push({
+          id: `derived-submission-score-submitted-${row.submission_code}`,
+          actor: { type: "admin", email: reviewerEmail },
+          action: "submission.score.submitted",
+          entityType: "submission",
+          entityId: row.submission_code,
+          summary: `ส่งคะแนนรอบแรก ${row.submission_code} • ${row.review_total_score ?? "-"} คะแนน`,
+          payload: { submissionCode: row.submission_code, titleTh: row.title_th, totalScore: row.review_total_score },
+          ipAddress: null,
+          userAgent: null,
+          createdAt: normalizeAuditDate(row.review_submitted_at),
+        });
+      }
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) {
+      console.error("derived review audit failed", error);
+    }
   }
 }
 
@@ -357,8 +573,13 @@ function legacyRowToRecord(row: LegacyAuditEventRow): AuditEventRecord {
 }
 
 async function legacyAuditTableExists() {
+  return tableExists("audit_logs");
+}
+
+async function tableExists(tableName: string) {
   const [rows] = await db.execute(
-    "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'audit_logs'",
+    "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?",
+    [tableName],
   );
   return Number((rows as Array<{ count: number | string }>)[0]?.count ?? 0) > 0;
 }
@@ -429,8 +650,9 @@ function clientIp(headers?: Headers) {
   return forwardedFor || headers?.get("x-real-ip") || headers?.get("cf-connecting-ip") || null;
 }
 
-function parsePayload(value: string | null) {
+function parsePayload(value: unknown) {
   if (!value) return {};
+  if (typeof value !== "string") return value as Record<string, unknown>;
   try {
     return JSON.parse(value) as Record<string, unknown>;
   } catch {
@@ -482,7 +704,13 @@ function minIso(left: string, right?: string) {
   return right && right < left ? right : left;
 }
 
-function filterLocalAuditEvents(events: AuditEventRecord[], filters: {
+function mysqlDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.replace("T", " ").replace(/\.\d{3}Z$/, "");
+  return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function filterAuditEventRecords(events: AuditEventRecord[], filters: {
   actions: string[];
   actorType?: AuditActor["type"] | "admin_any" | "";
   actorEmail?: string;
