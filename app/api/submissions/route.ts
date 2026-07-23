@@ -18,7 +18,7 @@ export const runtime = "nodejs";
 const fields = z.object({
   email:z.string().email(), submissionType:z.enum(["individual","team"]), teamName:z.string().max(255).optional(),
   title:z.string().min(1), firstName:z.string().min(2), lastName:z.string().min(2), citizenId:z.string().regex(/^\d{13}$/).refine(isThaiCitizenId,"หมายเลขบัตรประชาชนไม่ถูกต้อง"), phone:z.string().regex(/^0[689]\d{8}$/,"กรุณากรอกเบอร์มือถือ 10 หลักที่ขึ้นต้นด้วย 06, 08 หรือ 09"), position:z.string().min(1), division:z.string().min(2), bureau:z.string().min(2),
-  titleTh:z.string().min(2).max(255), titleEn:z.string().max(255).optional(), summary:z.string().min(20).max(500), videoUrl:z.union([z.string().url(),z.literal("")]).optional(),
+  titleTh:z.string().min(2).max(255), titleEn:z.string().max(255).optional(), summary:z.string().min(20).max(500), videoUrl:z.string().trim().min(1,"กรุณากรอก Link Video").url("กรุณากรอก Link Video เป็น URL ที่ถูกต้อง"),
   consentRules:z.literal("true"), consentPdpa:z.literal("true")
 });
 const fileTypes = ["ownership","concept","prototype","implementation"] as const;

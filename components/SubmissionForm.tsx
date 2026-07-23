@@ -283,7 +283,7 @@ export function SubmissionForm({ prefill }: { prefill?: SubmissionPrefill | null
             </small>
             {summaryWarning && <small className="field-help invalid" role="status" aria-live="polite">{summaryWarning}</small>}
           </label>
-          <label className="span-2">Link Video<input type="url" name="videoUrl" placeholder="Google Drive, YouTube หรือ OneDrive" /></label>
+          <label className="span-2">Link Video<RequiredMark /><input type="url" name="videoUrl" placeholder="Google Drive, YouTube หรือ OneDrive" required /></label>
         </div>
       </section>
 
