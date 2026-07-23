@@ -190,7 +190,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       <label className="span-2">ชื่อผลงานภาษาไทย<input name="titleTh" defaultValue={item.title_th} required/></label>
       <label>Innovation Title<input name="titleEn" defaultValue={item.title_en ?? ""}/></label>
       <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
-      <label>Link Video<input type="url" name="videoUrl" defaultValue={item.video_url ?? ""} placeholder="https://..." required/></label>
+      <label>Link Video<input type="url" name="videoUrl" defaultValue={item.video_url ?? ""} placeholder="https://..."/><small className="field-help">มีผลต่อการพิจารณาคะแนน</small></label>
       <label>บัญชีอีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
     </div>
     <div className="admin-edit-member-list">
@@ -247,8 +247,7 @@ async function updateSubmissionAction(formData: FormData) {
   if (submissionType === "team" && !text(formData, "teamName")) throw new Error("กรุณาระบุชื่อทีม");
   if (summary.length < 20) throw new Error("คำอธิบายย่อต้องมีอย่างน้อย 20 ตัวอักษร");
   const videoUrl = text(formData, "videoUrl");
-  if (!videoUrl) throw new Error("กรุณากรอก Link Video");
-  new URL(videoUrl);
+  if (videoUrl) new URL(videoUrl);
 
   for (const [index, member] of members.entries()) {
     if (!member.title || !member.first_name || !member.last_name || !member.position || !member.division || !member.bureau) throw new Error(`กรุณากรอกข้อมูลสมาชิกคนที่ ${index + 1} ให้ครบ`);
