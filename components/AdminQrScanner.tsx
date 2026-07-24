@@ -292,7 +292,7 @@ export function AdminQrScanner() {
       </div>
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
-    {result && <div className="scan-result-modal" role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
+    {result && <div className={["scan-result-modal", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
       <div className={["scan-success-hero", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="status" aria-live="polite">
         <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
         <div className="scan-success-heading">

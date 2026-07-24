@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Footer, Header, MobileZoomLock, SiteVisitTracker } from "../components/SiteChrome";
+import { Suspense } from "react";
+import { Footer, Header, MobileZoomLock, SamePageScrollRestorer, SiteVisitTracker } from "../components/SiteChrome";
 import { getAdminSettings } from "../lib/admin-store";
 import { getSiteStats } from "../lib/site-analytics";
 import "./globals.css";
@@ -26,5 +27,5 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getAdminSettings();
   const siteStats = settings.showSiteStats ? await getSiteStats() : null;
-  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" src="/text-mode-class-sanitizer.js" strategy="beforeInteractive" /><MobileZoomLock /><SiteVisitTracker /><Header /><main>{children}</main><Footer stats={siteStats} /></body></html>;
+  return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning><body suppressHydrationWarning><Script id="text-mode-class-sanitizer" src="/text-mode-class-sanitizer.js" strategy="beforeInteractive" /><MobileZoomLock /><Suspense fallback={null}><SamePageScrollRestorer /></Suspense><SiteVisitTracker /><Header /><main>{children}</main><Footer stats={siteStats} /></body></html>;
 }

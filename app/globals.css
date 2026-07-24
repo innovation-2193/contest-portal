@@ -147,6 +147,12 @@ svg { flex: 0 0 auto; }
   100% { opacity: 0; transform: translate3d(12px, -18px, 0) scale(1.08); }
 }
 
+@keyframes checkin-twinkle-field {
+  0%, 100% { opacity: 0.36; transform: translate3d(0, 0, 0) scale(0.96); }
+  30% { opacity: 0.86; }
+  62% { opacity: 0.58; transform: translate3d(10px, -10px, 0) scale(1.04); }
+}
+
 .choice-grid article,
 .three-grid article,
 .detail-grid > article,
@@ -5272,8 +5278,11 @@ body:has(.prelander-page)::before {
     radial-gradient(circle at 18% 22%, rgba(255, 248, 196, 0.82) 0 2px, transparent 3px),
     radial-gradient(circle at 84% 18%, rgba(255, 248, 196, 0.64) 0 1.5px, transparent 3px),
     radial-gradient(circle at 72% 78%, rgba(255, 248, 196, 0.5) 0 1.5px, transparent 3px),
-    radial-gradient(circle at 34% 82%, rgba(255, 248, 196, 0.54) 0 1px, transparent 2.5px);
-  animation: checkin-sparkle-rise 1.9s ease-in-out infinite;
+    radial-gradient(circle at 34% 82%, rgba(255, 248, 196, 0.54) 0 1px, transparent 2.5px),
+    radial-gradient(circle at 48% 18%, rgba(255, 255, 255, 0.62) 0 1px, transparent 2.5px),
+    radial-gradient(circle at 90% 56%, rgba(255, 238, 163, 0.5) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 10% 70%, rgba(255, 238, 163, 0.5) 0 1.5px, transparent 3px);
+  animation: checkin-twinkle-field 1.55s ease-in-out infinite;
 }
 
 .scan-success-hero.featured-role::after {
@@ -5457,10 +5466,9 @@ body:has(.prelander-page)::before {
 }
 
 .scan-role-band {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
+  gap: 6px;
   min-height: 58px;
   padding: 12px 16px;
   border: 1px solid rgba(75, 205, 255, 0.72);
@@ -5497,7 +5505,7 @@ body:has(.prelander-page)::before {
 }
 
 .scan-role-band span {
-  color: #d4dde9;
+  color: #ffe08a;
   font-size: 14px;
   font-weight: 900;
 }
@@ -5507,16 +5515,16 @@ body:has(.prelander-page)::before {
 }
 
 .scan-role-band b {
-  color: #7fdcff;
+  color: #ffffff;
   font-size: 24px;
   font-weight: 1000;
-  line-height: 1;
+  line-height: 1.12;
   overflow-wrap: anywhere;
 }
 
 .scan-role-band.role-vip b,
 .scan-role-band.role-exhibitor b {
-  color: #ffe08a;
+  color: #fff4bd;
 }
 
 .scan-role-band.role-competitor b {
@@ -5612,8 +5620,12 @@ body:has(.prelander-page)::before {
 }
 
 .scan-success-details div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
   min-width: 0;
-  padding: 11px 12px;
+  min-height: 94px;
+  padding: 14px 16px;
   border: 1px solid rgba(79, 220, 132, 0.22);
   border-radius: 12px;
   background: rgba(1, 9, 22, 0.48);
@@ -5647,25 +5659,28 @@ body:has(.prelander-page)::before {
 }
 
 .scan-success-details dt {
-  color: #a9f2c3;
-  font-size: 11px;
+  color: #ffe08a;
+  font-size: 13px;
   font-weight: 900;
+  line-height: 1.35;
 }
 
 .scan-success-details dd {
-  margin: 3px 0 0;
+  margin: 0;
   color: #ffffff;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 900;
-  line-height: 1.42;
+  line-height: 1.38;
   overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
 }
 
 .scan-success-details div:nth-child(1) dd,
 .scan-success-details div:nth-child(2) dd {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .scan-success-actions {
@@ -5694,20 +5709,48 @@ body:has(.prelander-page)::before {
   background: rgba(1, 7, 18, 0.84);
   backdrop-filter: blur(12px);
   overflow: auto;
+  scrollbar-width: none;
+}
+
+.scan-result-modal::-webkit-scrollbar {
+  display: none;
+}
+
+.scan-result-modal.featured-role::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 248, 196, 0.72) 0 2px, transparent 3px),
+    radial-gradient(circle at 28% 72%, rgba(255, 238, 163, 0.58) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 74% 18%, rgba(255, 248, 196, 0.68) 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 62%, rgba(255, 238, 163, 0.52) 0 1.5px, transparent 3px),
+    radial-gradient(circle at 52% 86%, rgba(255, 255, 255, 0.52) 0 1px, transparent 2.5px),
+    radial-gradient(circle at 50% 42%, rgba(223, 186, 51, 0.18), transparent 42%);
+  pointer-events: none;
+  animation: checkin-twinkle-field 1.35s ease-in-out infinite;
 }
 
 .scan-result-modal .scan-success-hero {
-  width: min(620px, 100%);
+  z-index: 1;
+  width: min(760px, calc(100vw - 40px));
   max-height: min(720px, calc(100vh - 40px));
   max-height: min(720px, calc(100dvh - 40px));
   gap: 14px;
   overflow: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
   padding: 24px;
   border-radius: 16px;
   background:
     radial-gradient(circle at 18% 14%, rgba(75, 205, 255, 0.12), transparent 38%),
     linear-gradient(180deg, rgba(8, 34, 73, 0.98), rgba(2, 13, 34, 0.99));
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58), inset 0 0 0 1px rgba(120, 190, 255, 0.12);
+}
+
+.scan-result-modal .scan-success-hero::-webkit-scrollbar {
+  display: none;
 }
 
 .scan-result-modal .scan-success-hero.already {
@@ -5756,6 +5799,7 @@ body:has(.prelander-page)::before {
   padding: 12px 16px;
   border-width: 1px;
   border-radius: 12px;
+  align-items: start;
 }
 
 .scan-result-modal .scan-role-band span {
@@ -5772,19 +5816,23 @@ body:has(.prelander-page)::before {
 }
 
 .scan-result-modal .scan-success-details div {
-  padding: 10px 12px;
+  min-height: 112px;
+  padding: 14px 16px;
   border: 1px solid rgba(79, 220, 132, 0.22);
   border-radius: 12px;
   background: rgba(1, 9, 22, 0.48);
 }
 
 .scan-result-modal .scan-success-details dt {
-  font-size: 12px;
-  color: #b8c4d6;
+  font-size: 15px;
+  color: #ffe08a;
 }
 
 .scan-result-modal .scan-success-details dd {
-  font-size: 16px;
+  font-size: clamp(18px, 2.1vw, 24px);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .scan-result-modal .scan-success-details div:nth-child(1) dd,
@@ -9650,11 +9698,16 @@ body:has(.report-page) .brand b {
   }
 
   .scan-result-modal .scan-success-details div {
-    padding: 9px 10px;
+    min-height: 86px;
+    padding: 12px;
+  }
+
+  .scan-result-modal .scan-success-details dt {
+    font-size: 13px;
   }
 
   .scan-result-modal .scan-success-details dd {
-    font-size: 15px;
+    font-size: 17px;
   }
 
   .scan-result-modal .scan-success-actions .primary {

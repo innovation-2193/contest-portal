@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Activity, BarChart3, Lightbulb, Mail, Menu, Phone, TrendingUp } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
@@ -90,6 +90,75 @@ export function SiteVisitTracker() {
   }, [pathname]);
   return null;
 }
+
+export function SamePageScrollRestorer() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (!pathname) return;
+    try {
+      const raw = window.sessionStorage.getItem(scrollMemoryKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { path?: string; y?: number; at?: number };
+      if (saved.path !== pathname || typeof saved.y !== "number") return;
+      if (Date.now() - Number(saved.at ?? 0) > 15000) {
+        window.sessionStorage.removeItem(scrollMemoryKey);
+        return;
+      }
+      const top = Math.max(0, saved.y);
+      window.sessionStorage.removeItem(scrollMemoryKey);
+      requestAnimationFrame(() => {
+        window.scrollTo({ top, behavior: "auto" });
+      });
+    } catch {
+      window.sessionStorage.removeItem(scrollMemoryKey);
+    }
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const remember = () => {
+      try {
+        window.sessionStorage.setItem(scrollMemoryKey, JSON.stringify({
+          path: window.location.pathname,
+          y: window.scrollY,
+          at: Date.now(),
+        }));
+      } catch {
+        // Ignore private-mode storage failures; the page should still work.
+      }
+    };
+
+    const onSubmit = (event: SubmitEvent) => {
+      const form = event.target instanceof HTMLFormElement ? event.target : null;
+      if (!form || form.dataset.scrollReset === "true" || form.target === "_blank") return;
+      remember();
+    };
+
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const target = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(target instanceof HTMLAnchorElement)) return;
+      if (target.target === "_blank" || target.dataset.scrollReset === "true") return;
+      const url = new URL(target.href, window.location.href);
+      const currentPath = window.location.pathname;
+      if (url.origin === window.location.origin && url.pathname === currentPath && url.hash === "") {
+        remember();
+      }
+    };
+
+    document.addEventListener("submit", onSubmit, true);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("submit", onSubmit, true);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, []);
+
+  return null;
+}
+
+const scrollMemoryKey = "police-innovation-scroll-restore";
 
 export function Header() {
   const [open,setOpen]=useState(false);
