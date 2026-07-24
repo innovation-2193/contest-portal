@@ -6,6 +6,7 @@ import {
   type SubmissionListItem,
 } from "../../../../lib/admin-store";
 import type { RegistrationRecord } from "../../../../lib/local-registrations";
+import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../../../lib/participant-type-breakdown";
 import {
   drawDocumentFooter,
   drawDocumentHeader,
@@ -55,6 +56,7 @@ async function dailyReportPdf(
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants);
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
   const teams = submissions.filter((item) => item.submission_type === "team");
   const recentSubmissions = submissions.slice(0, 10);
@@ -85,6 +87,20 @@ async function dailyReportPdf(
   ], margin, y, contentWidth);
 
   y += 128;
+  drawParticipantTypeSummary(doc, participantTypeBreakdown, margin, y, contentWidth);
+
+  y += 116;
+  if (y + 226 > height - 44) {
+    doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
+    drawPageChrome(doc);
+    y = drawDocumentHeader(doc, {
+      title: "รายงานสรุปประจำวัน",
+      subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+      metaLabel: "ยอดเข้าชมวันนี้",
+      metaValue: siteStats.today.toLocaleString("th-TH"),
+      fonts,
+    }) + 20;
+  }
   drawVisitChart(doc, siteStats.last7Days, margin, y, 474, 206);
   drawStatusPanel(doc, submissions, margin + 492, y, contentWidth - 492, 206);
 
@@ -164,6 +180,48 @@ function drawSummaryCards(
       height: 18,
       ellipsis: true,
     });
+  });
+}
+
+function drawParticipantTypeSummary(
+  doc: PDFKit.PDFDocument,
+  groups: ParticipantTypeGroup[],
+  x: number,
+  y: number,
+  width: number,
+) {
+  doc.font(pdfFontBold).fontSize(14).fillColor(PDF_THEME.navy).text("สรุปประเภทผู้สมัครเข้าร่วมงาน", x, y, {
+    width,
+    lineBreak: false,
+  });
+  doc.font(pdfFontRegular).fontSize(9).fillColor(PDF_THEME.muted).text("จำแนกตาม Role ผู้เข้าร่วมและชื่อหน่วยงานที่บันทึกในระบบ", x + 220, y + 3, {
+    width: width - 220,
+    lineBreak: false,
+  });
+
+  const gap = 10;
+  const cardY = y + 28;
+  const cardWidth = (width - gap * 2) / 3;
+  groups.forEach((group, index) => {
+    const cardX = x + (cardWidth + gap) * index;
+    const color = group.key === "companyExhibitor" ? PDF_THEME.gold : group.key === "educationExhibitor" ? PDF_THEME.blue : PDF_THEME.green;
+    doc.roundedRect(cardX, cardY, cardWidth, 76, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.rect(cardX, cardY, cardWidth, 5).fill(color);
+    doc.font(pdfFontBold).fontSize(10).fillColor(PDF_THEME.muted).text(group.label, cardX + 12, cardY + 16, {
+      width: cardWidth - 24,
+      height: 18,
+      ellipsis: true,
+    });
+    doc.font(pdfFontBold).fontSize(26).fillColor(PDF_THEME.navy).text(group.people.length.toLocaleString("th-TH"), cardX + 12, cardY + 37, {
+      width: 62,
+      lineBreak: false,
+    });
+    doc.font(pdfFontRegular).fontSize(8.4).fillColor(PDF_THEME.text).text(
+      summarizePeople(group.people.map((person) => person.name)),
+      cardX + 82,
+      cardY + 36,
+      { width: cardWidth - 96, height: 30, ellipsis: true },
+    );
   });
 }
 
@@ -345,6 +403,13 @@ function drawPanel(
     width: width - 36,
     lineBreak: false,
   });
+}
+
+function summarizePeople(names: string[]) {
+  if (!names.length) return "ยังไม่มีข้อมูลในกลุ่มนี้";
+  const visible = names.slice(0, 3).join(", ");
+  const remaining = names.length - 3;
+  return remaining > 0 ? `${visible} และอีก ${remaining.toLocaleString("th-TH")} คน` : visible;
 }
 
 function buildStatusStats(submissions: SubmissionListItem[]) {

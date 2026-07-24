@@ -3,12 +3,15 @@ import type { CSSProperties, ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  Building2,
   CheckCircle2,
   ClipboardList,
   Eye,
   FileText,
+  GraduationCap,
   LineChart,
   Printer,
+  ShieldCheck,
   User,
   Trophy,
   UserCheck,
@@ -20,6 +23,7 @@ import {
   type SubmissionListItem,
 } from "../../lib/admin-store";
 import type { RegistrationRecord } from "../../lib/local-registrations";
+import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
 import { getSiteStats, type SiteStats } from "../../lib/site-analytics";
 
 export const dynamic = "force-dynamic";
@@ -129,6 +133,7 @@ export default async function DailyReportPage() {
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants);
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
   const pendingReview = Math.max(0, submissions.length - scored.length);
@@ -210,6 +215,13 @@ export default async function DailyReportPage() {
         </MetricGroup>
       </section>
 
+      <section className="admin-panel report-panel report-participant-panel">
+        <header><Users/><div><h2>สรุปประเภทผู้สมัครเข้าร่วมงาน</h2><p>จำแนกตาม Role ผู้เข้าร่วมและชื่อหน่วยงานที่บันทึกในระบบ</p></div></header>
+        <div className="report-participant-breakdown">
+          {participantTypeBreakdown.map((group) => <ParticipantTypeCard key={group.key} group={group}/>)}
+        </div>
+      </section>
+
       <section className="report-grid">
         <article className="admin-panel report-panel">
           <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ 7 วันล่าสุด</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ ไม่รวมหน้า /admin</p></div></header>
@@ -258,6 +270,26 @@ export default async function DailyReportPage() {
       </section>
     </div>
   </div>;
+}
+
+function ParticipantTypeCard({ group }: { group: ParticipantTypeGroup }) {
+  return <article className={`report-participant-card ${group.key}`}>
+    <div className="report-participant-card-head">
+      {group.key === "police" ? <ShieldCheck/> : group.key === "educationExhibitor" ? <GraduationCap/> : <Building2/>}
+      <div>
+        <span>{group.label}</span>
+        <b>{group.people.length.toLocaleString("th-TH")} คน</b>
+      </div>
+    </div>
+    <p>{group.detail}</p>
+    <div className="report-participant-list">
+      {group.people.length ? group.people.map((person) => <div key={person.registrationCode}>
+        <b>{person.name}</b>
+        <span>{person.organization}</span>
+        <small>{person.registrationCode} • {person.role} • {participantStatusLabel(person.status)}</small>
+      </div>) : <em>ยังไม่มีข้อมูลในกลุ่มนี้</em>}
+    </div>
+  </article>;
 }
 
 function OrgSectionOverview({ summary }: { summary: OrgSectionSummary }) {
@@ -602,6 +634,12 @@ function normalizeText(value: string) {
     .replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))
     .replace(/[.\s\-_/()]/g, "")
     .replace(/สำนักงานตำรวจแห่งชาติ/g, "ตร");
+}
+
+function participantStatusLabel(status: string) {
+  if (status === "attended") return "เช็คอินแล้ว";
+  if (status === "cancelled") return "ยกเลิก";
+  return "ลงทะเบียนแล้ว";
 }
 
 function statusLabel(status: string) {
