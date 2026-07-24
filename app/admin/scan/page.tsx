@@ -19,12 +19,12 @@ export default async function AdminScanPage() {
         <div>
           <span className="eyebrow">Admin Check-in</span>
           <h1>เช็คอินหน้างาน</h1>
-          <p>สแกน QR Code ค้นหาชื่อผู้เข้าร่วม หรือกรอกรหัส REG เพื่ออัปเดตสถานะเป็นเข้าร่วมงานแล้ว</p>
+          <p>สแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมเพื่ออัปเดตสถานะเป็นเข้าร่วมงานแล้ว</p>
         </div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
       <section className="admin-panel">
-        <header><QrCode/><div><h2>ระบบเช็คอินหน้างาน</h2><p>รองรับการสแกนผ่านกล้อง Live Search จากชื่อผู้เข้าร่วม และรหัส REG</p></div></header>
+        <header><QrCode/><div><h2>ระบบเช็คอินหน้างาน</h2><p>รองรับการสแกนผ่านกล้องและ Live Search จากข้อมูลผู้เข้าร่วม</p></div></header>
         <AdminQrScanner initialRoleCounts={initialRoleCounts} />
       </section>
     </div>

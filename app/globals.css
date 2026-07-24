@@ -232,7 +232,6 @@ svg { flex: 0 0 auto; }
 .participant-card,
 .scanner-camera,
 .scanner-control-head,
-.scanner-manual,
 .scanner-help,
 .scan-result,
 .prelander-panel,
@@ -5023,7 +5022,6 @@ body:has(.prelander-page)::before {
 .scanner-shell.result-mode .scanner-camera,
 .scanner-shell.result-mode .scanner-control-head,
 .scanner-shell.result-mode .scanner-buttons,
-.scanner-shell.result-mode .scanner-manual,
 .scanner-shell.result-mode .scanner-help {
   display: none;
 }
@@ -5289,8 +5287,7 @@ body:has(.prelander-page)::before {
   line-height: 1.25;
 }
 
-.scanner-buttons,
-.scanner-manual {
+.scanner-buttons {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
@@ -6003,40 +6000,6 @@ body:has(.prelander-page)::before {
   width: 100%;
   min-height: 50px;
   font-size: 16px;
-}
-
-.scanner-manual {
-  align-items: end;
-  padding: 16px;
-  border: 1px solid rgba(64, 89, 128, 0.62);
-  border-radius: 16px;
-  background: rgba(2, 11, 27, 0.5);
-}
-
-.scanner-manual button {
-  min-width: 160px;
-  min-height: 52px;
-}
-
-.scanner-manual label {
-  flex: 1 1 260px;
-  display: grid;
-  gap: 6px;
-  color: #dce4f3;
-  font-weight: 800;
-}
-
-.scanner-manual input {
-  width: 100%;
-  min-height: 52px;
-  padding: 11px 14px;
-  border: 1px solid rgba(68, 99, 145, 0.95);
-  border-radius: 12px;
-  background: rgba(1, 9, 22, 0.9);
-  color: var(--text);
-  font-size: 17px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
 }
 
 .scanner-live-search {
@@ -9515,7 +9478,6 @@ body:has(.report-page) .brand b {
   }
   .scanner-buttons,
   .scanner-buttons button,
-  .scanner-manual button,
   .scanner-search-item button,
   .admin-actions,
   .admin-actions a {

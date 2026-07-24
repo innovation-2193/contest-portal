@@ -48,7 +48,6 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
   const audioContextRef = useRef<AudioContext | null>(null);
   const scanningRef = useRef(false);
   const loopRef = useRef<number | null>(null);
-  const [manualCode, setManualCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [cameraStatus, setCameraStatus] = useState("ยังไม่ได้เปิดกล้อง");
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -111,7 +110,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
     setResult(null);
     void primeScanAudio();
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraStatus("อุปกรณ์นี้ไม่รองรับกล้องผ่านเว็บ กรุณากรอกรหัสลงทะเบียนแทน");
+      setCameraStatus("อุปกรณ์นี้ไม่รองรับกล้องผ่านเว็บ กรุณาค้นหาชื่อผู้เข้าร่วมแล้วกดเช็คอิน");
       return;
     }
 
@@ -193,7 +192,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
     void primeScanAudio();
     const cleanedCode = code.trim().toUpperCase();
     if (!cleanedCode) {
-      setError("กรุณากรอกรหัสลงทะเบียนก่อนเช็คอิน");
+      setError("ไม่พบรหัสลงทะเบียนสำหรับเช็คอิน");
       void playScanSound("error");
       return;
     }
@@ -216,7 +215,6 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       setResult(data);
       void playScanSound(data.wasAlreadyCheckedIn ? "error" : "success");
       updateRoleCounts(data);
-      setManualCode(data.registrationCode);
       const autoCheckedCodes = new Map((data.teamCheckIns ?? []).map((item) => [item.registrationCode, item]));
       setSearchResults((items) => items.map((item) => item.registrationCode === data.registrationCode
         ? { ...item, status: data.status, checkedInAt: data.checkedInAt }
@@ -314,7 +312,6 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
   function clearResult() {
     setResult(null);
     setError("");
-    setManualCode("");
     if (streamRef.current && videoRef.current) {
       scanningRef.current = true;
       scanLoop(detectorRef.current);
@@ -354,12 +351,6 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
         <button className="primary" type="button" onClick={startCamera}><Camera/>เปิดกล้อง</button>
         <button className="secondary" type="button" onClick={stopCamera}><QrCode/>หยุดสแกน</button>
       </div>
-      <form className="scanner-manual" onSubmit={(event) => { event.preventDefault(); void submitCode(manualCode); }}>
-        <label>
-          <input aria-label="รหัสลงทะเบียน" value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} placeholder="REG-2569-XXXXXXXX" autoComplete="off" />
-        </label>
-        <button className="primary" type="submit" disabled={busy}>{busy ? <Loader2/> : <CheckCircle2/>}เช็คอิน</button>
-      </form>
       <section className="scanner-live-search" aria-label="ค้นหาผู้เข้าร่วมเพื่อเช็คอิน">
         <label><span><Search/>ค้นหาชื่อผู้เข้าร่วมงาน</span>
           <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="พิมพ์ชื่อ นามสกุล เบอร์โทร รหัส REG หรือหน่วยงาน" autoComplete="off" />
@@ -381,7 +372,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
                 <small>{[item.position, item.division, item.bureau].filter(Boolean).join(" / ") || "-"}</small>
               </div>
               <em>{statusLabel(item.status)}</em>
-              <button className={attended ? "secondary" : "primary"} type="button" disabled={busy || cancelled} onClick={() => { setManualCode(item.registrationCode); void submitCode(item.registrationCode); }}>
+              <button className={attended ? "secondary" : "primary"} type="button" disabled={busy || cancelled} onClick={() => { void submitCode(item.registrationCode); }}>
                 {busy ? <Loader2/> : <UserCheck/>}{attended ? "เช็คอินซ้ำ" : "เช็คอิน"}
               </button>
             </article>;
@@ -390,7 +381,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       </section>
       <div className="scanner-help">
         <b>วิธีใช้งาน</b>
-        <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้กรอกรหัส REG หรือค้นหาชื่อผู้เข้าร่วมแล้วกดเช็คอิน</p>
+        <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้ค้นหาชื่อผู้เข้าร่วมแล้วกดเช็คอิน</p>
       </div>
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
