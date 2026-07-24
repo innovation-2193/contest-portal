@@ -5,10 +5,12 @@ import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, Search
 import jsQR from "jsqr";
 import { isFeaturedCheckInRole, participantRoleClass } from "../lib/participant-role-style";
 
+type ParticipantRoleName = "VIP" | "Guest" | "Exhibitor" | "Competitor";
+
 type ScanResult = {
   registrationCode: string;
   name: string;
-  participantRole: "VIP" | "Guest" | "Exhibitor" | "Competitor";
+  participantRole: ParticipantRoleName;
   phone: string;
   position: string;
   division: string;
@@ -25,7 +27,7 @@ type ScanResult = {
 type TeamCheckInResult = {
   registrationCode: string;
   name: string;
-  participantRole: "VIP" | "Guest" | "Exhibitor" | "Competitor";
+  participantRole: ParticipantRoleName;
   status: string;
   checkedInAt?: string | null;
   wasAlreadyCheckedIn: boolean;
@@ -33,11 +35,16 @@ type TeamCheckInResult = {
 
 type ParticipantSearchResult = Omit<ScanResult, "checkedInByEmail" | "wasAlreadyCheckedIn">;
 
-export function AdminQrScanner() {
+export type CheckInRoleCounts = Record<ParticipantRoleName, number>;
+
+const scannerRoleOrder: ParticipantRoleName[] = ["VIP", "Guest", "Exhibitor", "Competitor"];
+
+export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: CheckInRoleCounts }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<{ detect(video: HTMLVideoElement): Promise<Array<{ rawValue: string }>> } | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const scanningRef = useRef(false);
   const loopRef = useRef<number | null>(null);
   const [manualCode, setManualCode] = useState("");
@@ -49,8 +56,14 @@ export function AdminQrScanner() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<ParticipantSearchResult[]>([]);
   const [searchError, setSearchError] = useState("");
+  const [roleCounts, setRoleCounts] = useState(initialRoleCounts);
 
-  useEffect(() => () => stopCamera(), []);
+  useEffect(() => () => {
+    stopCamera();
+    void audioContextRef.current?.close();
+  }, []);
+
+  useEffect(() => setRoleCounts(initialRoleCounts), [initialRoleCounts]);
 
   useEffect(() => {
     const query = searchQuery.replace(/\s+/g, " ").trim();
@@ -95,6 +108,7 @@ export function AdminQrScanner() {
   async function startCamera() {
     setError("");
     setResult(null);
+    void primeScanAudio();
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraStatus("อุปกรณ์นี้ไม่รองรับกล้องผ่านเว็บ กรุณากรอกรหัสลงทะเบียนแทน");
       return;
@@ -175,9 +189,11 @@ export function AdminQrScanner() {
   }
 
   async function submitCode(code: string) {
+    void primeScanAudio();
     const cleanedCode = code.trim().toUpperCase();
     if (!cleanedCode) {
       setError("กรุณากรอกรหัสลงทะเบียนก่อนเช็คอิน");
+      void playScanSound("error");
       return;
     }
     setBusy(true);
@@ -197,6 +213,8 @@ export function AdminQrScanner() {
         throw new Error(data.error || "เช็คอินไม่สำเร็จ");
       }
       setResult(data);
+      void playScanSound(data.wasAlreadyCheckedIn ? "error" : "success");
+      updateRoleCounts(data);
       setManualCode(data.registrationCode);
       const autoCheckedCodes = new Map((data.teamCheckIns ?? []).map((item) => [item.registrationCode, item]));
       setSearchResults((items) => items.map((item) => item.registrationCode === data.registrationCode
@@ -211,8 +229,74 @@ export function AdminQrScanner() {
           ? scanError.message
           : "เช็คอินไม่สำเร็จ";
       setError(message);
+      void playScanSound("error");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function updateRoleCounts(data: ScanResult & { error?: string }) {
+    const newlyCheckedRoles = [
+      !data.wasAlreadyCheckedIn ? data.participantRole : null,
+      ...(data.teamCheckIns ?? [])
+        .filter((member) => !member.wasAlreadyCheckedIn)
+        .map((member) => member.participantRole),
+    ].filter((role): role is ParticipantRoleName => Boolean(role));
+    if (!newlyCheckedRoles.length) return;
+    setRoleCounts((current) => {
+      const next = { ...current };
+      for (const role of newlyCheckedRoles) next[role] += 1;
+      return next;
+    });
+  }
+
+  async function primeScanAudio() {
+    try {
+      const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextCtor) return null;
+      const context = audioContextRef.current ?? new AudioContextCtor();
+      audioContextRef.current = context;
+      if (context.state === "suspended") await context.resume();
+      return context;
+    } catch {
+      return null;
+    }
+  }
+
+  async function playScanSound(type: "success" | "error") {
+    try {
+      const context = await primeScanAudio();
+      if (!context) return;
+      const now = context.currentTime;
+      const master = context.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(type === "success" ? 0.18 : 0.14, now + 0.012);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + (type === "success" ? 0.42 : 0.28));
+      master.connect(context.destination);
+
+      const playTone = (frequency: number, start: number, duration: number, wave: OscillatorType = "sine") => {
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = wave;
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(1, start + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+        oscillator.connect(gain);
+        gain.connect(master);
+        oscillator.start(start);
+        oscillator.stop(start + duration + 0.03);
+      };
+
+      if (type === "success") {
+        playTone(740, now, 0.16);
+        playTone(1046, now + 0.13, 0.24);
+      } else {
+        playTone(220, now, 0.2, "triangle");
+        playTone(164, now + 0.08, 0.18, "triangle");
+      }
+    } catch {
+      return;
     }
   }
 
@@ -248,13 +332,20 @@ export function AdminQrScanner() {
         <h2>สแกน QR Code ผู้เข้าร่วมงาน</h2>
         <p>{cameraStatus}</p>
       </div>
+      <div className="scanner-role-counts" aria-label="จำนวนผู้เช็คอินแยกตาม Role">
+        {scannerRoleOrder.map((role) => <article className={participantRoleClass(role)} key={role}>
+          <span>{role}</span>
+          <b>{roleCounts[role].toLocaleString("th-TH")}</b>
+          <small>เช็คอินแล้ว</small>
+        </article>)}
+      </div>
       <div className="scanner-buttons">
         <button className="primary" type="button" onClick={startCamera}><Camera/>เปิดกล้อง</button>
         <button className="secondary" type="button" onClick={stopCamera}><QrCode/>หยุดสแกน</button>
       </div>
       <form className="scanner-manual" onSubmit={(event) => { event.preventDefault(); void submitCode(manualCode); }}>
-        <label>กรอกรหัสลงทะเบียนด้วยตนเอง
-          <input value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} placeholder="REG-2569-XXXXXXXX" autoComplete="off" />
+        <label>
+          <input aria-label="รหัสลงทะเบียน" value={manualCode} onChange={(event) => setManualCode(event.target.value.toUpperCase())} placeholder="REG-2569-XXXXXXXX" autoComplete="off" />
         </label>
         <button className="primary" type="submit" disabled={busy}>{busy ? <Loader2/> : <CheckCircle2/>}เช็คอิน</button>
       </form>

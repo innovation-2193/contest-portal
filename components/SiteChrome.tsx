@@ -98,6 +98,10 @@ export function SamePageScrollRestorer() {
   useEffect(() => {
     if (!pathname) return;
     try {
+      if (searchParams.get("notice")) {
+        window.sessionStorage.removeItem(scrollMemoryKey);
+        return;
+      }
       const raw = window.sessionStorage.getItem(scrollMemoryKey);
       if (!raw) return;
       const saved = JSON.parse(raw) as { path?: string; y?: number; at?: number };
