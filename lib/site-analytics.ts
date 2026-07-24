@@ -14,6 +14,7 @@ export type SiteStats = {
   average7Days: number;
   peakDay: SiteDailyStat;
   last7Days: SiteDailyStat[];
+  visitHistory: SiteDailyStat[];
 };
 
 type SiteAnalyticsStore = {
@@ -55,6 +56,14 @@ export async function getSiteStats(): Promise<SiteStats> {
   });
   const peakDay = last7Days.reduce((peak, item) => item.count > peak.count ? item : peak, last7Days[0] ?? { date: today, label: "วันนี้", count: 0 });
   const total7Days = last7Days.reduce((sum, item) => sum + item.count, 0);
+  const visitHistory = Object.entries(store.days)
+    .filter(([, count]) => Number(count) > 0)
+    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+    .map(([date, count]) => ({
+      date,
+      label: shortThaiDate(date),
+      count: Number(count) || 0,
+    }));
   return {
     total: store.total,
     today: store.days[today] ?? 0,
@@ -62,6 +71,7 @@ export async function getSiteStats(): Promise<SiteStats> {
     average7Days: Math.round(total7Days / 7),
     peakDay,
     last7Days,
+    visitHistory,
   };
 }
 

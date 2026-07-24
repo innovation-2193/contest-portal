@@ -22,9 +22,10 @@ import {
   listSubmissions,
   type SubmissionListItem,
 } from "../../lib/admin-store";
+import { VisitTrendChart } from "../../components/VisitTrendChart";
 import type { RegistrationRecord } from "../../lib/local-registrations";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
-import { getSiteStats, type SiteStats } from "../../lib/site-analytics";
+import { getSiteStats } from "../../lib/site-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -227,8 +228,8 @@ export default async function DailyReportPage() {
 
       <section className="report-grid">
         <article className="admin-panel report-panel">
-          <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ 7 วันล่าสุด</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ ไม่รวมหน้า /admin</p></div></header>
-          <VisitTrend stats={siteStats}/>
+          <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ 7 วันที่มีข้อมูลล่าสุด</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ สามารถย้อนดูช่วงก่อนหน้าที่มียอดมากกว่า 0 ได้</p></div></header>
+          <VisitTrendChart stats={siteStats}/>
         </article>
 
         <article className="admin-panel report-panel">
@@ -364,55 +365,6 @@ function StatusKpi({ label, value, detail }: { label: string; value: number; det
     <b>{value.toLocaleString("th-TH")}</b>
     <span>{label}</span>
     <small>{detail}</small>
-  </div>;
-}
-
-function VisitTrend({ stats }: { stats: SiteStats }) {
-  const max = Math.max(1, ...stats.last7Days.map((item) => item.count));
-  const width = 720;
-  const height = 230;
-  const padX = 34;
-  const padTop = 22;
-  const padBottom = 42;
-  const chartHeight = height - padTop - padBottom;
-  const points = stats.last7Days.map((item, index) => {
-    const x = padX + index * ((width - padX * 2) / Math.max(1, stats.last7Days.length - 1));
-    const y = padTop + chartHeight - (item.count / max) * chartHeight;
-    return { ...item, x, y };
-  });
-  const linePath = points.map((item, index) => `${index === 0 ? "M" : "L"} ${item.x.toFixed(2)} ${item.y.toFixed(2)}`).join(" ");
-  const areaPath = points.length ? `${linePath} L ${points[points.length - 1].x.toFixed(2)} ${height - padBottom} L ${points[0].x.toFixed(2)} ${height - padBottom} Z` : "";
-  return <div className="report-visit-trend">
-    <div className="report-visit-summary">
-      <span><b>{stats.today.toLocaleString("th-TH")}</b><small>วันนี้</small></span>
-      <span><b>{stats.yesterday.toLocaleString("th-TH")}</b><small>เมื่อวาน</small></span>
-      <span><b>{stats.peakDay.count.toLocaleString("th-TH")}</b><small>สูงสุด {stats.peakDay.label}</small></span>
-    </div>
-    <div className="report-line-chart" aria-label="ยอดเข้าชมเว็บไซต์ 7 วันล่าสุด">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img">
-        <defs>
-          <linearGradient id="visitLineGradient" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#76d6ca"/>
-            <stop offset="100%" stopColor="#dfba33"/>
-          </linearGradient>
-          <linearGradient id="visitAreaGradient" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#76d6ca" stopOpacity="0.28"/>
-            <stop offset="100%" stopColor="#76d6ca" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-          const y = padTop + chartHeight * ratio;
-          return <line key={ratio} className="report-line-grid" x1={padX} x2={width - padX} y1={y} y2={y}/>;
-        })}
-        {areaPath && <path className="report-line-area" d={areaPath}/>}
-        {linePath && <path className="report-line-path" d={linePath}/>}
-        {points.map((item) => <g key={item.date}>
-          <circle className="report-line-dot" cx={item.x} cy={item.y} r="5"/>
-          <text className="report-line-value" x={item.x} y={Math.max(14, item.y - 12)}>{item.count.toLocaleString("th-TH")}</text>
-          <text className="report-line-label" x={item.x} y={height - 14}>{item.label}</text>
-        </g>)}
-      </svg>
-    </div>
   </div>;
 }
 
