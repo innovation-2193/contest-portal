@@ -2977,6 +2977,49 @@ body:has(.prelander-page)::before {
   min-width: max-content;
 }
 
+.admin-checkin-cta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  border-color: rgba(79, 220, 132, 0.42);
+  background:
+    radial-gradient(circle at left center, rgba(79, 220, 132, 0.16), transparent 36%),
+    linear-gradient(135deg, rgba(7, 38, 32, 0.82), rgba(2, 11, 27, 0.92));
+}
+
+.admin-checkin-cta > div {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.admin-checkin-cta > div > svg {
+  width: 30px;
+  height: 30px;
+  color: #68e59a;
+}
+
+.admin-checkin-cta h2 {
+  margin: 2px 0 4px;
+  color: var(--ink);
+  font-size: 28px;
+  line-height: 1.18;
+}
+
+.admin-checkin-cta p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.admin-checkin-cta .primary {
+  min-height: 58px;
+  padding-inline: 22px;
+  font-size: 16px;
+}
+
 .admin-role-badge {
   display: inline-flex;
   align-items: center;
@@ -5415,6 +5458,132 @@ body:has(.prelander-page)::before {
   letter-spacing: 0.02em;
 }
 
+.scanner-live-search {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(64, 89, 128, 0.62);
+  border-radius: 16px;
+  background: rgba(2, 11, 27, 0.5);
+}
+
+.scanner-live-search label {
+  display: grid;
+  gap: 8px;
+  color: #dce4f3;
+  font-weight: 900;
+}
+
+.scanner-live-search label span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scanner-live-search label svg,
+.scanner-search-status svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.scanner-live-search input {
+  width: 100%;
+  min-height: 52px;
+  padding: 11px 14px;
+  border: 1px solid rgba(68, 99, 145, 0.95);
+  border-radius: 12px;
+  background: rgba(1, 9, 22, 0.9);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.scanner-search-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.scanner-search-results {
+  display: grid;
+  gap: 10px;
+  max-height: 420px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.scanner-search-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(112px, auto);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(79, 220, 132, 0.26);
+  border-radius: 12px;
+  background: rgba(1, 9, 22, 0.5);
+}
+
+.scanner-search-item.attended {
+  border-color: rgba(223, 186, 51, 0.34);
+  background: rgba(223, 186, 51, 0.06);
+}
+
+.scanner-search-item.cancelled {
+  border-color: rgba(255, 114, 134, 0.34);
+  background: rgba(111, 24, 39, 0.2);
+}
+
+.scanner-search-item b,
+.scanner-search-item span,
+.scanner-search-item small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.scanner-search-item b {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.scanner-search-item span {
+  margin-top: 2px;
+  color: #7fdcff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.scanner-search-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.scanner-search-item em {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid rgba(120, 190, 255, 0.24);
+  border-radius: 999px;
+  color: #dce4f3;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.scanner-search-item button {
+  min-height: 44px;
+  padding-inline: 12px;
+}
+
 .scanner-help {
   padding: 14px 16px;
   border: 1px solid rgba(223, 186, 51, 0.24);
@@ -7795,6 +7964,14 @@ body:has(.report-page) .brand b {
     margin-top: 4px;
   }
   .admin-topline { display: grid; }
+  .admin-checkin-cta {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .admin-checkin-cta .primary {
+    width: 100%;
+    justify-content: center;
+  }
   .settings-toggle-grid {
     grid-template-columns: 1fr;
   }
@@ -8451,9 +8628,18 @@ body:has(.report-page) .brand b {
   .scanner-buttons,
   .scanner-buttons button,
   .scanner-manual button,
+  .scanner-search-item button,
   .admin-actions,
   .admin-actions a {
     width: 100%;
+  }
+  .scanner-search-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .scanner-search-item em {
+    justify-content: flex-start;
+    width: fit-content;
   }
   .admin-detail-actions,
   .admin-detail-actions form,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, X, XCircle } from "lucide-react";
+import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, Search, UserCheck, X, XCircle } from "lucide-react";
 import jsQR from "jsqr";
 
 type ScanResult = {
@@ -18,6 +18,8 @@ type ScanResult = {
   wasAlreadyCheckedIn?: boolean;
 };
 
+type ParticipantSearchResult = Omit<ScanResult, "checkedInByEmail" | "wasAlreadyCheckedIn">;
+
 export function AdminQrScanner() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -30,8 +32,52 @@ export function AdminQrScanner() {
   const [cameraStatus, setCameraStatus] = useState("ยังไม่ได้เปิดกล้อง");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<ParticipantSearchResult[]>([]);
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => () => stopCamera(), []);
+
+  useEffect(() => {
+    const query = searchQuery.replace(/\s+/g, " ").trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearchError("");
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setSearching(true);
+      setSearchError("");
+      try {
+        const response = await fetch(`/api/admin/participants/search?q=${encodeURIComponent(query)}`, {
+          credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => ({ error: "ระบบค้นหาตอบกลับไม่ถูกต้อง" })) as { participants?: ParticipantSearchResult[]; error?: string };
+        if (!response.ok) {
+          if (response.status === 401) throw new Error("เซสชันแอดมินหมดอายุ กรุณาเข้าสู่ระบบหลังบ้านใหม่");
+          throw new Error(data.error || "ค้นหาผู้เข้าร่วมไม่สำเร็จ");
+        }
+        setSearchResults(data.participants ?? []);
+      } catch (searchIssue) {
+        if ((searchIssue as DOMException).name === "AbortError") return;
+        setSearchResults([]);
+        setSearchError(searchIssue instanceof Error ? searchIssue.message : "ค้นหาผู้เข้าร่วมไม่สำเร็จ");
+      } finally {
+        setSearching(false);
+      }
+    }, 220);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [searchQuery]);
 
   async function startCamera() {
     setError("");
@@ -139,6 +185,9 @@ export function AdminQrScanner() {
       }
       setResult(data);
       setManualCode(data.registrationCode);
+      setSearchResults((items) => items.map((item) => item.registrationCode === data.registrationCode
+        ? { ...item, status: data.status, checkedInAt: data.checkedInAt }
+        : item));
     } catch (scanError) {
       const message = scanError instanceof TypeError
         ? "เชื่อมต่อระบบเช็คอินไม่ได้ กรุณาตรวจสอบว่าเว็บรันอยู่และลองใหม่อีกครั้ง"
@@ -190,9 +239,35 @@ export function AdminQrScanner() {
         </label>
         <button className="primary" type="submit" disabled={busy}>{busy ? <Loader2/> : <CheckCircle2/>}เช็คอิน</button>
       </form>
+      <section className="scanner-live-search" aria-label="ค้นหาผู้เข้าร่วมเพื่อเช็คอิน">
+        <label><span><Search/>ค้นหาชื่อผู้เข้าร่วมงาน</span>
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="พิมพ์ชื่อ นามสกุล เบอร์โทร รหัส REG หรือหน่วยงาน" autoComplete="off" />
+        </label>
+        <div className="scanner-search-status" role="status" aria-live="polite">
+          {searching ? <><Loader2/>กำลังค้นหา</> : searchQuery.trim().length < 2 ? "พิมพ์อย่างน้อย 2 ตัวอักษรเพื่อค้นหา" : searchResults.length ? `พบ ${searchResults.length.toLocaleString("th-TH")} รายการ` : "ไม่พบผู้เข้าร่วมที่ตรงกับคำค้น"}
+        </div>
+        {searchError && <div className="scan-result error"><XCircle/><div><b>ค้นหาไม่ได้</b><p>{searchError}</p></div></div>}
+        {searchResults.length > 0 && <div className="scanner-search-results">
+          {searchResults.map((item) => {
+            const cancelled = item.status === "cancelled";
+            const attended = item.status === "attended";
+            return <article key={item.registrationCode} className={attended ? "scanner-search-item attended" : cancelled ? "scanner-search-item cancelled" : "scanner-search-item"}>
+              <div>
+                <b>{item.name}</b>
+                <span>{item.registrationCode} • {item.participantRole}</span>
+                <small>{[item.position, item.division, item.bureau].filter(Boolean).join(" / ") || "-"}</small>
+              </div>
+              <em>{statusLabel(item.status)}</em>
+              <button className={attended ? "secondary" : "primary"} type="button" disabled={busy || cancelled} onClick={() => { setManualCode(item.registrationCode); void submitCode(item.registrationCode); }}>
+                {busy ? <Loader2/> : <UserCheck/>}{attended ? "เช็คอินซ้ำ" : "เช็คอิน"}
+              </button>
+            </article>;
+          })}
+        </div>}
+      </section>
       <div className="scanner-help">
         <b>วิธีใช้งาน</b>
-        <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้กรอกรหัส REG ด้วยตนเอง</p>
+        <p>เปิดกล้องแล้วนำ QR Code จากอีเมลหรือไฟล์ PDF มาไว้ในกรอบ หากกล้องใช้ไม่ได้ให้กรอกรหัส REG หรือค้นหาชื่อผู้เข้าร่วมแล้วกดเช็คอิน</p>
       </div>
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
@@ -225,6 +300,12 @@ export function AdminQrScanner() {
       </div>
     </div>}
   </div>;
+}
+
+function statusLabel(status?: string | null) {
+  if (status === "attended") return "เช็คอินแล้ว";
+  if (status === "cancelled") return "ยกเลิก";
+  return "รอเช็คอิน";
 }
 
 function formatScanDate(value?: string | null) {

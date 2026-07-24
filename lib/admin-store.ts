@@ -225,6 +225,30 @@ export async function listParticipants() {
   }
 }
 
+export async function searchParticipants(query: string, limit = 12) {
+  const normalizedQuery = query.replace(/\s+/g, " ").trim().toLowerCase();
+  if (normalizedQuery.length < 2) return [];
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 12, 1), 25);
+
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider
+       FROM registrations r
+       JOIN users u ON u.id=r.user_id
+       WHERE LOWER(CONCAT_WS(' ',r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,u.email)) LIKE ?
+       ORDER BY r.status='attended', r.status='cancelled', r.registered_at DESC
+       LIMIT ${safeLimit}`,
+      [`%${normalizedQuery}%`],
+    );
+    return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
+  } catch (error) {
+    if (isDatabaseSchemaFallback(error)) return searchLocalParticipantRecords(await listParticipantsCompat(), normalizedQuery, safeLimit);
+    if (!isDatabaseUnavailable(error)) throw error;
+    return searchLocalParticipantRecords(await listLocalRegistrations(), normalizedQuery, safeLimit);
+  }
+}
+
 export async function updateParticipant(input: RegistrationUpdateInput) {
   try {
     await ensureDatabaseSchema();
@@ -253,6 +277,26 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
     if (!isDatabaseUnavailable(error)) throw error;
     await updateLocalRegistration(input);
   }
+}
+
+function searchLocalParticipantRecords(records: RegistrationRecord[], query: string, limit: number) {
+  return records
+    .filter((item) => [
+      item.registration_code,
+      item.email,
+      item.citizen_id,
+      item.phone,
+      item.title,
+      item.first_name,
+      item.last_name,
+      item.participant_role,
+      item.position,
+      item.division,
+      item.bureau,
+      item.status,
+    ].join(" ").toLowerCase().includes(query))
+    .sort((a, b) => Number(a.status === "attended") - Number(b.status === "attended") || Number(a.status === "cancelled") - Number(b.status === "cancelled") || b.registered_at.localeCompare(a.registered_at))
+    .slice(0, limit);
 }
 
 export async function deleteParticipant(registrationCode: string) {
