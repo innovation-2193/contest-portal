@@ -38,6 +38,7 @@ type ParticipantSearchResult = Omit<ScanResult, "checkedInByEmail" | "wasAlready
 export type CheckInRoleCounts = Record<ParticipantRoleName, number>;
 
 const scannerRoleOrder: ParticipantRoleName[] = ["VIP", "Guest", "Exhibitor", "Competitor"];
+const prosperityParticles = Array.from({ length: 22 }, (_, index) => index);
 
 export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: CheckInRoleCounts }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -269,18 +270,25 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       if (!context) return;
       const now = context.currentTime;
       const master = context.createGain();
+      const filter = context.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(type === "success" ? 4200 : 1800, now);
+      filter.Q.setValueAtTime(0.7, now);
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(type === "success" ? 0.18 : 0.14, now + 0.012);
-      master.gain.exponentialRampToValueAtTime(0.0001, now + (type === "success" ? 0.42 : 0.28));
-      master.connect(context.destination);
+      master.gain.exponentialRampToValueAtTime(type === "success" ? 0.16 : 0.13, now + 0.018);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + (type === "success" ? 0.62 : 0.46));
+      master.connect(filter);
+      filter.connect(context.destination);
 
-      const playTone = (frequency: number, start: number, duration: number, wave: OscillatorType = "sine") => {
+      const playTone = (frequency: number, start: number, duration: number, wave: OscillatorType = "sine", glideTo?: number) => {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
         oscillator.type = wave;
         oscillator.frequency.setValueAtTime(frequency, start);
+        if (glideTo) oscillator.frequency.exponentialRampToValueAtTime(glideTo, start + duration * 0.82);
         gain.gain.setValueAtTime(0.0001, start);
-        gain.gain.exponentialRampToValueAtTime(1, start + 0.018);
+        gain.gain.exponentialRampToValueAtTime(1, start + 0.022);
+        gain.gain.exponentialRampToValueAtTime(0.42, start + duration * 0.38);
         gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
         oscillator.connect(gain);
         gain.connect(master);
@@ -289,11 +297,14 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       };
 
       if (type === "success") {
-        playTone(740, now, 0.16);
-        playTone(1046, now + 0.13, 0.24);
+        playTone(587.33, now, 0.22, "sine");
+        playTone(783.99, now + 0.08, 0.24, "triangle");
+        playTone(1174.66, now + 0.18, 0.34, "sine");
+        playTone(1567.98, now + 0.21, 0.24, "sine");
       } else {
-        playTone(220, now, 0.2, "triangle");
-        playTone(164, now + 0.08, 0.18, "triangle");
+        playTone(392, now, 0.18, "triangle", 349.23);
+        playTone(293.66, now + 0.12, 0.22, "triangle", 246.94);
+        playTone(196, now + 0.22, 0.18, "sine", 174.61);
       }
     } catch {
       return;
@@ -384,6 +395,9 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
     {result && <div className={["scan-result-modal", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
+      {resultFeaturedClass && <div className="scan-prosperity-field" aria-hidden="true">
+        {prosperityParticles.map((particle) => <span key={particle} />)}
+      </div>}
       <div className={["scan-success-hero", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="status" aria-live="polite">
         <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
         <div className="scan-success-heading">
