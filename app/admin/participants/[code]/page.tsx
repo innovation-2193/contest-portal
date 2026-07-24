@@ -77,8 +77,8 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
                 <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
                 <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
                 <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
-                <label>กองบังคับการ<input name="division" defaultValue={item.division} required/></label>
-                <label>กองบัญชาการ<input name="bureau" defaultValue={item.bureau} required/></label>
+                <label>สังกัด / กองบังคับการ<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ" required/></label>
+                <label>กองบัญชาการ / ชื่อหน่วยงาน<input name="bureau" defaultValue={item.bureau} placeholder="สำหรับ Exhibitor ใส่ชื่อหน่วยงานที่ออกบูธ" required/></label>
                 <label>สถานะ<select name="status" defaultValue={item.status}>{participantStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
               </div>
               <button className="primary" type="submit"><Pencil/>บันทึกข้อมูลผู้เข้าร่วมงาน</button>

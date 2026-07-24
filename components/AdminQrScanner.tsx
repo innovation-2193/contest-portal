@@ -7,7 +7,7 @@ import jsQR from "jsqr";
 type ScanResult = {
   registrationCode: string;
   name: string;
-  participantRole: "VIP" | "Guest" | "Exhibitor";
+  participantRole: "VIP" | "Guest" | "Exhibitor" | "Competitor";
   phone: string;
   position: string;
   division: string;

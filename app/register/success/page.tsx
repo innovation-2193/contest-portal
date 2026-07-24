@@ -107,6 +107,7 @@ function roleLabel(role?: string | null) {
   const normalized = role?.trim().toLowerCase();
   if (normalized === "vip") return "VIP";
   if (normalized === "exhibitor") return "Exhibitor";
+  if (normalized === "competitor") return "Competitor";
   return "Guest";
 }
 

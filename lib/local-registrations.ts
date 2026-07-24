@@ -17,7 +17,7 @@ export type RegistrationInput = {
 };
 
 export type RegistrationStatus = "registered" | "attended" | "cancelled";
-export type ParticipantRole = "VIP" | "Guest" | "Exhibitor";
+export type ParticipantRole = "VIP" | "Guest" | "Exhibitor" | "Competitor";
 
 export type RegistrationRecord = {
   registration_code: string;
@@ -68,7 +68,7 @@ const schemaFallbackCodes = new Set([
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const storePath = path.join(storageDir, "dev-registrations.json");
 export const defaultParticipantRole: ParticipantRole = "Guest";
-export const participantRoles = ["VIP", "Guest", "Exhibitor"] as const;
+export const participantRoles = ["VIP", "Guest", "Exhibitor", "Competitor"] as const;
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
