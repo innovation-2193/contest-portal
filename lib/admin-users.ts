@@ -31,7 +31,8 @@ export type AdminAccountInput = {
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const adminUsersPath = path.join(storageDir, "admin-users.json");
-const resetTokenMaxAgeMs = 24 * 60 * 60 * 1000;
+const resetTokenMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
+const resetTokenExpiryLabel = "7 วัน";
 const resetTokenHashPrefix = "sha256:";
 
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -132,8 +133,8 @@ export async function createAdminPasswordLink(id: string) {
   await sendAdminMail({
     to: account.email,
     subject: "ลิงก์ตั้งรหัสผ่านผู้ดูแลระบบ",
-    text: `กรุณาตั้งรหัสผ่านผู้ดูแลระบบที่ลิงก์นี้: ${url}\nลิงก์หมดอายุภายใน 24 ชั่วโมง`,
-    html: `<p>กรุณาตั้งรหัสผ่านผู้ดูแลระบบจากปุ่มด้านล่าง</p><p><a href="${escapeHtml(url)}" style="display:inline-block;background:#123c73;color:#ffffff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">ตั้งรหัสผ่าน</a></p><p>ลิงก์หมดอายุภายใน 24 ชั่วโมง</p>`,
+    text: `กรุณาตั้งรหัสผ่านผู้ดูแลระบบที่ลิงก์นี้: ${url}\nลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel} นับจากเวลาที่ได้รับอีเมล`,
+    html: `<p>กรุณาตั้งรหัสผ่านผู้ดูแลระบบจากปุ่มด้านล่าง</p><p><a href="${escapeHtml(url)}" style="display:inline-block;background:#123c73;color:#ffffff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">ตั้งรหัสผ่าน</a></p><p><strong>ลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel}</strong> นับจากเวลาที่ได้รับอีเมล</p>`,
     outboxKey: `admin-password-${account.email}-${Date.now()}`,
   });
   return { account, url, expiresAt };

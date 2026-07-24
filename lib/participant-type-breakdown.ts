@@ -1,6 +1,6 @@
 import type { RegistrationRecord } from "./local-registrations";
 
-export type ParticipantTypeKey = "police" | "companyExhibitor" | "educationExhibitor";
+export type ParticipantTypeKey = "guest" | "vip" | "competitor" | "companyExhibitor" | "educationExhibitor";
 
 export type ParticipantTypePerson = {
   registrationCode: string;
@@ -34,7 +34,9 @@ const educationKeywords = [
 
 export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]): ParticipantTypeGroup[] {
   const groups: ParticipantTypeGroup[] = [
-    { key: "police", label: "ตำรวจ", detail: "ผู้เข้าร่วมจากหน่วยงานตำรวจและผู้สมัครประกวด", people: [] },
+    { key: "guest", label: "Guest", detail: "ผู้เข้าร่วมทั่วไปจากหน่วยงานตำรวจ", people: [] },
+    { key: "vip", label: "VIP", detail: "ผู้เข้าร่วมระดับ VIP และแขกสำคัญ", people: [] },
+    { key: "competitor", label: "Competitor", detail: "ผู้สมัครหรือผู้ส่งผลงานเข้าประกวด", people: [] },
     { key: "companyExhibitor", label: "ผู้จัดแสดงผลงาน (บริษัท)", detail: "Exhibitor จากบริษัทหรือองค์กรเอกชน", people: [] },
     { key: "educationExhibitor", label: "ผู้จัดแสดงผลงาน (ส่วนการศึกษา)", detail: "Exhibitor จากสถาบันหรือหน่วยงานด้านการศึกษา", people: [] },
   ];
@@ -55,11 +57,15 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
 }
 
 function participantTypeKey(participant: RegistrationRecord): ParticipantTypeKey {
-  if (participant.participant_role !== "Exhibitor") return "police";
-  const orgText = `${participant.division} ${participant.bureau}`.toLowerCase();
-  return educationKeywords.some((keyword) => orgText.includes(keyword.toLowerCase()))
-    ? "educationExhibitor"
-    : "companyExhibitor";
+  if (participant.participant_role === "Exhibitor") {
+    const orgText = `${participant.division} ${participant.bureau}`.toLowerCase();
+    return educationKeywords.some((keyword) => orgText.includes(keyword.toLowerCase()))
+      ? "educationExhibitor"
+      : "companyExhibitor";
+  }
+  if (participant.participant_role === "VIP") return "vip";
+  if (participant.participant_role === "Competitor") return "competitor";
+  return "guest";
 }
 
 function compactParticipantOrg(participant: RegistrationRecord) {

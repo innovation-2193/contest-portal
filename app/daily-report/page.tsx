@@ -275,7 +275,7 @@ export default async function DailyReportPage() {
 function ParticipantTypeCard({ group }: { group: ParticipantTypeGroup }) {
   return <article className={`report-participant-card ${group.key}`}>
     <div className="report-participant-card-head">
-      {group.key === "police" ? <ShieldCheck/> : group.key === "educationExhibitor" ? <GraduationCap/> : <Building2/>}
+      {participantTypeIcon(group.key)}
       <div>
         <span>{group.label}</span>
         <b>{group.people.length.toLocaleString("th-TH")} คน</b>
@@ -290,6 +290,14 @@ function ParticipantTypeCard({ group }: { group: ParticipantTypeGroup }) {
       </div>) : <em>ยังไม่มีข้อมูลในกลุ่มนี้</em>}
     </div>
   </article>;
+}
+
+function participantTypeIcon(key: ParticipantTypeGroup["key"]) {
+  if (key === "vip") return <ShieldCheck/>;
+  if (key === "competitor") return <Trophy/>;
+  if (key === "educationExhibitor") return <GraduationCap/>;
+  if (key === "companyExhibitor") return <Building2/>;
+  return <Users/>;
 }
 
 function OrgSectionOverview({ summary }: { summary: OrgSectionSummary }) {

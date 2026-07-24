@@ -87,9 +87,9 @@ async function dailyReportPdf(
   ], margin, y, contentWidth);
 
   y += 128;
-  drawParticipantTypeSummary(doc, participantTypeBreakdown, margin, y, contentWidth);
+  const participantSummaryHeight = drawParticipantTypeSummary(doc, participantTypeBreakdown, margin, y, contentWidth);
 
-  y += 116;
+  y += participantSummaryHeight + 22;
   if (y + 226 > height - 44) {
     doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
     drawPageChrome(doc);
@@ -200,11 +200,14 @@ function drawParticipantTypeSummary(
   });
 
   const gap = 10;
-  const cardY = y + 28;
+  const cardTop = y + 28;
+  const cardHeight = 76;
+  const columns = 3;
   const cardWidth = (width - gap * 2) / 3;
   groups.forEach((group, index) => {
-    const cardX = x + (cardWidth + gap) * index;
-    const color = group.key === "companyExhibitor" ? PDF_THEME.gold : group.key === "educationExhibitor" ? PDF_THEME.blue : PDF_THEME.green;
+    const cardX = x + (cardWidth + gap) * (index % columns);
+    const cardY = cardTop + (cardHeight + gap) * Math.floor(index / columns);
+    const color = participantTypeColor(group.key);
     doc.roundedRect(cardX, cardY, cardWidth, 76, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
     doc.rect(cardX, cardY, cardWidth, 5).fill(color);
     doc.font(pdfFontBold).fontSize(10).fillColor(PDF_THEME.muted).text(group.label, cardX + 12, cardY + 16, {
@@ -223,6 +226,7 @@ function drawParticipantTypeSummary(
       { width: cardWidth - 96, height: 30, ellipsis: true },
     );
   });
+  return 28 + Math.ceil(groups.length / columns) * cardHeight + Math.max(0, Math.ceil(groups.length / columns) - 1) * gap;
 }
 
 function drawVisitChart(
@@ -410,6 +414,12 @@ function summarizePeople(names: string[]) {
   const visible = names.slice(0, 3).join(", ");
   const remaining = names.length - 3;
   return remaining > 0 ? `${visible} และอีก ${remaining.toLocaleString("th-TH")} คน` : visible;
+}
+
+function participantTypeColor(key: ParticipantTypeGroup["key"]) {
+  if (key === "vip" || key === "competitor" || key === "companyExhibitor") return PDF_THEME.gold;
+  if (key === "educationExhibitor") return PDF_THEME.blue;
+  return PDF_THEME.green;
 }
 
 function buildStatusStats(submissions: SubmissionListItem[]) {

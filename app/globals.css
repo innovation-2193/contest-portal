@@ -6984,7 +6984,7 @@ body:has(.report-page) .brand b {
 
 .report-participant-breakdown {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
   gap: 14px;
 }
 
@@ -7005,6 +7005,22 @@ body:has(.report-page) .brand b {
   border-color: rgba(223, 186, 51, 0.38);
 }
 
+.report-participant-card.vip {
+  border-color: rgba(223, 186, 51, 0.5);
+  background:
+    radial-gradient(circle at left top, rgba(223, 186, 51, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(7, 22, 50, 0.72), rgba(1, 9, 22, 0.68)),
+    rgba(1, 9, 22, 0.44);
+}
+
+.report-participant-card.guest {
+  border-color: rgba(118, 214, 202, 0.32);
+}
+
+.report-participant-card.competitor {
+  border-color: rgba(123, 220, 255, 0.44);
+}
+
 .report-participant-card.educationExhibitor {
   border-color: rgba(118, 214, 202, 0.38);
 }
@@ -7023,6 +7039,11 @@ body:has(.report-page) .brand b {
 }
 
 .report-participant-card.companyExhibitor .report-participant-card-head svg {
+  color: var(--gold);
+}
+
+.report-participant-card.vip .report-participant-card-head svg,
+.report-participant-card.competitor .report-participant-card-head svg {
   color: var(--gold);
 }
 
@@ -7055,7 +7076,31 @@ body:has(.report-page) .brand b {
   gap: 8px;
   max-height: 300px;
   overflow: auto;
-  padding-right: 2px;
+  padding-right: 8px;
+  scrollbar-color: rgba(118, 214, 202, 0.7) rgba(12, 26, 50, 0.72);
+  scrollbar-width: thin;
+}
+
+.report-participant-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.report-participant-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(4, 15, 34, 0.72), rgba(12, 26, 50, 0.72));
+}
+
+.report-participant-list::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(4, 15, 34, 0.82);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(223, 186, 51, 0.96), rgba(118, 214, 202, 0.9));
+}
+
+.report-participant-list::-webkit-scrollbar-thumb:hover {
+  background:
+    linear-gradient(180deg, #ffe08a, #7fdcff);
 }
 
 .report-participant-list div,
