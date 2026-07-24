@@ -2,11 +2,11 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { ArrowLeft, Eye, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
-import { assignSubmissionReviewer, listSubmissions } from "../../../lib/admin-store";
+import { assignSubmissionReviewer, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
 
@@ -65,7 +65,14 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           <td>{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins}/> : item.review_assigned_admin_email || "-"}</td>
           <td><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
           <td>{reviewStatus(item)}</td>
-          <td><div className="table-action-stack"><Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link><a className="primary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a></div></td>
+          <td><div className="table-action-stack">
+            {isSuperAdmin && <form action={registerSubmissionParticipantAction}>
+              <input type="hidden" name="submissionCode" value={item.submission_code}/>
+              <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>
+            </form>}
+            <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link>
+            <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a>
+          </div></td>
         </tr>) : <tr><td colSpan={7}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         <Pagination basePath="/admin/submissions" q={q} page={currentPage} totalPages={totalPages}/>
       </section>
@@ -105,6 +112,34 @@ async function assignSubmissionAction(formData: FormData) {
   revalidatePath("/admin/submissions");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticePath("/admin/submissions", "assignment_saved"));
+}
+
+async function registerSubmissionParticipantAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || session.role !== "super_admin") redirect("/admin");
+  const requestHeaders = await headers();
+  const submissionCode = String(formData.get("submissionCode") ?? "").trim();
+  if (!submissionCode) throw new Error("กรุณาเลือกใบสมัครประกวด");
+  const result = await registerSubmissionAsParticipant(submissionCode);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.created",
+    entityType: "registration",
+    entityId: result.record.registration_code,
+    summary: `${result.created ? "ลงทะเบียน" : "อัปเดตทะเบียน"}ผู้สมัครประกวด ${submissionCode} เป็น ${result.record.registration_code}`,
+    payload: {
+      submissionCode,
+      registrationCode: result.record.registration_code,
+      emailStatus: result.emailStatus,
+      created: result.created,
+    },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  revalidatePath("/daily-report");
+  redirect(adminNoticePath("/admin/submissions", "competitor_registered"));
 }
 
 function Pagination({ basePath, q, page, totalPages }: { basePath: string; q: string; page: number; totalPages: number }) {

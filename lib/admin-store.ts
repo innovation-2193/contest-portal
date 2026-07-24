@@ -1,10 +1,12 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
+import { code } from "./codes";
 import { db, transaction } from "./db";
 import { ensureDatabaseSchema } from "./db-schema";
 import {
   checkInLocalRegistration,
+  createLocalRegistration,
   deleteLocalRegistration,
   normalizeParticipantRole,
   isDatabaseSchemaFallback,
@@ -15,6 +17,7 @@ import {
   type RegistrationStatus,
   type RegistrationUpdateInput,
 } from "./local-registrations";
+import { sendRegistrationConfirmation } from "./registration-artifacts";
 import {
   deleteLocalSubmission,
   findLocalSubmissionByCode,
@@ -123,6 +126,15 @@ export type AdminSubmissionDetail = SubmissionListItem & {
   video_url: string | null;
   members: SubmissionMemberDetail[];
   files: SubmissionFileDetail[];
+};
+
+export type TeamMemberCheckInRecord = {
+  registrationCode: string;
+  name: string;
+  participantRole: RegistrationRecord["participant_role"];
+  status: RegistrationStatus;
+  checkedInAt?: string | null;
+  wasAlreadyCheckedIn: boolean;
 };
 
 export type AdminSubmissionFile = SubmissionFileDetail & {
@@ -279,6 +291,120 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
   }
 }
 
+export async function registerSubmissionAsParticipant(submissionCode: string) {
+  const submission = await getSubmissionDetail(submissionCode);
+  if (!submission) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+  const member = submission.members[0];
+  if (!member) throw Object.assign(new Error("submission member not found"), { code: "NOT_FOUND" });
+
+  const input = {
+    email: (member.email || submission.email).trim().toLowerCase(),
+    provider: "local" as const,
+    participantRole: "Competitor" as const,
+    title: member.title,
+    firstName: member.first_name,
+    lastName: member.last_name,
+    citizenId: member.citizen_id,
+    phone: member.phone,
+    position: member.position,
+    division: member.division,
+    bureau: member.bureau,
+  };
+
+  let record: RegistrationRecord;
+  let created = false;
+  try {
+    await ensureDatabaseSchema();
+    const result = await transaction(async (connection) => {
+      const [existingRows] = await connection.execute(
+        "SELECT r.registration_code,r.user_id FROM registrations r WHERE r.citizen_id=? LIMIT 1",
+        [input.citizenId],
+      );
+      const existing = (existingRows as Array<{ registration_code: string; user_id: string }>)[0];
+      if (existing) {
+        await connection.execute(
+          "UPDATE users SET email=?,provider=?,display_name=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=?",
+          [input.email, input.provider, `${input.firstName} ${input.lastName}`, existing.user_id],
+        );
+        await connection.execute(
+          "UPDATE registrations SET participant_role='Competitor',title=?,first_name=?,last_name=?,phone=?,position=?,division=?,bureau=?,status=CASE WHEN status='cancelled' THEN 'registered' ELSE status END WHERE registration_code=?",
+          [input.title, input.firstName, input.lastName, input.phone, input.position, input.division, input.bureau, existing.registration_code],
+        );
+        return { registrationCode: existing.registration_code, created: false };
+      }
+
+      let registrationCode = code("REG");
+      let collision = true;
+      while (collision) {
+        const [codeRows] = await connection.execute("SELECT registration_code FROM registrations WHERE registration_code=? LIMIT 1", [registrationCode]);
+        collision = (codeRows as Array<{ registration_code: string }>).length > 0;
+        if (collision) registrationCode = code("REG");
+      }
+
+      const userId = randomUUID();
+      const registrationId = randomUUID();
+      await connection.execute(
+        "INSERT INTO users(id,email,provider,display_name) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),updated_at=CURRENT_TIMESTAMP(3)",
+        [userId, input.email, input.provider, `${input.firstName} ${input.lastName}`],
+      );
+      const [users] = await connection.execute("SELECT id FROM users WHERE email=? LIMIT 1", [input.email]);
+      const actualUserId = (users as Array<{ id: string }>)[0].id;
+      await connection.execute(
+        "INSERT INTO registrations(id,registration_code,user_id,participant_role,title,first_name,last_name,citizen_id,phone,position,division,bureau,consent_pdpa) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [registrationId, registrationCode, actualUserId, "Competitor", input.title, input.firstName, input.lastName, input.citizenId, input.phone, input.position, input.division, input.bureau, true],
+      );
+      return { registrationCode, created: true };
+    });
+    const found = await findRegisteredParticipantRecord(result.registrationCode);
+    if (!found) throw Object.assign(new Error("registration not found"), { code: "NOT_FOUND" });
+    record = found;
+    created = result.created;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const local = await registerLocalSubmissionParticipant(input);
+    record = local.record;
+    created = local.created;
+  }
+
+  const email = await sendRegistrationConfirmation(record);
+  return { record, created, emailStatus: email.status };
+}
+
+async function findRegisteredParticipantRecord(registrationCode: string) {
+  const [rows] = await db.execute(
+    "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
+    [registrationCode],
+  );
+  const record = (rows as RegistrationRecord[])[0];
+  return record ? { ...record, participant_role: normalizeParticipantRole(record.participant_role) } : null;
+}
+
+async function registerLocalSubmissionParticipant(input: {
+  email: string;
+  provider: "local";
+  participantRole: "Competitor";
+  title: string;
+  firstName: string;
+  lastName: string;
+  citizenId: string;
+  phone: string;
+  position: string;
+  division: string;
+  bureau: string;
+}) {
+  const existing = (await listLocalRegistrations()).find((item) => item.citizen_id === input.citizenId);
+  if (existing) {
+    const record = await updateLocalRegistration({
+      ...input,
+      registrationCode: existing.registration_code,
+      status: existing.status === "cancelled" ? "registered" : existing.status,
+    });
+    return { record, created: false };
+  }
+  const result = await createLocalRegistration(input);
+  return { record: result.record, created: true };
+}
+
 function searchLocalParticipantRecords(records: RegistrationRecord[], query: string, limit: number) {
   return records
     .filter((item) => [
@@ -332,7 +458,7 @@ export async function checkInParticipant(registrationCode: string, checkedInByEm
       "UPDATE registrations SET status='attended',checked_in_at=COALESCE(checked_in_at,CURRENT_TIMESTAMP(3)),checked_in_by_email=COALESCE(checked_in_by_email,?) WHERE registration_code=?",
       [checkedInByEmail?.trim().toLowerCase() || null, registrationCode.trim()],
     );
-    return {
+    const checkedRecord = {
       ...record,
       participant_role: normalizeParticipantRole(record.participant_role),
       status: "attended" as RegistrationStatus,
@@ -340,10 +466,173 @@ export async function checkInParticipant(registrationCode: string, checkedInByEm
       checked_in_by_email: record.checked_in_by_email ?? checkedInByEmail ?? null,
       wasAlreadyCheckedIn,
     };
+    const teamCheckIn = await autoCheckInSubmissionTeamMembers(checkedRecord, checkedInByEmail);
+    return {
+      ...checkedRecord,
+      teamCheckIns: teamCheckIn.members,
+      teamSubmissionCode: teamCheckIn.submissionCode,
+      teamName: teamCheckIn.teamName,
+    };
   } catch (error) {
-    if (!isDatabaseUnavailable(error)) throw error;
-    return checkInLocalRegistration(registrationCode, checkedInByEmail);
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const checkedRecord = await checkInLocalRegistration(registrationCode, checkedInByEmail);
+    const teamCheckIn = await autoCheckInLocalSubmissionTeamMembers(checkedRecord, checkedInByEmail);
+    return {
+      ...checkedRecord,
+      teamCheckIns: teamCheckIn.members,
+      teamSubmissionCode: teamCheckIn.submissionCode,
+      teamName: teamCheckIn.teamName,
+    };
   }
+}
+
+async function autoCheckInSubmissionTeamMembers(
+  record: RegistrationRecord & { wasAlreadyCheckedIn?: boolean },
+  checkedInByEmail?: string | null,
+) {
+  const empty = { members: [] as TeamMemberCheckInRecord[], submissionCode: undefined as string | undefined, teamName: undefined as string | null | undefined };
+  const [submissionRows] = await db.execute(
+    `SELECT s.id,s.submission_code,s.submission_type,s.team_name,u.email
+     FROM submissions s
+     JOIN users u ON u.id=s.user_id
+     JOIN submission_members m ON m.submission_id=s.id
+     WHERE m.citizen_id=?
+     ORDER BY s.submitted_at DESC
+     LIMIT 1`,
+    [record.citizen_id],
+  );
+  const submission = (submissionRows as Array<{ id: string; submission_code: string; submission_type: string; team_name: string | null; email: string }>)[0];
+  if (!submission || submission.submission_type !== "team") return empty;
+
+  const [memberRows] = await db.execute(
+    "SELECT member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau FROM submission_members WHERE submission_id=? ORDER BY member_order ASC",
+    [submission.id],
+  );
+  const members = (memberRows as SubmissionMemberDetail[])
+    .filter((member) => member.citizen_id && member.citizen_id !== record.citizen_id);
+  if (!members.length) return { ...empty, submissionCode: submission.submission_code, teamName: submission.team_name };
+
+  const checkedInBy = checkedInByEmail?.trim().toLowerCase() || null;
+  const fallbackEmail = submission.email.trim().toLowerCase();
+  const checked = await transaction(async (connection) => {
+    const results: Array<{ registrationCode: string; wasAlreadyCheckedIn: boolean }> = [];
+    const seenCitizenIds = new Set<string>();
+    for (const member of members) {
+      if (seenCitizenIds.has(member.citizen_id)) continue;
+      seenCitizenIds.add(member.citizen_id);
+
+      const [existingRows] = await connection.execute(
+        "SELECT registration_code,checked_in_at FROM registrations WHERE citizen_id=? LIMIT 1",
+        [member.citizen_id],
+      );
+      const existing = (existingRows as Array<{ registration_code: string; checked_in_at: string | Date | null }>)[0];
+      if (existing) {
+        const wasAlreadyCheckedIn = Boolean(existing.checked_in_at);
+        await connection.execute(
+          "UPDATE registrations SET participant_role='Competitor',title=?,first_name=?,last_name=?,phone=?,position=?,division=?,bureau=?,status='attended',checked_in_at=COALESCE(checked_in_at,CURRENT_TIMESTAMP(3)),checked_in_by_email=COALESCE(checked_in_by_email,?) WHERE registration_code=?",
+          [member.title, member.first_name, member.last_name, member.phone, member.position, member.division, member.bureau, checkedInBy, existing.registration_code],
+        );
+        results.push({ registrationCode: existing.registration_code, wasAlreadyCheckedIn });
+        continue;
+      }
+
+      let registrationCode = code("REG");
+      let collision = true;
+      while (collision) {
+        const [codeRows] = await connection.execute("SELECT registration_code FROM registrations WHERE registration_code=? LIMIT 1", [registrationCode]);
+        collision = (codeRows as Array<{ registration_code: string }>).length > 0;
+        if (collision) registrationCode = code("REG");
+      }
+
+      const memberEmail = member.email.trim().toLowerCase() || fallbackEmail;
+      const userId = randomUUID();
+      const registrationId = randomUUID();
+      await connection.execute(
+        "INSERT INTO users(id,email,provider,display_name) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE updated_at=CURRENT_TIMESTAMP(3)",
+        [userId, memberEmail, "local", `${member.first_name} ${member.last_name}`],
+      );
+      const [users] = await connection.execute("SELECT id FROM users WHERE email=? LIMIT 1", [memberEmail]);
+      const actualUserId = (users as Array<{ id: string }>)[0].id;
+      await connection.execute(
+        "INSERT INTO registrations(id,registration_code,user_id,participant_role,title,first_name,last_name,citizen_id,phone,position,division,bureau,status,checked_in_at,checked_in_by_email,consent_pdpa) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP(3),?,?)",
+        [registrationId, registrationCode, actualUserId, "Competitor", member.title, member.first_name, member.last_name, member.citizen_id, member.phone, member.position, member.division, member.bureau, "attended", checkedInBy, true],
+      );
+      results.push({ registrationCode, wasAlreadyCheckedIn: false });
+    }
+    return results;
+  });
+
+  const records = await Promise.all(checked.map(async (item) => {
+    const checkedRecord = await findRegisteredParticipantRecord(item.registrationCode);
+    return checkedRecord ? teamMemberCheckInRecord(checkedRecord, item.wasAlreadyCheckedIn) : null;
+  }));
+
+  return {
+    submissionCode: submission.submission_code,
+    teamName: submission.team_name,
+    members: records.filter((item): item is TeamMemberCheckInRecord => Boolean(item)),
+  };
+}
+
+async function autoCheckInLocalSubmissionTeamMembers(
+  record: RegistrationRecord & { wasAlreadyCheckedIn?: boolean },
+  checkedInByEmail?: string | null,
+) {
+  const empty = { members: [] as TeamMemberCheckInRecord[], submissionCode: undefined as string | undefined, teamName: undefined as string | null | undefined };
+  const submissions = await listLocalSubmissions();
+  const submission = submissions.find((item) => item.submission_type === "team" && item.members.some((member) => member.citizen_id === record.citizen_id));
+  if (!submission) return empty;
+
+  const fallbackEmail = submission.email.trim().toLowerCase();
+  const checked: TeamMemberCheckInRecord[] = [];
+  const seenCitizenIds = new Set<string>();
+  for (const member of submission.members.filter((item) => item.citizen_id && item.citizen_id !== record.citizen_id)) {
+    if (seenCitizenIds.has(member.citizen_id)) continue;
+    seenCitizenIds.add(member.citizen_id);
+
+    const existing = (await listLocalRegistrations()).find((item) => item.citizen_id === member.citizen_id);
+    const input = {
+      email: member.email.trim().toLowerCase() || fallbackEmail,
+      provider: "local" as const,
+      participantRole: "Competitor" as const,
+      title: member.title,
+      firstName: member.first_name,
+      lastName: member.last_name,
+      citizenId: member.citizen_id,
+      phone: member.phone,
+      position: member.position,
+      division: member.division,
+      bureau: member.bureau,
+    };
+
+    const registrationCode = existing
+      ? existing.registration_code
+      : (await createLocalRegistration(input)).registrationCode;
+    if (existing && existing.status === "cancelled") {
+      await updateLocalRegistration({ ...input, registrationCode, status: "registered" });
+    } else if (existing && existing.participant_role !== "Competitor") {
+      await updateLocalRegistration({ ...input, registrationCode, status: existing.status });
+    }
+    const checkedRecord = await checkInLocalRegistration(registrationCode, checkedInByEmail);
+    checked.push(teamMemberCheckInRecord(checkedRecord, Boolean(checkedRecord.wasAlreadyCheckedIn)));
+  }
+
+  return {
+    submissionCode: submission.submission_code,
+    teamName: submission.team_name,
+    members: checked,
+  };
+}
+
+function teamMemberCheckInRecord(record: RegistrationRecord, wasAlreadyCheckedIn: boolean): TeamMemberCheckInRecord {
+  return {
+    registrationCode: record.registration_code,
+    name: `${record.title}${record.first_name} ${record.last_name}`,
+    participantRole: normalizeParticipantRole(record.participant_role),
+    status: record.status,
+    checkedInAt: record.checked_in_at,
+    wasAlreadyCheckedIn,
+  };
 }
 
 export async function listSubmissions(options?: { assignedAdminEmail?: string | null }): Promise<SubmissionListItem[]> {

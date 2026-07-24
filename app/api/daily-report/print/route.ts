@@ -56,8 +56,11 @@ async function dailyReportPdf(
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
-  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants);
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
+  const scoreBoardTopTen = [...scored]
+    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
+    .slice(0, 10);
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
   const teams = submissions.filter((item) => item.submission_type === "team");
   const recentSubmissions = submissions.slice(0, 10);
 

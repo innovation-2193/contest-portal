@@ -133,9 +133,12 @@ export default async function DailyReportPage() {
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
-  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants);
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
+  const scoreBoardTopTen = [...scored]
+    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
+    .slice(0, 10);
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
   const pendingReview = Math.max(0, submissions.length - scored.length);
   const qualified = submissions.filter((item) => item.status === "qualified");
   const rejected = submissions.filter((item) => item.status === "rejected");
@@ -286,7 +289,10 @@ function ParticipantTypeCard({ group }: { group: ParticipantTypeGroup }) {
       {group.people.length ? group.people.map((person) => <div key={person.registrationCode}>
         <b>{person.name}</b>
         <span>{person.organization}</span>
-        <small>{person.registrationCode} • {person.role} • {participantStatusLabel(person.status)}</small>
+        <span className="report-participant-meta">
+          <i className={`status-pill role-pill ${person.roleClassName}`}>{person.role}</i>
+          <small>{person.registrationCode} • {participantStatusLabel(person.status)}</small>
+        </span>
       </div>) : <em>ยังไม่มีข้อมูลในกลุ่มนี้</em>}
     </div>
   </article>;
@@ -297,6 +303,7 @@ function participantTypeIcon(key: ParticipantTypeGroup["key"]) {
   if (key === "competitor") return <Trophy/>;
   if (key === "educationExhibitor") return <GraduationCap/>;
   if (key === "companyExhibitor") return <Building2/>;
+  if (key === "policeAttendee") return <ShieldCheck/>;
   return <Users/>;
 }
 
@@ -645,6 +652,7 @@ function normalizeText(value: string) {
 }
 
 function participantStatusLabel(status: string) {
+  if (status === "scoreboard") return "อันดับ 1-10 Score Board";
   if (status === "attended") return "เช็คอินแล้ว";
   if (status === "cancelled") return "ยกเลิก";
   return "ลงทะเบียนแล้ว";

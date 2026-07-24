@@ -34,6 +34,9 @@ export async function POST(request: Request) {
         checkedInByEmail: record.checked_in_by_email ?? session.email,
         checkedInAt: record.checked_in_at,
         wasAlreadyCheckedIn: Boolean(record.wasAlreadyCheckedIn),
+        teamSubmissionCode: record.teamSubmissionCode,
+        teamCheckInCount: record.teamCheckIns?.length ?? 0,
+        teamCheckIns: record.teamCheckIns,
       },
     }, request.headers);
     return NextResponse.json({
@@ -48,6 +51,9 @@ export async function POST(request: Request) {
       checkedInAt: record.checked_in_at,
       checkedInByEmail: record.checked_in_by_email,
       wasAlreadyCheckedIn: Boolean(record.wasAlreadyCheckedIn),
+      teamSubmissionCode: record.teamSubmissionCode,
+      teamName: record.teamName,
+      teamCheckIns: record.teamCheckIns ?? [],
     });
   } catch (error) {
     const code = (error as { code?: string }).code;

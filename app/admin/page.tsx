@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
+import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../components/ParticipantRoleTabs";
 import {
   adminClientKey,
   adminCookieSecure,
@@ -29,6 +30,7 @@ import {
 } from "../../lib/admin-users";
 import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEventRecord } from "../../lib/audit-log";
 import { adminNoticePath } from "../../lib/admin-flash";
+import { participantRoleClass } from "../../lib/participant-role-style";
 import {
   addWinner,
   addNews,
@@ -40,6 +42,7 @@ import {
   listParticipants,
   listSubmissions,
   listWinners,
+  registerSubmissionAsParticipant,
   saveAdminSettings,
 } from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
@@ -57,7 +60,7 @@ const awardLabels: Record<string, string> = {
 type ParticipantSort = "newest" | "oldest";
 const dashboardLimit = 10;
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
@@ -68,11 +71,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const { settings, participants, submissions, winners, news, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
+  const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
   const adminSearch = (params.adminSearch ?? "").trim();
-  const filteredParticipantsAll = sortParticipants(filterRecords(participants, participantSearch, (item) => [
+  const searchedParticipants = filterRecords(participants, participantSearch, (item) => [
     item.registration_code,
     item.email,
     item.citizen_id,
@@ -85,7 +89,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     item.division,
     item.bureau,
     item.status,
-  ]), participantSort);
+  ]);
+  const filteredParticipantsAll = sortParticipants(
+    participantRole === "all"
+      ? searchedParticipants
+      : searchedParticipants.filter((item) => item.participant_role === participantRole),
+    participantSort,
+  );
+  const participantRoleCounts = buildParticipantRoleCounts(participants);
   const filteredSubmissionsAll = filterRecords(submissions, submissionSearch, (item) => [
     item.submission_code,
     item.email,
@@ -145,22 +156,27 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
     {isSuperAdmin && <section className="admin-panel">
-      <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>ใช้ “ผ่านเข้ารอบที่ 2” สำหรับรอบคัดเลือก และใช้รางวัลที่ 1-3/ชมเชย สำหรับรอบประกาศผลรางวัล</p></div></header>
+      <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการจากผลงานที่สมัครเข้ามา ลดการพิมพ์ชื่อผลงาน เจ้าของ และหน่วยงานเอง</p></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
-        <label>ประเภทรางวัล<select name="rank" defaultValue="honorable">{Object.entries(awardLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-        <label>ชื่อผลงาน<input name="projectTitle" placeholder="เช่น ระบบตรวจการณ์อัจฉริยะ" required/></label>
-        <label>เจ้าของผลงาน / ทีม<input name="ownerName" placeholder="ชื่อผู้สมัครหรือชื่อทีม" required/></label>
-        <label>หน่วยงาน<input name="division" placeholder="เช่น บก.สสท." required/></label>
+        <label>ประเภทรางวัล<select name="rank" defaultValue="1">
+          {["1", "2", "3", "honorable"].map((value)=><option key={value} value={value}>{awardLabels[value]}</option>)}
+        </select></label>
+        <label>เลือกผลงาน<select name="submissionCode" required>
+          <option value="">เลือกจากใบสมัครประกวด</option>
+          {submissions.map((submission)=><option key={submission.submission_code} value={submission.submission_code}>{submission.submission_code} • {submission.title_th} • {submission.first_name} {submission.last_name}{submission.review_total_score !== null && submission.review_total_score !== undefined ? ` • ${submission.review_total_score}/100` : ""}</option>)}
+        </select></label>
+        <label>หมายเหตุรางวัลชมเชย<input name="honorableNote" placeholder="เช่น ด้านความคิดสร้างสรรค์ / ด้านการนำไปใช้จริง"/></label>
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่</label>
         <button className="primary" type="submit">เพิ่มผู้ชนะ</button>
       </form>
-      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
+      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{winner.award || formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     <section className="admin-panel">
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>เปิดหน้าเช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
-      <ParticipantFilterBar search={participantSearch} sort={participantSort}/>
+      <ParticipantRoleTabs activeRole={participantRole} basePath="/admin" counts={participantRoleCounts} query={{ participantSearch, participantSort }}/>
+      <ParticipantFilterBar role={participantRole} search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
-      <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href="/admin/participants"/>
+      <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href={participantListHref(participantRole)}/>
     </section>
   </AdminShell>;
 }
@@ -435,7 +451,13 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
         <b>#{index + 1}</b>
         <div><strong>{submission.title_th}</strong><small>{submission.submission_code} • {submission.first_name} {submission.last_name}</small></div>
         <span>{submission.review_total_score}/100</span>
-        <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(submission.submission_code)}`}><Eye/>ดูคะแนน</Link>
+        <div className="scoreboard-actions">
+          <form action={registerSubmissionParticipantAction}>
+            <input type="hidden" name="submissionCode" value={submission.submission_code}/>
+            <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>
+          </form>
+          <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(submission.submission_code)}`}><Eye/>ดูคะแนน</Link>
+        </div>
       </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
     </div>
     <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
@@ -463,9 +485,10 @@ function SearchBox({ name, value, label, placeholder }: { name: string; value: s
   </form>;
 }
 
-function ParticipantFilterBar({ search, sort }: { search: string; sort: ParticipantSort }) {
+function ParticipantFilterBar({ role, search, sort }: { role: string; search: string; sort: ParticipantSort }) {
   return <form className="admin-search participant-filter-bar" action="/admin">
-    <label>ค้นหาผู้เข้าร่วมงาน<div><Search/><input name="participantSearch" defaultValue={search} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/><button className="secondary" type="submit">ค้นหา</button>{search && <Link className="ghost-action" href="/admin">ล้าง</Link>}</div></label>
+    {role !== "all" && <input type="hidden" name="participantRole" value={role}/>}
+    <label>ค้นหาผู้เข้าร่วมงาน<div><Search/><input name="participantSearch" defaultValue={search} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/><button className="secondary" type="submit">ค้นหา</button>{search && <Link className="ghost-action" href={adminParticipantHref(role)}>ล้าง</Link>}</div></label>
     <label>เรียงลำดับ<select name="participantSort" defaultValue={sort}>
       <option value="newest">ใหม่ไปเก่า</option>
       <option value="oldest">เก่าไปใหม่</option>
@@ -488,7 +511,7 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
     <div className="admin-table-wrap"><table className="admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
       <td><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
       <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
-      <td><span className="status-pill role-pill">{item.participant_role}</span></td>
+      <td><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
       <td>{item.email}<small>{item.phone}</small></td>
       <td>{item.position}</td>
       <td>{item.division}</td>
@@ -538,6 +561,16 @@ function CardMore({ total, shown, href }: { total: number; shown: number; href: 
     ? `แสดง ${shown.toLocaleString("th-TH")} จาก ${total.toLocaleString("th-TH")} รายการ`
     : `แสดง ${shown.toLocaleString("th-TH")} รายการทั้งหมด`;
   return <div className="card-more"><span>{label}</span><Link className="secondary" href={href}><Eye/>ดูทั้งหมด</Link></div>;
+}
+
+function participantListHref(role: string) {
+  if (role === "all") return "/admin/participants";
+  return `/admin/participants?participantRole=${encodeURIComponent(role)}`;
+}
+
+function adminParticipantHref(role: string) {
+  if (role === "all") return "/admin";
+  return `/admin?participantRole=${encodeURIComponent(role)}`;
 }
 
 async function requestOtpAction() {
@@ -658,25 +691,59 @@ async function addWinnerAction(formData: FormData) {
   const session = await requireSuperAdmin();
   const requestHeaders = await headers();
   const rank = String(formData.get("rank") ?? "honorable").trim();
-  const projectTitle = String(formData.get("projectTitle") ?? "").trim();
+  const submissionCode = String(formData.get("submissionCode") ?? "").trim();
+  const honorableNote = String(formData.get("honorableNote") ?? "").trim();
+  if (!["1", "2", "3", "honorable"].includes(rank)) throw new Error("ประเภทรางวัลไม่ถูกต้อง");
+  const submission = (await listSubmissions()).find((item) => item.submission_code === submissionCode);
+  if (!submission) throw new Error("ไม่พบผลงานที่เลือก");
+  const award = rank === "honorable" && honorableNote ? `${formatAward(rank)}: ${honorableNote}` : formatAward(rank);
+  const ownerName = submission.submission_type === "team" && submission.team_name
+    ? `ทีม ${submission.team_name}`
+    : `${submission.first_name} ${submission.last_name}`.trim();
+  const division = [submission.division, submission.bureau].map((item) => item?.trim()).filter(Boolean).join(" / ");
   await addWinner({
     rank,
-    award: formatAward(rank),
-    projectTitle,
-    ownerName: String(formData.get("ownerName") ?? "").trim(),
-    division: String(formData.get("division") ?? "").trim(),
+    award,
+    projectTitle: submission.title_th,
+    ownerName,
+    division,
     published: formData.get("published") === "on",
   });
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "winner.created",
     entityType: "winner",
-    summary: `เพิ่มประกาศผลการแข่งขัน ${projectTitle || "-"}`,
-    payload: { rank },
+    summary: `เพิ่มประกาศผลการแข่งขัน ${submission.title_th}`,
+    payload: { rank, submissionCode, honorableNote },
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect(adminNoticePath("/admin", "winner_added"));
+}
+
+async function registerSubmissionParticipantAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const submissionCode = String(formData.get("submissionCode") ?? "").trim();
+  if (!submissionCode) throw new Error("กรุณาเลือกใบสมัครประกวด");
+  const result = await registerSubmissionAsParticipant(submissionCode);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.created",
+    entityType: "registration",
+    entityId: result.record.registration_code,
+    summary: `${result.created ? "ลงทะเบียน" : "อัปเดตทะเบียน"}ผู้สมัครประกวด ${submissionCode} เป็น ${result.record.registration_code}`,
+    payload: {
+      submissionCode,
+      registrationCode: result.record.registration_code,
+      emailStatus: result.emailStatus,
+      created: result.created,
+    },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath("/daily-report");
+  redirect(adminNoticePath("/admin", "competitor_registered"));
 }
 
 async function deleteWinnerAction(formData: FormData) {

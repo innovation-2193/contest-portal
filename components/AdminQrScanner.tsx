@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, Search, UserCheck, X, XCircle } from "lucide-react";
 import jsQR from "jsqr";
+import { isFeaturedCheckInRole, participantRoleClass } from "../lib/participant-role-style";
 
 type ScanResult = {
   registrationCode: string;
@@ -16,6 +17,18 @@ type ScanResult = {
   checkedInAt?: string | null;
   checkedInByEmail?: string | null;
   wasAlreadyCheckedIn?: boolean;
+  teamSubmissionCode?: string;
+  teamName?: string | null;
+  teamCheckIns?: TeamCheckInResult[];
+};
+
+type TeamCheckInResult = {
+  registrationCode: string;
+  name: string;
+  participantRole: "VIP" | "Guest" | "Exhibitor" | "Competitor";
+  status: string;
+  checkedInAt?: string | null;
+  wasAlreadyCheckedIn: boolean;
 };
 
 type ParticipantSearchResult = Omit<ScanResult, "checkedInByEmail" | "wasAlreadyCheckedIn">;
@@ -185,8 +198,11 @@ export function AdminQrScanner() {
       }
       setResult(data);
       setManualCode(data.registrationCode);
+      const autoCheckedCodes = new Map((data.teamCheckIns ?? []).map((item) => [item.registrationCode, item]));
       setSearchResults((items) => items.map((item) => item.registrationCode === data.registrationCode
         ? { ...item, status: data.status, checkedInAt: data.checkedInAt }
+        : autoCheckedCodes.has(item.registrationCode)
+          ? { ...item, status: "attended", checkedInAt: autoCheckedCodes.get(item.registrationCode)?.checkedInAt }
         : item));
     } catch (scanError) {
       const message = scanError instanceof TypeError
@@ -210,12 +226,15 @@ export function AdminQrScanner() {
     }
   }
 
+  const resultRoleClass = participantRoleClass(result?.participantRole);
+  const resultFeaturedClass = isFeaturedCheckInRole(result?.participantRole) ? "featured-role" : "";
+
   return <div className="scanner-shell">
-    <section className={result ? "scanner-camera checked-in" : "scanner-camera"}>
+    <section className={["scanner-camera", result ? "checked-in" : "", result ? resultRoleClass : "", result ? resultFeaturedClass : ""].filter(Boolean).join(" ")}>
       <video ref={videoRef} playsInline muted />
       <canvas ref={canvasRef} hidden />
       <div className="scanner-frame"><span/><span/><span/><span/></div>
-      {result && <div className={result.wasAlreadyCheckedIn ? "scanner-success-overlay already" : "scanner-success-overlay"}>
+      {result && <div className={["scanner-success-overlay", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")}>
         {result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}
         <b>{result.wasAlreadyCheckedIn ? "เช็คอินแล้ว" : "เช็คอินสำเร็จ"}</b>
         <span>{result.registrationCode}</span>
@@ -251,10 +270,12 @@ export function AdminQrScanner() {
           {searchResults.map((item) => {
             const cancelled = item.status === "cancelled";
             const attended = item.status === "attended";
-            return <article key={item.registrationCode} className={attended ? "scanner-search-item attended" : cancelled ? "scanner-search-item cancelled" : "scanner-search-item"}>
+            const roleClass = participantRoleClass(item.participantRole);
+            return <article key={item.registrationCode} className={["scanner-search-item", attended ? "attended" : "", cancelled ? "cancelled" : "", roleClass].filter(Boolean).join(" ")}>
               <div>
                 <b>{item.name}</b>
-                <span>{item.registrationCode} • {item.participantRole}</span>
+                <span>{item.registrationCode}</span>
+                <i className={`status-pill role-pill ${roleClass}`}>{item.participantRole}</i>
                 <small>{[item.position, item.division, item.bureau].filter(Boolean).join(" / ") || "-"}</small>
               </div>
               <em>{statusLabel(item.status)}</em>
@@ -272,7 +293,7 @@ export function AdminQrScanner() {
       {error && <div className="scan-result error"><XCircle/><div><b>ไม่สามารถเช็คอินได้</b><p>{error}</p></div></div>}
     </section>
     {result && <div className="scan-result-modal" role="dialog" aria-modal="true" aria-labelledby="scan-result-title">
-      <div className={result.wasAlreadyCheckedIn ? "scan-success-hero already" : "scan-success-hero"} role="status" aria-live="polite">
+      <div className={["scan-success-hero", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="status" aria-live="polite">
         <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
         <div className="scan-success-heading">
           <div className="scan-success-mark">{result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}</div>
@@ -282,7 +303,26 @@ export function AdminQrScanner() {
             <p>{result.wasAlreadyCheckedIn ? "ระบบพบว่าผู้เข้าร่วมงานได้เช็คอินก่อนหน้านี้" : "บันทึกสถานะเข้าร่วมงานเรียบร้อยแล้ว"}</p>
           </div>
         </div>
-        <div className="scan-role-band"><span>ระดับผู้เข้าร่วมงาน</span><b>{result.participantRole?.toUpperCase() || "GUEST"}</b></div>
+        <div className={`scan-role-band ${resultRoleClass}`}><span>ระดับผู้เข้าร่วมงาน</span><b>{result.participantRole?.toUpperCase() || "GUEST"}</b></div>
+        {Boolean(result.teamCheckIns?.length) && <div className="scan-team-auto">
+          <div>
+            <span>เช็คอินสมาชิกทีมอัตโนมัติ</span>
+            <b>{result.teamCheckIns?.length.toLocaleString("th-TH")} คน</b>
+            <small>{[result.teamName, result.teamSubmissionCode].filter(Boolean).join(" • ")}</small>
+          </div>
+          <ul>
+            {result.teamCheckIns?.map((member) => {
+              const roleClass = participantRoleClass(member.participantRole);
+              return <li key={member.registrationCode}>
+                <span>
+                  <b>{member.name}</b>
+                  <small>{member.registrationCode} • {member.wasAlreadyCheckedIn ? "เช็คอินไว้แล้ว" : "เช็คอินอัตโนมัติแล้ว"}</small>
+                </span>
+                <i className={`status-pill role-pill ${roleClass}`}>{member.participantRole}</i>
+              </li>;
+            })}
+          </ul>
+        </div>}
         <dl className="scan-success-details">
           <div><dt>ชื่อ-นามสกุล</dt><dd>{result.name || "-"}</dd></div>
           <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
