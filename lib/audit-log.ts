@@ -77,6 +77,8 @@ const allowedAuditActions = new Set([
   "winner.created",
   "winner.deleted",
   "evaluation.lucky_draw",
+  "evaluation.lucky_draw_reset_otp_requested",
+  "evaluation.lucky_draw_reset",
 ]);
 const allowedActionList = [...allowedAuditActions];
 

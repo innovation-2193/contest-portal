@@ -20,7 +20,8 @@ export const superAdminEmails = [
   "innovation.it.police@gmail.com",
 ] as const;
 
-const sessionMaxAgeSeconds = Number(process.env.ADMIN_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 8);
+const adminSessionMaxAge = Number(process.env.ADMIN_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 8);
+const superAdminSessionMaxAge = Number(process.env.SUPER_ADMIN_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 24);
 const maxFailures = Number(process.env.ADMIN_LOGIN_MAX_FAILURES ?? 5);
 const windowMs = Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 10 * 60) * 1000;
 const lockMs = Number(process.env.ADMIN_LOGIN_LOCK_SECONDS ?? 15 * 60) * 1000;
@@ -48,7 +49,7 @@ type SuperAdminOtpRecord = {
   contextKey: string;
 };
 
-type SuperAdminOtpPurpose = "login" | "delete_submission";
+type SuperAdminOtpPurpose = "login" | "delete_submission" | "reset_lucky_draw";
 
 type SuperAdminOtpOptions = {
   purpose?: SuperAdminOtpPurpose;
@@ -64,8 +65,8 @@ export function adminPassword() {
   return process.env.ADMIN_PASSWORD ?? "";
 }
 
-export function adminSessionMaxAgeSeconds() {
-  return sessionMaxAgeSeconds;
+export function adminSessionMaxAgeSeconds(role: AdminRole = "admin") {
+  return role === "super_admin" ? superAdminSessionMaxAge : adminSessionMaxAge;
 }
 
 export function adminCookieSecure() {
@@ -92,7 +93,7 @@ export function verifyAdminToken(value?: string) {
   return Boolean(getAdminSession(value));
 }
 
-export function getAdminSession(value?: string): AdminSession | null {
+export function getAdminSession(value?: string, now = Date.now()): AdminSession | null {
   if (!value) return null;
   const [payload, signature] = value.split(".");
   if (!payload || !signature || value.split(".").length !== 2) return null;
@@ -106,7 +107,7 @@ export function getAdminSession(value?: string): AdminSession | null {
     };
     if (!decoded.email || decoded.role !== "admin" && decoded.role !== "super_admin") return null;
     if (!Number.isFinite(decoded.issuedAt)) return null;
-    if (Date.now() - Number(decoded.issuedAt) > sessionMaxAgeSeconds * 1000) return null;
+    if (now - Number(decoded.issuedAt) > adminSessionMaxAgeSeconds(decoded.role) * 1000) return null;
     return {
       email: decoded.email.trim().toLowerCase(),
       role: decoded.role,
@@ -253,6 +254,7 @@ export function normalizeOtpCode(input: string) {
 
 function otpContextKey(options: Pick<SuperAdminOtpOptions, "purpose" | "submissionCode">) {
   if (options.purpose === "delete_submission") return `delete_submission:${options.submissionCode?.trim() ?? ""}`;
+  if (options.purpose === "reset_lucky_draw") return "reset_lucky_draw";
   return "login";
 }
 
@@ -279,6 +281,24 @@ function superAdminOtpMessage(code: string, options: SuperAdminOtpOptions) {
         `<li><strong>ชื่อผลงาน:</strong> ${escapeHtml(titleTh)}</li>`,
         `<li><strong>ชื่อทีม:</strong> ${escapeHtml(teamName)}</li>`,
         "</ul>",
+        `<p>รหัส OTP คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1>`,
+        "<p>รหัสนี้หมดอายุภายใน 5 นาที</p>",
+      ].join(""),
+    };
+  }
+  if (options.purpose === "reset_lucky_draw") {
+    return {
+      subject: "OTP ยืนยัน Reset ผล Lucky Draw",
+      text: [
+        "มีคำขอ Reset ผล Lucky Draw ของ Police Innovation Contest 2026",
+        "การดำเนินการนี้จะยกเลิกผลรางวัลปัจจุบันและส่งอีเมลแจ้งผู้ได้รับรางวัลเดิม",
+        "",
+        `รหัส OTP: ${code}`,
+        "รหัสนี้หมดอายุภายใน 5 นาที",
+      ].join("\n"),
+      html: [
+        "<p>มีคำขอ <strong>Reset ผล Lucky Draw</strong> ของ Police Innovation Contest 2026</p>",
+        "<p>การดำเนินการนี้จะยกเลิกผลรางวัลปัจจุบันและส่งอีเมลแจ้งผู้ได้รับรางวัลเดิม</p>",
         `<p>รหัส OTP คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1>`,
         "<p>รหัสนี้หมดอายุภายใน 5 นาที</p>",
       ].join(""),

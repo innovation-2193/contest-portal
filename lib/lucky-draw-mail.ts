@@ -29,6 +29,37 @@ export async function sendLuckyDrawWinnerEmail(winner: EvaluationRecord) {
   });
 }
 
+export async function sendLuckyDrawResetEmail(winner: EvaluationRecord) {
+  if (!winner.email || !winner.lucky_draw_prize) return { status: "skipped" as const };
+  const name = winner.participant_name ?? winner.registration_code;
+  const prize = `รางวัลที่ ${winner.lucky_draw_prize}`;
+  return sendAdminMail({
+    to: winner.email,
+    subject: `แจ้งยกเลิกผล Lucky Draw ${prize} เนื่องจากระบบขัดข้อง`,
+    outboxKey: `lucky-draw-reset-${winner.registration_code}-${Date.now()}`,
+    text: [
+      `เรียน ${name}`,
+      `ขอแจ้งยกเลิกผล Lucky Draw ${prize} ของรหัสลงทะเบียน ${winner.registration_code}`,
+      "เนื่องจากเกิดข้อผิดพลาดของระบบ ทีมงานจำเป็นต้อง Reset ผลการจับฉลากเดิมและดำเนินการใหม่",
+      "ขออภัยในความไม่สะดวก ทีมงานจะแจ้งผลที่ถูกต้องอีกครั้ง",
+    ].join("\n"),
+    html: `<div style="margin:0;background:#061127;padding:28px;font-family:Arial,'Noto Sans Thai',Tahoma,sans-serif;color:#172033;line-height:1.7">
+      <div style="max-width:680px;margin:0 auto;border:1px solid #d8b62f;border-radius:14px;overflow:hidden;background:#ffffff">
+        <div style="background:#123c73;color:#ffffff;padding:28px 30px;border-bottom:5px solid #d8b62f">
+          <div style="font-size:13px;letter-spacing:2px;font-weight:700;color:#fff0a8">POLICE INNOVATION CONTEST 2026</div>
+          <h1 style="margin:14px 0 6px;font-size:28px;line-height:1.3;color:#ffffff">แจ้งยกเลิกผล Lucky Draw เดิม</h1>
+        </div>
+        <div style="padding:30px">
+          <p>เรียน <strong>${escapeHtml(name)}</strong></p>
+          <p>ขอแจ้งยกเลิกผล <strong>${escapeHtml(prize)}</strong> ของรหัสลงทะเบียน <strong>${escapeHtml(winner.registration_code)}</strong></p>
+          <p>เนื่องจากเกิดข้อผิดพลาดของระบบ ทีมงานจำเป็นต้อง Reset ผลการจับฉลากเดิมและดำเนินการใหม่</p>
+          <p style="margin-bottom:0">ขออภัยในความไม่สะดวก ทีมงานจะแจ้งผลที่ถูกต้องอีกครั้ง</p>
+        </div>
+      </div>
+    </div>`,
+  });
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")

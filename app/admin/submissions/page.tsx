@@ -59,13 +59,13 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
         <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.submission_code}>
-          <td><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
-          <td>{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
-          <td>{item.first_name} {item.last_name}<small>{item.email}</small></td>
-          <td>{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins}/> : item.review_assigned_admin_email || "-"}</td>
-          <td><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
-          <td>{reviewStatus(item)}</td>
-          <td><div className="table-action-stack">
+          <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
+          <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
+          <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
+          <td data-label="ผู้ตรวจ">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins}/> : item.review_assigned_admin_email || "-"}</td>
+          <td data-label="คะแนน"><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
+          <td data-label="สถานะ">{reviewStatus(item)}</td>
+          <td data-label="การจัดการ"><div className="table-action-stack">
             {isSuperAdmin && <form action={registerSubmissionParticipantAction}>
               <input type="hidden" name="submissionCode" value={item.submission_code}/>
               <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>

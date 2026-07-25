@@ -3,10 +3,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ArrowLeft, ClipboardList, Gift, Star, Trophy } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
-import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { getAdminSettings } from "../../../lib/admin-store";
-import { getEvaluationSummary, type EvaluationSummary } from "../../../lib/evaluation-store";
+import { getEvaluationSummary, listLuckyDrawCandidates, type EvaluationSummary } from "../../../lib/evaluation-store";
 
 export const dynamic = "force-dynamic";
 
@@ -25,15 +25,16 @@ const emptyEvaluationSummary: EvaluationSummary = {
   winners: [],
 };
 
-export default async function AdminEvaluationsPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+export default async function AdminEvaluationsPage({ searchParams }: { searchParams: Promise<{ notice?: string; resetOtp?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
 
   const params = await searchParams;
-  const [summary, settings] = await Promise.all([
+  const [summary, settings, luckyDrawCandidates] = await Promise.all([
     withFallback(getEvaluationSummary(), emptyEvaluationSummary),
     getAdminSettings(),
+    withFallback(listLuckyDrawCandidates(), []),
   ]);
   const isSuperAdmin = session.role === "super_admin";
 
@@ -100,22 +101,25 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
         </div>
       </section>
 
-      <section className="admin-panel evaluation-detail-panel">
+      <section className="admin-panel evaluation-detail-panel" id="lucky-draw">
         <header className="admin-section-head">
           <Gift/>
-          <div><h2>Lucky Draw</h2><p>สุ่มจากผู้ที่เช็คอินหน้างานและส่งแบบประเมินแล้ว ระบบเก็บผู้โชคดีไว้ 3 รางวัล</p></div>
-          {isSuperAdmin && <form action="/api/admin/evaluations/lucky-draw" method="post" className="admin-actions">
-            <ConfirmSubmitButton className="primary" type="submit" message="ยืนยันสุ่ม Lucky Draw 3 รางวัล? ระบบจะคงผู้ที่สุ่มได้ไว้และส่งอีเมลแจ้งเตือน"><Gift/>สุ่ม Lucky Draw 3 รางวัล</ConfirmSubmitButton>
-          </form>}
+          <div><h2>Lucky Draw</h2><p>จับฉลากทีละรางวัลจากผู้ที่เช็คอินและส่งแบบประเมินแล้ว ทุกผลถูกล็อกและบันทึกผู้ดำเนินการ</p></div>
         </header>
-        <div className="lucky-winner-list detail">
-          {summary.winners.length ? summary.winners.map((winner) => <article key={winner.registration_code}>
-            <span>รางวัลที่ {winner.lucky_draw_prize}</span>
-            <b>{winner.participant_name ?? winner.registration_code}</b>
-            <small>{winner.registration_code} • {winner.email ?? "-"}</small>
-            <small>สุ่มโดย {winner.lucky_drawn_by_email ?? "-"} • แจ้งเตือน {winner.lucky_notified_at ? formatAdminDate(winner.lucky_notified_at) : "ยังไม่ได้แจ้ง"}</small>
-          </article>) : <div className="participant-empty">ยังไม่ได้สุ่มผู้โชคดี</div>}
-        </div>
+        <LuckyDrawWheel
+          candidates={luckyDrawCandidates}
+          initialWinners={summary.winners.map((winner) => ({
+            registrationCode: winner.registration_code,
+            name: winner.participant_name ?? winner.registration_code,
+            email: winner.email ?? "",
+            prize: Number(winner.lucky_draw_prize),
+            drawnAt: winner.lucky_drawn_at,
+            drawnBy: winner.lucky_drawn_by_email,
+            notifiedAt: winner.lucky_notified_at,
+          }))}
+          isSuperAdmin={isSuperAdmin}
+          resetOtpStatus={params.resetOtp}
+        />
       </section>
     </div>
   </div>;

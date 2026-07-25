@@ -68,7 +68,7 @@ async function setPasswordAction(formData: FormData) {
     sameSite: "strict",
     secure: adminCookieSecure(),
     path: "/",
-    maxAge: adminSessionMaxAgeSeconds(),
+    maxAge: adminSessionMaxAgeSeconds("admin"),
   });
   redirect("/admin");
 }

@@ -23,6 +23,7 @@ async function runSchemaRepair() {
   await ensureRegistrationColumns();
   await ensureSubmissionColumns();
   await ensureSatisfactionEvaluationsTable();
+  await ensureLuckyDrawResultsTable();
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
 }
@@ -101,6 +102,27 @@ async function ensureSatisfactionEvaluationsTable() {
       CONSTRAINT fk_evaluation_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
       UNIQUE KEY uq_lucky_draw_prize (lucky_draw_prize),
       INDEX idx_evaluation_submitted (submitted_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureLuckyDrawResultsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS lucky_draw_results (
+      id CHAR(36) PRIMARY KEY,
+      cycle_no INT UNSIGNED NOT NULL,
+      prize TINYINT UNSIGNED NOT NULL,
+      registration_code VARCHAR(32) NOT NULL,
+      winner_name VARCHAR(255) NOT NULL,
+      winner_email VARCHAR(255) NULL,
+      drawn_at VARCHAR(40) NOT NULL,
+      drawn_by_email VARCHAR(255) NOT NULL,
+      reset_at VARCHAR(40) NULL,
+      reset_by_email VARCHAR(255) NULL,
+      reset_notified_at VARCHAR(40) NULL,
+      UNIQUE KEY uq_lucky_draw_cycle_prize (cycle_no, prize),
+      INDEX idx_lucky_draw_active (reset_at, cycle_no),
+      INDEX idx_lucky_draw_registration (registration_code)
     ) ENGINE=InnoDB
   `);
 }

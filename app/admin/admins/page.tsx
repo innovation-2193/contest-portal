@@ -40,12 +40,12 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/admins">ล้าง</Link></div>
         </form>
         <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{items.length ? items.map((admin) => <tr key={admin.id}>
-          <td><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
-          <td>{admin.name || "-"}</td>
-          <td><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
-          <td><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
-          <td>{formatAdminDate(admin.updatedAt)}</td>
-          <td><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
+          <td data-label="อีเมล"><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
+          <td data-label="ชื่อ">{admin.name || "-"}</td>
+          <td data-label="สถานะ"><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
+          <td data-label="รหัสผ่าน"><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
+          <td data-label="อัปเดตล่าสุด">{formatAdminDate(admin.updatedAt)}</td>
+          <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
         </tr>) : <tr><td colSpan={6}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         <Pagination basePath="/admin/admins" q={q} page={currentPage} totalPages={totalPages}/>
       </section>

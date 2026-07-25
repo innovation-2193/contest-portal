@@ -39,6 +39,8 @@ const actionOptions = [
   ["winner.created", "เพิ่มประกาศผล"],
   ["winner.deleted", "ลบประกาศผล"],
   ["evaluation.lucky_draw", "สุ่ม Lucky Draw"],
+  ["evaluation.lucky_draw_reset_otp_requested", "ขอ OTP Reset Lucky Draw"],
+  ["evaluation.lucky_draw_reset", "Reset ผล Lucky Draw"],
 ] as const;
 
 type ActorFilter = typeof actorFilterValues[number];
@@ -198,6 +200,8 @@ function auditActionLabel(action: string) {
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
+  if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
+  if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
   return action;
 }
 

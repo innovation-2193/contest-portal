@@ -133,6 +133,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
       <Link className="primary" href="/admin/scan"><UserCheck/>เปิดหน้าเช็คอิน</Link>
     </section>
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
+      <div><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
+      <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
+    </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
@@ -169,7 +173,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่</label>
         <button className="primary" type="submit">เพิ่มผู้ชนะ</button>
       </form>
-      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td>{winner.award || formatAward(winner.rank)}</td><td>{winner.projectTitle}</td><td>{winner.ownerName}</td><td>{winner.division}</td><td>{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
+      <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td data-label="รอบ / รางวัล">{winner.award || formatAward(winner.rank)}</td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     <section className="admin-panel">
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>เปิดหน้าเช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
@@ -362,7 +366,7 @@ function LoginPanel({ message }: { message: string }) {
     <div className="admin-login-grid">
       <form action={requestOtpAction} className="admin-login-card">
         <h2><ShieldCheck/>Super Admin OTP</h2>
-        <p>ระบบจะส่งรหัส 6 หลักไปยังอีเมล Super Admin ทั้ง 2 บัญชี และรหัสจะหมดอายุใน 5 นาที</p>
+        <p>ระบบจะส่งรหัส 6 หลักไปยังอีเมล Super Admin ทั้ง 2 บัญชี รหัสหมดอายุใน 5 นาที และเมื่อยืนยันแล้วอุปกรณ์นี้จะเข้าสู่ระบบต่อเนื่องได้ 1 วัน</p>
         <button className="primary" type="submit"><Mail/>ส่งรหัส OTP</button>
       </form>
       <form action={verifyOtpAction} className="admin-login-card">
@@ -466,17 +470,17 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
 
 function AdminAccountsTable({ admins }: { admins: Awaited<ReturnType<typeof listAdminAccounts>> }) {
   return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{admins.length ? admins.map((admin) => <tr key={admin.id}>
-    <td><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
-    <td>{admin.name || "-"}</td>
-    <td><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
-    <td><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
-    <td>{formatAdminDate(admin.updatedAt)}</td>
-    <td><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
+    <td data-label="อีเมล"><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
+    <td data-label="ชื่อ">{admin.name || "-"}</td>
+    <td data-label="สถานะ"><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
+    <td data-label="รหัสผ่าน"><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
+    <td data-label="อัปเดตล่าสุด">{formatAdminDate(admin.updatedAt)}</td>
+    <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
   </tr>) : <tr><td colSpan={6}>ยังไม่มีแอดมินหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
 }
 
 function AdminTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr>{headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{rows.length?rows.map((row,index)=><tr key={index}>{row.map((cell,cellIndex)=><td key={cellIndex}>{cell || "-"}</td>)}</tr>):<tr><td colSpan={headers.length}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
+  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr>{headers.map(header=><th key={header}>{header}</th>)}</tr></thead><tbody>{rows.length?rows.map((row,index)=><tr key={index}>{row.map((cell,cellIndex)=><td data-label={headers[cellIndex]} key={cellIndex}>{cell || "-"}</td>)}</tr>):<tr><td colSpan={headers.length}>ยังไม่มีข้อมูล</td></tr>}</tbody></table></div>;
 }
 
 function SearchBox({ name, value, label, placeholder }: { name: string; value: string; label: string; placeholder: string }) {
@@ -509,15 +513,15 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
       <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
     </div>
     <div className="admin-table-wrap"><table className="admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
-      <td><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
-      <td>{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
-      <td><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
-      <td>{item.email}<small>{item.phone}</small></td>
-      <td>{item.position}</td>
-      <td>{item.division}</td>
-      <td>{item.bureau}</td>
-      <td><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
-      <td><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
+      <td data-label="รหัส"><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
+      <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+      <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
+      <td data-label="ติดต่อ">{item.email}<small>{item.phone}</small></td>
+      <td data-label="ตำแหน่ง">{item.position}</td>
+      <td data-label="กองบังคับการ">{item.division}</td>
+      <td data-label="กองบัญชาการ">{item.bureau}</td>
+      <td data-label="สถานะ"><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
+      <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
     </tr>) : <tr><td colSpan={9}>ยังไม่มีข้อมูลผู้เข้าร่วมงาน</td></tr>}</tbody></table></div>
   </form>;
 }
@@ -526,12 +530,12 @@ function ReviewQueueTable({ submissions }: { submissions: Awaited<ReturnType<typ
   return <div className="admin-table-wrap review-focus-table"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>สถานะตรวจ</th><th></th></tr></thead><tbody>{submissions.length ? submissions.map(item => {
     const hasScore = item.review_submitted_at !== null && item.review_submitted_at !== undefined;
     return <tr key={item.submission_code}>
-      <td><b>{item.submission_code}</b><small>ส่งเมื่อ {formatAdminDate(item.submitted_at)}</small></td>
-      <td>{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
-      <td>{item.first_name} {item.last_name}<small>{item.email}</small></td>
-      <td>{item.review_assigned_admin_email || "-"}</td>
-      <td><span className={`status-pill ${hasScore ? "attended" : item.review_assigned_admin_email ? "registered" : "cancelled"}`}>{hasScore ? `ส่งคะแนนแล้ว ${item.review_total_score ?? "-"}/100` : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}</span>{item.review_submitted_at && <small>ส่งคะแนน {formatAdminDate(item.review_submitted_at)}</small>}</td>
-      <td><Link className={hasScore ? "secondary small-action" : "primary small-action"} href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>{hasScore ? "ดูคะแนน" : "เปิดตรวจ"}</Link></td>
+      <td data-label="รหัส"><b>{item.submission_code}</b><small>ส่งเมื่อ {formatAdminDate(item.submitted_at)}</small></td>
+      <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
+      <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
+      <td data-label="ผู้ตรวจ">{item.review_assigned_admin_email || "-"}</td>
+      <td data-label="สถานะ"><span className={`status-pill ${hasScore ? "attended" : item.review_assigned_admin_email ? "registered" : "cancelled"}`}>{hasScore ? `ส่งคะแนนแล้ว ${item.review_total_score ?? "-"}/100` : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}</span>{item.review_submitted_at && <small>ส่งคะแนน {formatAdminDate(item.review_submitted_at)}</small>}</td>
+      <td data-label="การจัดการ"><Link className={hasScore ? "secondary small-action" : "primary small-action"} href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>{hasScore ? "ดูคะแนน" : "เปิดตรวจ"}</Link></td>
     </tr>;
   }) : <tr><td colSpan={6}>ยังไม่มีงานตรวจหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
 }
@@ -645,7 +649,7 @@ async function setAdminSession(session: Pick<AdminSession, "email" | "role">) {
     sameSite: "strict",
     secure: adminCookieSecure(),
     path: "/",
-    maxAge: adminSessionMaxAgeSeconds(),
+    maxAge: adminSessionMaxAgeSeconds(session.role),
   });
 }
 
@@ -944,6 +948,8 @@ function auditActionLabel(action: string) {
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
+  if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
+  if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
   return action;
 }
 
