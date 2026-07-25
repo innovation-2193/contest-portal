@@ -28,7 +28,7 @@ export default async function ParticipantProfilePage() {
     />
     <section className="wide page-body participant-profile-page">
       <header className="participant-profile-head">
-        <div><UserRound/><span><small>เข้าสู่ระบบด้วย</small><b>{session.email}</b><em><ShieldCheck/> Session ปลอดภัย 1 วัน</em></span></div>
+        <div><UserRound/><span><small>เข้าสู่ระบบด้วย</small><b>{session.email}</b><em><ShieldCheck/> คงสถานะการเข้าสู่ระบบ 1 วัน</em></span></div>
         <form action="/api/participant-auth/logout" method="post"><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form>
       </header>
       <div className="participant-profile-list">

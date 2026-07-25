@@ -104,7 +104,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
         });
         const data = await response.json().catch(() => ({ error: "ระบบค้นหาตอบกลับไม่ถูกต้อง" })) as { participants?: ParticipantSearchResult[]; error?: string };
         if (!response.ok) {
-          if (response.status === 401) throw new Error("เซสชันแอดมินหมดอายุ กรุณาเข้าสู่ระบบหลังบ้านใหม่");
+          if (response.status === 401) throw new Error("สถานะการเข้าสู่ระบบของผู้ดูแลระบบหมดอายุ กรุณาเข้าสู่ระบบหลังบ้านอีกครั้ง");
           throw new Error(data.error || "ค้นหาผู้เข้าร่วมไม่สำเร็จ");
         }
         setSearchResults(data.participants ?? []);
@@ -227,7 +227,7 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       });
       const data = await response.json().catch(() => ({ error: "ระบบตอบกลับไม่ถูกต้อง" })) as ScanResult & { error?: string };
       if (!response.ok) {
-        if (response.status === 401) throw new Error("เซสชันแอดมินหมดอายุ กรุณาเข้าสู่ระบบหลังบ้านใหม่");
+        if (response.status === 401) throw new Error("สถานะการเข้าสู่ระบบของผู้ดูแลระบบหมดอายุ กรุณาเข้าสู่ระบบหลังบ้านอีกครั้ง");
         throw new Error(data.error || "เช็คอินไม่สำเร็จ");
       }
       setResult(data);

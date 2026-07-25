@@ -45,7 +45,7 @@ export default async function ParticipantLoginPage({ searchParams }: { searchPar
             <button className="primary" type="submit"><Mail/>ส่งรหัส OTP</button>
           </form>
         </>}
-        <small><ShieldCheck/> Session จะคงอยู่ในอุปกรณ์นี้เป็นเวลา 1 วัน</small>
+        <small><ShieldCheck/> ระบบจะคงสถานะการเข้าสู่ระบบบนอุปกรณ์นี้เป็นเวลา 1 วัน</small>
       </article>
     </section>
   </>;

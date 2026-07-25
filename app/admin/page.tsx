@@ -366,7 +366,7 @@ function LoginPanel({ message }: { message: string }) {
     <div className="admin-login-grid">
       <form action={requestOtpAction} className="admin-login-card">
         <h2><ShieldCheck/>Super Admin OTP</h2>
-        <p>ระบบจะส่งรหัส 6 หลักไปยังอีเมล Super Admin ทั้ง 2 บัญชี รหัสหมดอายุใน 5 นาที และเมื่อยืนยันแล้วอุปกรณ์นี้จะเข้าสู่ระบบต่อเนื่องได้ 1 วัน</p>
+        <p>ระบบจะส่งรหัส OTP จำนวน 6 หลักไปยังอีเมล Super Admin ทั้ง 2 บัญชี รหัสมีอายุ 5 นาที เมื่อยืนยันสำเร็จ ระบบจะคงสถานะการเข้าสู่ระบบบนอุปกรณ์นี้เป็นเวลา 1 วัน</p>
         <button className="primary" type="submit"><Mail/>ส่งรหัส OTP</button>
       </form>
       <form action={verifyOtpAction} className="admin-login-card">
