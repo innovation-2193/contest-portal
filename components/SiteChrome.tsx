@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Activity, BarChart3, Lightbulb, Mail, Menu, Phone, TrendingUp } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Lightbulb, LockKeyhole, Mail, Menu, Phone, TrendingUp, X } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
@@ -13,6 +13,25 @@ const navItems = [
   { href: "/#faq", hash: "#faq", label: "FAQ" },
   { href: "/#contact", hash: "#contact", label: "ติดต่อ" },
 ];
+
+export function OfficialSiteBar() {
+  return <aside className="official-site-bar" aria-label="การยืนยันเว็บไซต์ทางการ">
+    <details className="official-site-verification">
+      <summary>
+        <span className="thai-flag" aria-hidden="true"><i/><i/><i/><i/><i/></span>
+        <span className="official-site-copy">เว็บไซต์ทางการของรัฐบาลไทย <b>ยืนยันชื่อ URL</b></span>
+        <LockKeyhole aria-hidden="true"/>
+        <strong>https://innocontest.police.go.th</strong>
+        <span className="official-site-only">นี้เท่านั้น</span>
+        <span className="official-site-more">อ่านเพิ่มเติม <ChevronDown aria-hidden="true"/></span>
+      </summary>
+      <div className="official-site-detail">
+        <b>ตรวจสอบก่อนกรอกข้อมูลทุกครั้ง</b>
+        <p>เว็บไซต์ทางการของโครงการประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ต้องใช้โดเมน <strong>innocontest.police.go.th</strong> และเชื่อมต่อผ่าน HTTPS เท่านั้น</p>
+      </div>
+    </details>
+  </aside>;
+}
 
 export function MobileZoomLock() {
   useEffect(() => {
@@ -168,7 +187,31 @@ export function Header() {
   const [open,setOpen]=useState(false);
   const [activeHash, setActiveHash] = useState("#project");
   const manualActiveUntil = useRef(0);
+  const headerRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const pathname = usePathname();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !headerRef.current?.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("pointerdown", closeOutside);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("pointerdown", closeOutside);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (pathname !== "/") return;
@@ -210,15 +253,26 @@ export function Header() {
     };
   }, [pathname]);
 
-  return <header className="site-header"><div className="wide header-row">
+  return <header className="site-header" ref={headerRef}><div className="wide header-row">
     <Link className="brand" href="/"><span className="brand-logo"><img src="/logo-3d.png" alt="Police Innovation Contest 2026"/></span><div><b>Police Innovation Contest 2026</b><small>ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</small></div></Link>
-    <nav className={open?"open":""} aria-label="เมนูหลัก">
+    <button
+      ref={menuButtonRef}
+      type="button"
+      className={open ? "menu is-open" : "menu"}
+      aria-label={open ? "ปิดเมนู" : "เปิดเมนู"}
+      aria-expanded={open}
+      aria-controls="site-navigation"
+      onClick={() => setOpen((value) => !value)}
+    >
+      <Menu className="menu-open-icon" aria-hidden="true"/>
+      <X className="menu-close-icon" aria-hidden="true"/>
+    </button>
+    <nav id="site-navigation" className={open?"open":""} aria-label="เมนูหลัก">
       {navItems.map((item) => {
         const active = pathname === "/" && activeHash === item.hash;
         return <a key={item.hash} className={active ? "active" : undefined} aria-current={active ? "page" : undefined} onClick={()=>{manualActiveUntil.current=Date.now()+1200;setActiveHash(item.hash);setOpen(false);}} href={item.href}>{item.label}</a>;
       })}
     </nav>
-    <button className="menu" aria-label={open?"ปิดเมนู":"เปิดเมนู"} aria-expanded={open} onClick={()=>setOpen(value=>!value)}><Menu /></button>
   </div></header>;
 }
 

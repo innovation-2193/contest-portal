@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { Gift, LockKeyhole, Mail, RotateCcw, ShieldCheck, Sparkles, Trophy } from "lucide-react";
+import { Gift, LockKeyhole, Mail, RotateCcw, ShieldCheck, Sparkles, Trophy, Volume2, VolumeX } from "lucide-react";
 import type { LuckyDrawCandidate } from "../lib/evaluation-store";
 
 type LuckyWinner = {
@@ -14,6 +14,16 @@ type LuckyWinner = {
   drawnBy: string | null;
   notifiedAt: string | null;
 };
+
+const CONFETTI_COLORS = ["#f4d35e", "#fff0a8", "#51c7e8", "#68d5a6", "#f17c8e", "#ffffff"];
+const CONFETTI_PIECES = Array.from({ length: 64 }, (_, index) => ({
+  x: `${(index * 37 + 7) % 100}%`,
+  delay: `${((index * 53) % 740) / 1000}s`,
+  duration: `${2.3 + ((index * 29) % 110) / 100}s`,
+  drift: `${((index * 47) % 180) - 90}px`,
+  rotation: `${540 + ((index * 71) % 720)}deg`,
+  color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+}));
 
 export function LuckyDrawWheel({
   candidates,
@@ -33,8 +43,23 @@ export function LuckyDrawWheel({
   const [rotation, setRotation] = useState(0);
   const [revealedWinner, setRevealedWinner] = useState<LuckyWinner | null>(null);
   const [error, setError] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const spinSoundTimersRef = useRef<number[]>([]);
   const nextPrize = [1, 2, 3].find((prize) => !winners.some((winner) => winner.prize === prize)) ?? null;
   const wheelNames = useMemo(() => available.slice(0, 12), [available]);
+
+  useEffect(() => {
+    setSoundEnabled(window.localStorage.getItem("lucky-draw-sound-enabled") !== "false");
+    return () => {
+      spinSoundTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+      spinSoundTimersRef.current = [];
+      if (audioContextRef.current) {
+        void audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!revealedWinner) return;
@@ -59,6 +84,11 @@ export function LuckyDrawWheel({
     setRevealedWinner(null);
     setSpinning(true);
     setRotation((current) => current + 2160 + 180 + Math.floor(Math.random() * 280));
+    const audioContext = soundEnabled ? getAudioContext(audioContextRef) : null;
+    if (audioContext) {
+      void audioContext.resume();
+      scheduleSpinSound(audioContext, spinSoundTimersRef);
+    }
     const startedAt = Date.now();
     try {
       const responsePromise = fetch("/api/admin/evaluations/lucky-draw", {
@@ -73,11 +103,27 @@ export function LuckyDrawWheel({
       if (!response.ok || !payload.winner) throw new Error(payload.error || "ไม่สามารถจับฉลากได้");
       setWinners((current) => [...current, payload.winner!].sort((a, b) => a.prize - b.prize));
       setAvailable((current) => current.filter((item) => item.registrationCode !== payload.winner!.registrationCode));
+      stopSpinSound(spinSoundTimersRef);
+      if (audioContext && soundEnabled) playWinnerSound(audioContext);
       setRevealedWinner(payload.winner);
     } catch (drawError) {
       setError(drawError instanceof Error ? drawError.message : "ไม่สามารถจับฉลากได้");
     } finally {
+      stopSpinSound(spinSoundTimersRef);
       setSpinning(false);
+    }
+  };
+
+  const toggleSound = () => {
+    const nextValue = !soundEnabled;
+    setSoundEnabled(nextValue);
+    window.localStorage.setItem("lucky-draw-sound-enabled", String(nextValue));
+    if (!nextValue) {
+      stopSpinSound(spinSoundTimersRef);
+      if (audioContextRef.current) void audioContextRef.current.suspend();
+    } else {
+      const audioContext = getAudioContext(audioContextRef);
+      if (audioContext) void audioContext.resume();
     }
   };
 
@@ -116,7 +162,19 @@ export function LuckyDrawWheel({
         </div>
 
         <aside className="lucky-draw-control">
-          <span className="eyebrow">Live Lucky Draw</span>
+          <div className="lucky-control-topline">
+            <span className="eyebrow">Live Lucky Draw</span>
+            <button
+              className="lucky-sound-toggle"
+              type="button"
+              onClick={toggleSound}
+              aria-label={soundEnabled ? "ปิดเสียง Lucky Draw" : "เปิดเสียง Lucky Draw"}
+              aria-pressed={soundEnabled}
+              title={soundEnabled ? "ปิดเสียง" : "เปิดเสียง"}
+            >
+              {soundEnabled ? <Volume2 /> : <VolumeX />}
+            </button>
+          </div>
           <h3>{nextPrize ? `ขณะนี้กำลังจับรางวัลที่ ${nextPrize}` : "จับฉลากครบแล้ว"}</h3>
           <p>ผู้มีสิทธิ์คงเหลือ <strong>{available.length.toLocaleString("th-TH")}</strong> คน ผลแต่ละรางวัลบันทึกได้เพียงครั้งเดียว</p>
           {isSuperAdmin ? (
@@ -167,7 +225,21 @@ export function LuckyDrawWheel({
 
       {revealedWinner && (
         <div className="lucky-winner-modal" role="dialog" aria-modal="true" aria-labelledby="lucky-winner-title">
-          <div className="lucky-confetti" aria-hidden="true">{Array.from({ length: 36 }, (_, index) => <i key={index} />)}</div>
+          <div className="lucky-confetti" aria-hidden="true">
+            {CONFETTI_PIECES.map((piece, index) => (
+              <i
+                key={index}
+                style={{
+                  "--confetti-x": piece.x,
+                  "--confetti-delay": piece.delay,
+                  "--confetti-duration": piece.duration,
+                  "--confetti-drift": piece.drift,
+                  "--confetti-rotation": piece.rotation,
+                  "--confetti-color": piece.color,
+                } as CSSProperties}
+              />
+            ))}
+          </div>
           <article>
             <span><Trophy /></span>
             <small>ผล Lucky Draw รางวัลที่ {revealedWinner.prize}</small>
@@ -206,4 +278,74 @@ function formatAdminDate(value?: string | null) {
     timeStyle: "short",
     timeZone: "Asia/Bangkok",
   }).format(date);
+}
+
+function getAudioContext(audioContextRef: { current: AudioContext | null }) {
+  if (typeof window === "undefined") return null;
+  if (audioContextRef.current && audioContextRef.current.state !== "closed") return audioContextRef.current;
+  const AudioContextConstructor = window.AudioContext
+    ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextConstructor) return null;
+  audioContextRef.current = new AudioContextConstructor();
+  return audioContextRef.current;
+}
+
+function stopSpinSound(spinSoundTimersRef: { current: number[] }) {
+  spinSoundTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+  spinSoundTimersRef.current = [];
+}
+
+function scheduleSpinSound(
+  audioContext: AudioContext,
+  spinSoundTimersRef: { current: number[] },
+) {
+  stopSpinSound(spinSoundTimersRef);
+  let elapsed = 0;
+  const spinDuration = 4050;
+  while (elapsed < spinDuration) {
+    const progress = elapsed / spinDuration;
+    const timer = window.setTimeout(() => playWheelTick(audioContext, progress), elapsed);
+    spinSoundTimersRef.current.push(timer);
+    elapsed += 55 + (progress ** 2) * 205;
+  }
+}
+
+function playWheelTick(audioContext: AudioContext, progress: number) {
+  if (audioContext.state === "closed") return;
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  const now = audioContext.currentTime;
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(920 - (progress * 390), now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.045, now + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.055);
+}
+
+function playWinnerSound(audioContext: AudioContext) {
+  if (audioContext.state === "closed") return;
+  const notes = [
+    { frequency: 523.25, start: 0, duration: 0.34 },
+    { frequency: 659.25, start: 0.12, duration: 0.34 },
+    { frequency: 783.99, start: 0.24, duration: 0.38 },
+    { frequency: 1046.5, start: 0.4, duration: 0.72 },
+  ];
+  notes.forEach(({ frequency, start, duration }, index) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const noteStart = audioContext.currentTime + start;
+    oscillator.type = index === notes.length - 1 ? "sine" : "triangle";
+    oscillator.frequency.setValueAtTime(frequency, noteStart);
+    gain.gain.setValueAtTime(0.0001, noteStart);
+    gain.gain.exponentialRampToValueAtTime(index === notes.length - 1 ? 0.075 : 0.055, noteStart + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(noteStart);
+    oscillator.stop(noteStart + duration + 0.03);
+  });
 }

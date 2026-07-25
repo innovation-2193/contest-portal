@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { participantRoles, type ParticipantRole } from "../lib/local-registrations";
+import { ParticipantRoleTabLinks } from "./ParticipantRoleTabLinks";
 
 export type ParticipantRoleFilter = "all" | ParticipantRole;
 export type ParticipantRoleCounts = Record<ParticipantRoleFilter, number>;
@@ -38,8 +38,8 @@ export function ParticipantRoleTabs({
   query?: Record<string, string | null | undefined>;
   roleParam?: string;
 }) {
-  return <nav className="participant-role-tabs" aria-label="ตัวกรอง Role ผู้เข้าร่วมงาน">
-    {(["all", ...participantRoles] as ParticipantRoleFilter[]).map((role) => {
+  const roles = ["all", ...participantRoles] as ParticipantRoleFilter[];
+  const tabs = roles.map((role) => {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query ?? {})) {
         if (value) params.set(key, value);
@@ -48,10 +48,12 @@ export function ParticipantRoleTabs({
       else params.set(roleParam, role);
       params.delete("page");
       const href = params.toString() ? `${basePath}?${params.toString()}` : basePath;
-      return <Link className={activeRole === role ? "active" : ""} href={href} key={role}>
-        <span>{roleLabels[role]}</span>
-        <b>{counts[role].toLocaleString("th-TH")}</b>
-      </Link>;
-    })}
-  </nav>;
+      return {
+        role,
+        href,
+        label: roleLabels[role],
+        count: counts[role].toLocaleString("th-TH"),
+      };
+    });
+  return <ParticipantRoleTabLinks tabs={tabs} activeRole={activeRole}/>;
 }
