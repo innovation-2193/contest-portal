@@ -528,7 +528,7 @@ label,
   left: 0;
   right: 0;
   width: 100%;
-  padding: 28px 0 34px;
+  padding: 22px 0 26px;
   border-top: 1px solid rgba(38, 130, 255, 0.28);
   border-bottom: 1px solid rgba(38, 130, 255, 0.42);
   background:
@@ -542,15 +542,15 @@ label,
 .official-site-detail-shell {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(34px, 7vw, 96px);
-  width: min(1140px, calc(100% - 48px));
+  gap: clamp(28px, 6vw, 76px);
+  width: min(1040px, calc(100% - 48px));
   margin-inline: auto;
 }
 
 .official-site-detail-item {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
   min-width: 0;
 }
@@ -558,17 +558,17 @@ label,
 .official-site-detail-icon {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
-  border: 3px solid currentColor;
+  width: 58px;
+  height: 58px;
+  border: 2px solid currentColor;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.02);
   box-shadow: 0 0 28px color-mix(in srgb, currentColor 22%, transparent);
 }
 
 .official-site-detail-icon svg {
-  width: 36px;
-  height: 36px;
+  width: 29px;
+  height: 29px;
 }
 
 .official-site-detail-item.is-domain {
@@ -582,8 +582,8 @@ label,
 .official-site-detail-item b {
   display: block;
   color: #ffffff;
-  font-size: clamp(20px, 1.55vw, 27px);
-  line-height: 1.28;
+  font-size: clamp(15px, 1.05vw, 17px);
+  line-height: 1.38;
   font-weight: 900;
 }
 
@@ -592,10 +592,10 @@ label,
   align-items: baseline;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0 0;
+  margin: 7px 0 0;
   color: #f3f5f9;
-  font-size: clamp(15px, 1.15vw, 19px);
-  line-height: 1.75;
+  font-size: clamp(13px, 0.92vw, 15px);
+  line-height: 1.65;
   font-weight: 700;
 }
 
@@ -10579,24 +10579,24 @@ body:has(.report-page) .brand b {
     font-size: 13px;
   }
   .official-site-detail {
-    padding: 24px 0 28px;
+    padding: 20px 0 24px;
   }
   .official-site-detail-shell {
     grid-template-columns: 1fr;
-    gap: 24px;
-    width: min(680px, calc(100% - 36px));
+    gap: 18px;
+    width: min(620px, calc(100% - 36px));
   }
   .official-site-detail-item {
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 18px;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 16px;
   }
   .official-site-detail-icon {
-    width: 64px;
-    height: 64px;
+    width: 52px;
+    height: 52px;
   }
   .official-site-detail-icon svg {
-    width: 32px;
-    height: 32px;
+    width: 26px;
+    height: 26px;
   }
   .wide { width: min(100% - 36px, 760px); }
   main { padding-top: calc(var(--official-bar-height) + 72px); }
@@ -10984,33 +10984,34 @@ body:has(.report-page) .brand b {
     transform: rotate(225deg) translate(-2px, -2px);
   }
   .official-site-detail {
-    padding: 22px 0 24px;
+    padding: 18px 0 20px;
   }
   .official-site-detail-shell {
     width: calc(100% - 28px);
-    gap: 22px;
+    gap: 16px;
   }
   .official-site-detail-item {
-    grid-template-columns: 54px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
   }
   .official-site-detail-icon {
-    width: 54px;
-    height: 54px;
+    width: 44px;
+    height: 44px;
     border-width: 2px;
   }
   .official-site-detail-icon svg {
-    width: 27px;
-    height: 27px;
+    width: 22px;
+    height: 22px;
   }
   .official-site-detail-item b {
-    font-size: 18px;
+    font-size: 14px;
+    line-height: 1.38;
   }
   .official-site-detail-item p {
     display: block;
-    margin-top: 6px;
-    font-size: 14px;
-    line-height: 1.65;
+    margin-top: 5px;
+    font-size: 12.5px;
+    line-height: 1.58;
   }
   .official-site-detail-item p svg {
     position: relative;
