@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Activity, BarChart3, ChevronDown, Lightbulb, LockKeyhole, Mail, Menu, Phone, TrendingUp, X } from "lucide-react";
+import { Activity, BarChart3, ChevronDown, Landmark, Lightbulb, LockKeyhole, Mail, Menu, Phone, ShieldCheck, TrendingUp, X } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
 const navItems = [
@@ -19,15 +19,29 @@ export function OfficialSiteBar() {
     <details className="official-site-verification">
       <summary>
         <span className="thai-flag" aria-hidden="true"><i/><i/><i/><i/><i/></span>
-        <span className="official-site-copy">เว็บไซต์ทางการของรัฐบาลไทย <b>ยืนยันชื่อ URL</b></span>
+        <span className="official-site-copy"><span>เว็บไซต์ทางการของรัฐบาลไทย</span> <b>ยืนยันชื่อ URL</b></span>
         <LockKeyhole aria-hidden="true"/>
         <strong>https://innocontest.police.go.th</strong>
         <span className="official-site-only">นี้เท่านั้น</span>
         <span className="official-site-more">อ่านเพิ่มเติม <ChevronDown aria-hidden="true"/></span>
       </summary>
       <div className="official-site-detail">
-        <b>ตรวจสอบก่อนกรอกข้อมูลทุกครั้ง</b>
-        <p>เว็บไซต์ทางการของโครงการประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ต้องใช้โดเมน <strong>innocontest.police.go.th</strong> และเชื่อมต่อผ่าน HTTPS เท่านั้น</p>
+        <div className="official-site-detail-shell">
+          <article className="official-site-detail-item is-domain">
+            <span className="official-site-detail-icon" aria-hidden="true"><Landmark/></span>
+            <div>
+              <b>เว็บไซต์ทางการของโครงการประกวดนวัตกรรม</b>
+              <p>ดำเนินงานโดยสำนักงานตำรวจแห่งชาติ สำหรับ Police Innovation Contest 2026 เท่านั้น</p>
+            </div>
+          </article>
+          <article className="official-site-detail-item is-secure">
+            <span className="official-site-detail-icon" aria-hidden="true"><ShieldCheck/></span>
+            <div>
+              <b>เว็บไซต์นี้ต้องใช้ HTTPS เท่านั้น</b>
+              <p><LockKeyhole aria-hidden="true"/> หรือ <strong>https://innocontest.police.go.th</strong> เพื่อให้มั่นใจว่าข้อมูลลงทะเบียนและเอกสารถูกส่งอย่างปลอดภัย</p>
+            </div>
+          </article>
+        </div>
       </div>
     </details>
   </aside>;
