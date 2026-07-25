@@ -7,12 +7,13 @@ import {
   participantOtpMaxAge,
   participantOtpPendingCookie,
 } from "../../../../lib/participant-session";
+import { publicSiteUrl } from "../../../../lib/public-url";
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const email = normalizeParticipantEmail(String(formData.get("email") ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
-    return NextResponse.redirect(new URL("/profile/login?status=invalid_email", request.url), 303);
+    return NextResponse.redirect(publicSiteUrl("/profile/login?status=invalid_email", request), 303);
   }
 
   const result = await requestParticipantLoginOtp(email);
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     : result.delivery === "failed"
       ? "otp_mail_failed"
       : "otp_sent";
-  const response = NextResponse.redirect(new URL(`/profile/login?status=${status}`, request.url), 303);
+  const response = NextResponse.redirect(publicSiteUrl(`/profile/login?status=${status}`, request), 303);
   response.cookies.set(participantOtpPendingCookie, createParticipantOtpPendingToken(email), {
     httpOnly: true,
     sameSite: "lax",

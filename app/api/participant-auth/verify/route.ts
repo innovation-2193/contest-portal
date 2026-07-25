@@ -11,22 +11,23 @@ import {
   participantSessionCookie,
   participantSessionMaxAge,
 } from "../../../../lib/participant-session";
+import { publicSiteUrl } from "../../../../lib/public-url";
 
 export async function POST(request: NextRequest) {
   const email = getParticipantOtpPendingEmail(request.cookies.get(participantOtpPendingCookie)?.value);
   if (!email) {
-    return NextResponse.redirect(new URL("/profile/login?status=otp_expired", request.url), 303);
+    return NextResponse.redirect(publicSiteUrl("/profile/login?status=otp_expired", request), 303);
   }
   const formData = await request.formData();
   const valid = await verifyParticipantLoginOtp(email, String(formData.get("otp") ?? ""));
   if (!valid) {
-    return NextResponse.redirect(new URL("/profile/login?status=otp_failed", request.url), 303);
+    return NextResponse.redirect(publicSiteUrl("/profile/login?status=otp_failed", request), 303);
   }
   const [registrations, submissions] = await Promise.all([
     findRegistrationsByEmail(email),
     findSubmissionsByEmail(email),
   ]);
-  const response = NextResponse.redirect(new URL("/profile", request.url), 303);
+  const response = NextResponse.redirect(publicSiteUrl("/profile", request), 303);
   response.cookies.set(participantSessionCookie, createParticipantSessionToken({
     email,
     registrationCode: registrations[0]?.registration_code,

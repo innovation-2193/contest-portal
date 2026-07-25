@@ -5,6 +5,7 @@ import { actorFromAdminSession, recordAuditEvent } from "../../../../../../../li
 import { cookieName, getAdminSession } from "../../../../../../../lib/admin-auth";
 import { getSubmissionDetail, getSubmissionFile } from "../../../../../../../lib/admin-store";
 import { readSubmissionPdfFile, submissionDocumentTypes } from "../../../../../../../lib/submission-file-reader";
+import { publicSiteUrl } from "../../../../../../../lib/public-url";
 
 export const runtime = "nodejs";
 
@@ -55,7 +56,7 @@ export async function GET(
   }
 
   if (/^participants-\d{4}-\d{2}-\d{2}\.pdf$/i.test(path.basename(file.original_name))) {
-    return NextResponse.redirect(new URL("/api/admin/participants/export", request.url));
+    return NextResponse.redirect(publicSiteUrl("/api/admin/participants/export", request));
   }
 
   return NextResponse.json({ error: "file not found" }, { status: 404 });

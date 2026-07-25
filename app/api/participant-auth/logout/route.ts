@@ -6,10 +6,11 @@ import {
   participantSessionCookie,
   participantSubmissionCookie,
 } from "../../../../lib/participant-session";
+import { publicSiteUrl } from "../../../../lib/public-url";
 
 export async function POST(request: NextRequest) {
   const session = getParticipantSession(request.cookies.get(participantSessionCookie)?.value);
-  const response = NextResponse.redirect(new URL("/profile/login?status=logged_out", request.url), 303);
+  const response = NextResponse.redirect(publicSiteUrl("/profile/login?status=logged_out", request), 303);
   response.cookies.delete(participantSessionCookie);
   response.cookies.delete(participantOtpPendingCookie);
   response.cookies.delete(participantSubmissionCookie);

@@ -5,18 +5,19 @@ import { cookieName, getAdminSession, verifySuperAdminOtp } from "../../../../..
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { markLuckyDrawResetNotified, resetLuckyDraw } from "../../../../../../lib/evaluation-store";
 import { sendLuckyDrawResetEmail } from "../../../../../../lib/lucky-draw-mail";
+import { publicSiteUrl } from "../../../../../../lib/public-url";
 
 export async function POST(request: NextRequest) {
   const session = getAdminSession(request.cookies.get(cookieName)?.value);
   if (!session || session.role !== "super_admin") {
-    return NextResponse.redirect(new URL("/admin", request.url), 303);
+    return NextResponse.redirect(publicSiteUrl("/admin", request), 303);
   }
   const formData = await request.formData();
   const otpOk = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), {
     purpose: "reset_lucky_draw",
   });
   if (!otpOk) {
-    return NextResponse.redirect(new URL("/admin/evaluations?resetOtp=failed", request.url), 303);
+    return NextResponse.redirect(publicSiteUrl("/admin/evaluations?resetOtp=failed", request), 303);
   }
 
   let result;
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const code = String((error as { code?: string }).code ?? "");
     const status = code === "NOTHING_TO_RESET" ? "empty" : "error";
-    return NextResponse.redirect(new URL(`/admin/evaluations?resetOtp=${status}`, request.url), 303);
+    return NextResponse.redirect(publicSiteUrl(`/admin/evaluations?resetOtp=${status}`, request), 303);
   }
 
   const notifications = [];
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
   revalidatePath("/admin/evaluations");
   const hasFailedMail = notifications.some((item) => item.status === "failed");
   return NextResponse.redirect(
-    new URL(`/admin/evaluations?resetOtp=${hasFailedMail ? "reset_mail_failed" : "reset_done"}`, request.url),
+    publicSiteUrl(`/admin/evaluations?resetOtp=${hasFailedMail ? "reset_mail_failed" : "reset_done"}`, request),
     303,
   );
 }
