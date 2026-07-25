@@ -82,6 +82,8 @@ const allowedAuditActions = new Set([
   "evaluation.lucky_draw",
   "evaluation.lucky_draw_reset_otp_requested",
   "evaluation.lucky_draw_reset",
+  "evaluation.responses_reset",
+  "evaluation.report_exported",
 ]);
 const allowedActionList = [...allowedAuditActions];
 

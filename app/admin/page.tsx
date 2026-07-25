@@ -953,6 +953,8 @@ function auditActionLabel(action: string) {
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
+  if (action === "evaluation.responses_reset") return "Reset แบบประเมินความพึงพอใจ";
+  if (action === "evaluation.report_exported") return "Export รายงานแบบประเมิน PDF";
   return action;
 }
 

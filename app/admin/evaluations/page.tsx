@@ -1,12 +1,17 @@
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ClipboardList, Gift, Star, Trophy } from "lucide-react";
+import { ArrowLeft, ChevronDown, ClipboardList, FileDown, Gift, Star, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
+import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
+import { adminNoticePath } from "../../../lib/admin-flash";
 import { getAdminSettings } from "../../../lib/admin-store";
-import { getEvaluationSummary, listLuckyDrawCandidates, type EvaluationSummary } from "../../../lib/evaluation-store";
+import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
+import { getEvaluationSummary, listEvaluationRespondents, listLuckyDrawCandidates, resetEvaluations, type EvaluationSummary } from "../../../lib/evaluation-store";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +36,9 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
   if (!session) redirect("/admin");
 
   const params = await searchParams;
-  const [summary, settings, luckyDrawCandidates] = await Promise.all([
+  const [summary, respondents, settings, luckyDrawCandidates] = await Promise.all([
     withFallback(getEvaluationSummary(), emptyEvaluationSummary),
+    withFallback(listEvaluationRespondents(), []),
     getAdminSettings(),
     withFallback(listLuckyDrawCandidates(), []),
   ]);
@@ -58,6 +64,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           </div>
           <div className="admin-actions">
             <span className={`status-pill ${settings.satisfactionEvaluationEnabled ? "attended" : "registered"}`}>{settings.satisfactionEvaluationEnabled ? "เปิดให้ประเมิน" : "ยังไม่เปิด"}</span>
+            {isSuperAdmin && <form action={resetEvaluationsAction}><ResetEvaluationsButton disabled={!summary.total}/></form>}
           </div>
         </header>
         <div className="evaluation-dashboard-summary">
@@ -74,13 +81,42 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
       </section>
 
       <section className="admin-panel evaluation-detail-panel">
-        <header className="admin-section-head"><ClipboardList/><div><h2>คะแนนรายข้อ</h2><p>แสดงค่าเฉลี่ยของแต่ละคำถามเพื่อดูจุดที่ทำได้ดีและจุดที่ควรปรับปรุง</p></div></header>
-        <div className="evaluation-question-list detailed">
-          {summary.questions.length ? summary.questions.map((question) => <div key={question.index}>
-            <span>{question.index}. {question.label}<small>{question.count.toLocaleString("th-TH")} คำตอบ</small></span>
-            <b>{question.average ? question.average.toFixed(2) : "-"}</b>
-          </div>) : <div className="participant-empty">ยังไม่มีคะแนนรายข้อ</div>}
+        <header className="admin-section-head">
+          <UserCheck/>
+          <div><h2>ผู้ตอบแบบประเมินล่าสุด</h2><p>แสดง 10 รายการล่าสุด จากผู้ตอบทั้งหมด {respondents.length.toLocaleString("th-TH")} คน</p></div>
+          <div className="admin-actions">
+            <a className="primary" href="/api/admin/evaluations/export" target="_blank" rel="noreferrer"><FileDown/>Export PDF</a>
+          </div>
+        </header>
+        <div className="admin-table-wrap">
+          <table className="admin-table compact-admin-table evaluation-respondent-table">
+            <thead><tr><th>ผู้ประเมิน</th><th>รหัสลงทะเบียน</th><th>วันที่ประเมิน</th><th>คะแนนภาพรวม</th></tr></thead>
+            <tbody>
+              {respondents.length ? respondents.slice(0, 10).map((respondent) => <tr key={respondent.registrationCode}>
+                <td data-label="ผู้ประเมิน"><b>{respondent.name}</b><small>{respondent.email}</small></td>
+                <td data-label="รหัสลงทะเบียน"><b>{respondent.registrationCode}</b></td>
+                <td data-label="วันที่ประเมิน">{formatAdminDate(respondent.submittedAt)}</td>
+                <td data-label="คะแนนภาพรวม"><span className="status-pill attended"><Star/>{respondent.overallAverage.toFixed(2)}/5</span></td>
+              </tr>) : <tr><td colSpan={4}>ยังไม่มีผู้ตอบแบบประเมิน</td></tr>}
+            </tbody>
+          </table>
         </div>
+      </section>
+
+      <section className="admin-panel evaluation-detail-panel">
+        <details className="evaluation-question-toggle">
+          <summary>
+            <ClipboardList/>
+            <div><h2>คะแนนรายข้อ</h2><p>กดเพื่อแสดงค่าเฉลี่ยของแต่ละคำถาม</p></div>
+            <span><i className="show-label">แสดงคะแนน</i><i className="hide-label">ซ่อนคะแนน</i><ChevronDown/></span>
+          </summary>
+          <div className="evaluation-question-list detailed">
+            {summary.questions.length ? summary.questions.map((question) => <div key={question.index}>
+              <span>{question.index}. {question.label}<small>{question.count.toLocaleString("th-TH")} คำตอบ</small></span>
+              <b>{question.average ? question.average.toFixed(2) : "-"}</b>
+            </div>) : <div className="participant-empty">ยังไม่มีคะแนนรายข้อ</div>}
+          </div>
+        </details>
       </section>
 
       <section className="admin-panel evaluation-detail-panel">
@@ -123,6 +159,39 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
       </section>
     </div>
   </div>;
+}
+
+async function resetEvaluationsAction() {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || session.role !== "super_admin") redirect("/admin");
+
+  let result;
+  try {
+    result = await resetEvaluations();
+  } catch (error) {
+    const code = String((error as { code?: string }).code ?? "");
+    if (code === "ACTIVE_LUCKY_DRAW") {
+      redirect(adminNoticePath("/admin/evaluations", "evaluations_reset_blocked"));
+    }
+    if (code === "NOTHING_TO_RESET") {
+      redirect(adminNoticePath("/admin/evaluations", "evaluations_reset_empty"));
+    }
+    throw error;
+  }
+
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "evaluation.responses_reset",
+    entityType: "evaluation",
+    summary: `รีเซ็ตคำตอบแบบประเมินความพึงพอใจ ${result.deleted} รายการ`,
+    payload: { deleted: result.deleted },
+  }, await headers());
+  revalidatePath("/admin");
+  revalidatePath("/admin/evaluations");
+  revalidatePath("/evaluation");
+  redirect(adminNoticePath("/admin/evaluations", "evaluations_reset"));
 }
 
 async function withFallback<T>(promise: Promise<T>, fallback: T) {

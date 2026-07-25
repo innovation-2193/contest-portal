@@ -19,7 +19,9 @@ export function AdminNotice({ code }: { code?: string | null }) {
   }, [message]);
 
   if (!message) return null;
-  const isWarning = code === "participant_none_selected";
+  const isWarning = code === "participant_none_selected"
+    || code === "evaluations_reset_empty"
+    || code === "evaluations_reset_blocked";
 
   return <div ref={noticeRef} className={isWarning ? "admin-action-notice warning" : "admin-action-notice"} role="status" aria-live="polite" tabIndex={-1}>
     <CheckCircle2/>

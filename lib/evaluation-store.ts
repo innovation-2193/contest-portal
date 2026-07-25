@@ -64,6 +64,14 @@ export type EvaluationSummary = {
   winners: EvaluationRecord[];
 };
 
+export type EvaluationRespondent = {
+  registrationCode: string;
+  name: string;
+  email: string;
+  submittedAt: string;
+  overallAverage: number;
+};
+
 type EvaluationStore = {
   evaluations: EvaluationRecord[];
 };
@@ -158,6 +166,49 @@ export async function getEvaluationSummary(): Promise<EvaluationSummary> {
     if (!isDatabaseUnavailable(error)) throw error;
     const store = await readStoreSafe();
     return summarizeEvaluations(await enrichLocalEvaluationRecords(store.evaluations));
+  }
+}
+
+export async function listEvaluationRespondents(): Promise<EvaluationRespondent[]> {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+       FROM satisfaction_evaluations e
+       JOIN registrations r ON r.registration_code=e.registration_code
+       JOIN users u ON u.id=r.user_id
+       ORDER BY e.submitted_at DESC`,
+    );
+    return (rows as EvaluationRow[]).map(rowToRecord).map(evaluationRespondent);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const store = await readStoreSafe();
+    return (await enrichLocalEvaluationRecords(store.evaluations))
+      .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at))
+      .map(evaluationRespondent);
+  }
+}
+
+export async function resetEvaluations() {
+  try {
+    await ensureDatabaseSchema();
+    return await transaction(async (connection) => {
+      const [rows] = await connection.execute(
+        "SELECT registration_code,lucky_draw_prize FROM satisfaction_evaluations FOR UPDATE",
+      );
+      const evaluations = rows as Array<{ registration_code: string; lucky_draw_prize: number | null }>;
+      if (!evaluations.length) {
+        throw Object.assign(new Error("no evaluations to reset"), { code: "NOTHING_TO_RESET" });
+      }
+      if (evaluations.some((item) => item.lucky_draw_prize !== null)) {
+        throw Object.assign(new Error("lucky draw must be reset first"), { code: "ACTIVE_LUCKY_DRAW" });
+      }
+      const [result] = await connection.execute("DELETE FROM satisfaction_evaluations");
+      return { deleted: (result as ResultSetHeader).affectedRows };
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return resetLocalEvaluations();
   }
 }
 
@@ -410,6 +461,16 @@ function average(values: number[]) {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length * 100) / 100;
 }
 
+function evaluationRespondent(record: EvaluationRecord): EvaluationRespondent {
+  return {
+    registrationCode: record.registration_code,
+    name: record.participant_name ?? record.registration_code,
+    email: record.email ?? "-",
+    submittedAt: record.submitted_at,
+    overallAverage: average(record.scores),
+  };
+}
+
 function countBy(values: string[]) {
   const counts = new Map<string, number>();
   values.forEach((value) => counts.set(value || "-", (counts.get(value || "-") ?? 0) + 1));
@@ -496,6 +557,25 @@ async function resetLocalLuckyDraw(): Promise<LuckyDrawResetResult> {
     } : item);
     await writeStore(store);
     return { cycleNo: 0, winners };
+  };
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
+async function resetLocalEvaluations() {
+  const work = async () => {
+    const store = await readStore();
+    if (!store.evaluations.length) {
+      throw Object.assign(new Error("no evaluations to reset"), { code: "NOTHING_TO_RESET" });
+    }
+    if (store.evaluations.some((item) => item.lucky_draw_prize !== null)) {
+      throw Object.assign(new Error("lucky draw must be reset first"), { code: "ACTIVE_LUCKY_DRAW" });
+    }
+    const deleted = store.evaluations.length;
+    store.evaluations = [];
+    await writeStore(store);
+    return { deleted };
   };
   const result = writeQueue.then(work, work);
   writeQueue = result.catch(() => undefined);

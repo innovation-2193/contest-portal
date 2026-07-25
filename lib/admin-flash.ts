@@ -18,6 +18,9 @@ export const adminNoticeMessages = {
   score_saved: "บันทึกคะแนนเรียบร้อยแล้ว",
   submission_deleted: "ลบใบสมัครประกวดเรียบร้อยแล้ว",
   lucky_draw_done: "สุ่ม Lucky Draw และส่งอีเมลแจ้งผู้โชคดีเรียบร้อยแล้ว",
+  evaluations_reset: "รีเซ็ตคำตอบแบบประเมินความพึงพอใจทั้งหมดเรียบร้อยแล้ว",
+  evaluations_reset_empty: "ยังไม่มีคำตอบแบบประเมินสำหรับรีเซ็ต",
+  evaluations_reset_blocked: "กรุณา Reset ผล Lucky Draw ด้วย OTP ก่อนรีเซ็ตคำตอบแบบประเมิน",
 } as const;
 
 export type AdminNoticeCode = keyof typeof adminNoticeMessages;

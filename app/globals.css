@@ -7792,6 +7792,87 @@ body.scan-result-modal-open .step-rail {
   gap: 18px;
 }
 
+.evaluation-question-toggle {
+  min-width: 0;
+}
+
+.evaluation-question-toggle > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.evaluation-question-toggle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.evaluation-question-toggle > summary > svg {
+  width: 26px;
+  height: 26px;
+  color: var(--gold);
+}
+
+.evaluation-question-toggle > summary h2,
+.evaluation-question-toggle > summary p {
+  margin: 0;
+}
+
+.evaluation-question-toggle > summary h2 {
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.evaluation-question-toggle > summary p {
+  color: var(--muted);
+}
+
+.evaluation-question-toggle > summary > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(223, 186, 51, 0.48);
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.evaluation-question-toggle > summary i {
+  font-style: normal;
+}
+
+.evaluation-question-toggle .hide-label {
+  display: none;
+}
+
+.evaluation-question-toggle > summary > span svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 180ms ease;
+}
+
+.evaluation-question-toggle[open] .show-label {
+  display: none;
+}
+
+.evaluation-question-toggle[open] .hide-label {
+  display: inline;
+}
+
+.evaluation-question-toggle[open] > summary > span svg {
+  transform: rotate(180deg);
+}
+
+.evaluation-question-toggle[open] .evaluation-question-list {
+  padding-top: 10px;
+}
+
 .evaluation-detail-section-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -10335,6 +10416,14 @@ body:has(.report-page) .brand b {
   }
   .participant-profile-help {
     align-items: flex-start;
+  }
+  .evaluation-question-toggle > summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .evaluation-question-toggle > summary > span {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
   }
   .back-to-top {
     right: max(14px, env(safe-area-inset-right));
