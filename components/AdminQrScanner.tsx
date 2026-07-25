@@ -48,6 +48,8 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
   const audioContextRef = useRef<AudioContext | null>(null);
   const scanningRef = useRef(false);
   const loopRef = useRef<number | null>(null);
+  const resultScrollRef = useRef<HTMLDivElement | null>(null);
+  const resultCloseRef = useRef<HTMLButtonElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [cameraStatus, setCameraStatus] = useState("ยังไม่ได้เปิดกล้อง");
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -64,6 +66,22 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
   }, []);
 
   useEffect(() => setRoleCounts(initialRoleCounts), [initialRoleCounts]);
+
+  useEffect(() => {
+    if (!result) return;
+    document.body.classList.add("scan-result-modal-open");
+    resultScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    resultCloseRef.current?.focus({ preventScroll: true });
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") clearResult();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.classList.remove("scan-result-modal-open");
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [result]);
 
   useEffect(() => {
     const query = searchQuery.replace(/\s+/g, " ").trim();
@@ -389,49 +407,53 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       {resultFeaturedClass && <div className="scan-prosperity-field" aria-hidden="true">
         {prosperityParticles.map((particle) => <span key={particle} />)}
       </div>}
-      <div className={["scan-success-hero", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")} role="status" aria-live="polite">
-        <button className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
-        <div className="scan-success-heading">
-          <div className="scan-success-mark">{result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}</div>
-          <div className="scan-success-copy">
-            <span>QR CHECK-IN</span>
-            <h3 id="scan-result-title">{result.wasAlreadyCheckedIn ? "รายการนี้เช็คอินแล้ว" : "เช็คอินเรียบร้อยแล้ว"}</h3>
-            <p>{result.wasAlreadyCheckedIn ? "ระบบพบว่าผู้เข้าร่วมงานได้เช็คอินก่อนหน้านี้" : "บันทึกสถานะเข้าร่วมงานเรียบร้อยแล้ว"}</p>
+      <div className={["scan-success-hero", result.wasAlreadyCheckedIn ? "already" : "", resultRoleClass, resultFeaturedClass].filter(Boolean).join(" ")}>
+        <header className="scan-success-modal-head">
+          <button ref={resultCloseRef} className="scan-success-close" type="button" onClick={clearResult} aria-label="ปิดผลลัพธ์"><X/></button>
+          <div className="scan-success-heading">
+            <div className="scan-success-mark">{result.wasAlreadyCheckedIn ? <AlertTriangle/> : <CheckCircle2/>}</div>
+            <div className="scan-success-copy" role="status" aria-live="polite">
+              <span>QR CHECK-IN</span>
+              <h3 id="scan-result-title">{result.wasAlreadyCheckedIn ? "รายการนี้เช็คอินแล้ว" : "เช็คอินเรียบร้อยแล้ว"}</h3>
+              <p>{result.wasAlreadyCheckedIn ? "ระบบพบว่าผู้เข้าร่วมงานได้เช็คอินก่อนหน้านี้" : "บันทึกสถานะเข้าร่วมงานเรียบร้อยแล้ว"}</p>
+            </div>
           </div>
+        </header>
+        <div ref={resultScrollRef} className="scan-success-scroll">
+          <div className={`scan-role-band ${resultRoleClass}`}><span>ระดับผู้เข้าร่วมงาน</span><b>{result.participantRole?.toUpperCase() || "GUEST"}</b></div>
+          {Boolean(result.teamCheckIns?.length) && <div className="scan-team-auto">
+            <div>
+              <span>เช็คอินสมาชิกทีมอัตโนมัติ</span>
+              <b>{result.teamCheckIns?.length.toLocaleString("th-TH")} คน</b>
+              <small>{[result.teamName, result.teamSubmissionCode].filter(Boolean).join(" • ")}</small>
+            </div>
+            <ul>
+              {result.teamCheckIns?.map((member) => {
+                const roleClass = participantRoleClass(member.participantRole);
+                return <li key={member.registrationCode}>
+                  <span>
+                    <b>{member.name}</b>
+                    <small>{member.registrationCode} • {member.wasAlreadyCheckedIn ? "เช็คอินไว้แล้ว" : "เช็คอินอัตโนมัติแล้ว"}</small>
+                  </span>
+                  <i className={`status-pill role-pill ${roleClass}`}>{member.participantRole}</i>
+                </li>;
+              })}
+            </ul>
+          </div>}
+          <dl className="scan-success-details">
+            <div><dt>ชื่อ-นามสกุล</dt><dd>{result.name || "-"}</dd></div>
+            <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
+            {result.wasAlreadyCheckedIn && <div><dt>เช็คอินครั้งแรกเมื่อ</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
+            {!result.wasAlreadyCheckedIn && <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
+            <div><dt>ผู้สแกน QR Code</dt><dd>{result.checkedInByEmail || "-"}</dd></div>
+            <div><dt>สถานะ</dt><dd>เข้าร่วมงานแล้ว</dd></div>
+            <div><dt>เบอร์โทร</dt><dd>{result.phone || "-"}</dd></div>
+            <div><dt>หน่วยงาน</dt><dd>{[result.division, result.bureau].filter(Boolean).join(" / ") || "-"}</dd></div>
+            <div><dt>ตำแหน่ง</dt><dd>{result.position || "-"}</dd></div>
+          </dl>
         </div>
-        <div className={`scan-role-band ${resultRoleClass}`}><span>ระดับผู้เข้าร่วมงาน</span><b>{result.participantRole?.toUpperCase() || "GUEST"}</b></div>
-        {Boolean(result.teamCheckIns?.length) && <div className="scan-team-auto">
-          <div>
-            <span>เช็คอินสมาชิกทีมอัตโนมัติ</span>
-            <b>{result.teamCheckIns?.length.toLocaleString("th-TH")} คน</b>
-            <small>{[result.teamName, result.teamSubmissionCode].filter(Boolean).join(" • ")}</small>
-          </div>
-          <ul>
-            {result.teamCheckIns?.map((member) => {
-              const roleClass = participantRoleClass(member.participantRole);
-              return <li key={member.registrationCode}>
-                <span>
-                  <b>{member.name}</b>
-                  <small>{member.registrationCode} • {member.wasAlreadyCheckedIn ? "เช็คอินไว้แล้ว" : "เช็คอินอัตโนมัติแล้ว"}</small>
-                </span>
-                <i className={`status-pill role-pill ${roleClass}`}>{member.participantRole}</i>
-              </li>;
-            })}
-          </ul>
-        </div>}
-        <dl className="scan-success-details">
-          <div><dt>ชื่อ-นามสกุล</dt><dd>{result.name || "-"}</dd></div>
-          <div><dt>รหัสลงทะเบียน</dt><dd>{result.registrationCode}</dd></div>
-          {result.wasAlreadyCheckedIn && <div><dt>เช็คอินครั้งแรกเมื่อ</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
-          {!result.wasAlreadyCheckedIn && <div><dt>เวลาเช็คอิน</dt><dd>{formatScanDate(result.checkedInAt)}</dd></div>}
-          <div><dt>ผู้สแกน QR Code</dt><dd>{result.checkedInByEmail || "-"}</dd></div>
-          <div><dt>สถานะ</dt><dd>เข้าร่วมงานแล้ว</dd></div>
-          <div><dt>เบอร์โทร</dt><dd>{result.phone || "-"}</dd></div>
-          <div><dt>หน่วยงาน</dt><dd>{[result.division, result.bureau].filter(Boolean).join(" / ") || "-"}</dd></div>
-          <div><dt>ตำแหน่ง</dt><dd>{result.position || "-"}</dd></div>
-        </dl>
         <div className="scan-success-actions">
-          <button className="primary" type="button" onClick={clearResult}><RotateCcw/>สแกนผู้เข้าร่วมงานคนถัดไป</button>
+          <button className="primary" type="button" onClick={clearResult}><RotateCcw/>สแกน QR Code คนถัดไป</button>
         </div>
       </div>
     </div>}
