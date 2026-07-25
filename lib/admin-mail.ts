@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import nodemailer from "nodemailer";
+import { brandedEmailHtml, brandedEmailLogoAttachment } from "./email-theme";
 
 type AdminMailInput = {
   to: string | string[];
@@ -8,6 +9,9 @@ type AdminMailInput = {
   text: string;
   html: string;
   outboxKey: string;
+  emailHeading?: string;
+  emailEyebrow?: string;
+  emailSubtitle?: string;
 };
 
 type MailStatus = "sent" | "outbox" | "failed";
@@ -39,12 +43,19 @@ export async function sendAdminMail(input: AdminMailInput) {
             : undefined,
         });
 
+    const html = brandedEmailHtml({
+      heading: input.emailHeading ?? input.subject,
+      eyebrow: input.emailEyebrow,
+      subtitle: input.emailSubtitle,
+      content: input.html,
+    });
     await transporter.sendMail({
       from,
       to: input.to,
       subject: input.subject,
       text: input.text,
-      html: input.html,
+      html,
+      attachments: [brandedEmailLogoAttachment()],
     });
     return { status: "sent" satisfies MailStatus };
   } catch (error) {
@@ -55,6 +66,12 @@ export async function sendAdminMail(input: AdminMailInput) {
 
 async function writeDevOutbox(input: AdminMailInput) {
   const outbox = path.join(storageDir, "email-outbox", "admin", safeOutboxKey(input.outboxKey));
+  const html = brandedEmailHtml({
+    heading: input.emailHeading ?? input.subject,
+    eyebrow: input.emailEyebrow,
+    subtitle: input.emailSubtitle,
+    content: input.html,
+  });
   await mkdir(outbox, { recursive: true });
   await writeFile(
     path.join(outbox, "email.json"),
@@ -62,7 +79,7 @@ async function writeDevOutbox(input: AdminMailInput) {
       to: input.to,
       subject: input.subject,
       text: input.text,
-      html: input.html,
+      html,
       createdAt: new Date().toISOString(),
     }, null, 2)}\n`,
     "utf8",

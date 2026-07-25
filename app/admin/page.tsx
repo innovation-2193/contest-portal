@@ -919,6 +919,9 @@ function actorLabel(actor: AuditEventRecord["actor"]) {
 }
 
 function auditActionLabel(action: string) {
+  if (action === "auth.participant_otp_requested") return "ขอ OTP โปรไฟล์ผู้เข้าร่วม";
+  if (action === "auth.participant_login") return "เข้าสู่โปรไฟล์ผู้เข้าร่วม";
+  if (action === "auth.participant_logout") return "ออกจากโปรไฟล์ผู้เข้าร่วม";
   if (action === "auth.super_admin_login") return "Super Admin เข้าสู่ระบบ";
   if (action === "auth.admin_login") return "Admin เข้าสู่ระบบ";
   if (action === "registration.created") return "ลงทะเบียนเข้าร่วมงาน";

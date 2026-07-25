@@ -5,18 +5,25 @@ import { ClipboardCheck, Download, Gift, MailCheck } from "lucide-react";
 import { PageHero, SideNotes } from "../../../components/SiteChrome";
 import { getAdminSettings, isSatisfactionEvaluationOpen } from "../../../lib/admin-store";
 import { findEvaluationByRegistrationCode } from "../../../lib/evaluation-store";
-import { participantSessionCookie, participantSubmissionCookie } from "../../../lib/participant-session";
-import { findRegistrationByCode } from "../../../lib/registration-lookup";
+import { getParticipantSession, participantSessionCookie, participantSubmissionCookie } from "../../../lib/participant-session";
+import { findRegistrationsByEmail } from "../../../lib/registration-lookup";
 
 export const dynamic = "force-dynamic";
 
 export default async function RegisterSuccess({ searchParams }: { searchParams: Promise<{ code?: string }> }) {
   const { code } = await searchParams;
   const cookieStore = await cookies();
-  const sessionCode = cookieStore.get(participantSessionCookie)?.value;
+  const session = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
+  if (!session) redirect("/profile/login");
+  const registrations = await findRegistrationsByEmail(session.email);
   const requestedCode = code?.trim() || "";
-  const requestedItem = requestedCode ? await findRegistrationByCode(requestedCode) : null;
-  const sessionItem = !requestedItem && sessionCode ? await findRegistrationByCode(sessionCode) : null;
+  const requestedItem = requestedCode
+    ? registrations.find((registration) => registration.registration_code === requestedCode) ?? null
+    : null;
+  if (requestedCode && !requestedItem) redirect("/profile");
+  const sessionItem = registrations.find((registration) => registration.registration_code === session.registrationCode)
+    ?? registrations[0]
+    ?? null;
   const item = requestedItem || sessionItem;
 
   if (!requestedCode && item) {
@@ -100,7 +107,7 @@ async function useOtherEmailAction() {
   const cookieStore = await cookies();
   cookieStore.delete(participantSessionCookie);
   cookieStore.delete(participantSubmissionCookie);
-  redirect("/register/form?provider=local");
+  redirect("/profile/login");
 }
 
 function roleLabel(role?: string | null) {

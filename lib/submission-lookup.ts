@@ -19,6 +19,25 @@ export async function findSubmissionByCode(code: string) {
   }
 }
 
+export async function findSubmissionsByEmail(emailInput: string) {
+  const email = emailInput.trim().toLowerCase();
+  if (!email) return [];
+  try {
+    const [rows] = await db.execute(
+      `${submissionSelect} WHERE LOWER(u.email)=? OR EXISTS (
+        SELECT 1 FROM submission_members member_email
+        WHERE member_email.submission_id=s.id AND LOWER(member_email.email)=?
+      ) ORDER BY s.submitted_at DESC`,
+      [email, email],
+    );
+    const databaseRows = rows as LocalSubmissionRecord[];
+    return databaseRows.length ? databaseRows : findLocalSubmissionsByEmail(email);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return findLocalSubmissionsByEmail(email);
+  }
+}
+
 export async function findSubmissionForRegistration(registration: Pick<RegistrationRecord, "email" | "citizen_id">) {
   const email = registration.email.trim().toLowerCase();
   const citizenId = registration.citizen_id.trim();
@@ -41,4 +60,12 @@ async function findLocalSubmissionForRegistration(email: string, citizenId: stri
     const memberMatch = item.members?.some((member) => member.email === email || member.citizen_id === citizenId);
     return item.email === email || item.citizen_id === citizenId || memberMatch;
   }) ?? null;
+}
+
+async function findLocalSubmissionsByEmail(email: string) {
+  const submissions = await listLocalSubmissions();
+  return submissions
+    .filter((item) => item.email.trim().toLowerCase() === email
+      || item.members?.some((member) => member.email?.trim().toLowerCase() === email))
+    .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
 }

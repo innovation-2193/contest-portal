@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "crypto";
 import { mkdir, rm, writeFile } from "fs/promises";
 import path from "path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { code } from "../../../lib/codes";
 import { getAdminSettings, isContestSubmissionOpen } from "../../../lib/admin-store";
@@ -9,8 +9,16 @@ import { db, transaction } from "../../../lib/db";
 import { ensureDatabaseSchema } from "../../../lib/db-schema";
 import { isDatabaseUnavailable } from "../../../lib/local-registrations";
 import { createLocalSubmission, findLocalSubmissionByCode } from "../../../lib/local-submissions";
-import { participantSessionMaxAge, participantSubmissionCookie } from "../../../lib/participant-session";
+import {
+  createParticipantSessionToken,
+  getParticipantSession,
+  participantCookieSecure,
+  participantSessionCookie,
+  participantSessionMaxAge,
+  participantSubmissionCookie,
+} from "../../../lib/participant-session";
 import { sendSubmissionConfirmation } from "../../../lib/submission-artifacts";
+import { findSubmissionsByEmail } from "../../../lib/submission-lookup";
 import { isThaiCitizenId } from "../../../lib/validation";
 import { recordAuditEvent } from "../../../lib/audit-log";
 export const runtime = "nodejs";
@@ -59,17 +67,32 @@ export async function POST(request:Request){
       summary:`สมัครประกวดนวัตกรรม ${submissionCode}`,
       payload:{submissionCode,submissionType:data.submissionType,titleTh:data.titleTh},
     },request.headers);
-    return submissionResponse(submissionCode,email.status,201);
+    return submissionResponse(submissionCode,data.email,email.status,201);
   }catch(error){return NextResponse.json({error:error instanceof z.ZodError?error.issues[0]?.message:error instanceof Error?error.message:"ไม่สามารถส่งผลงานได้"},{status:422});}
 }
 
-export async function GET(request:Request){const codeValue=new URL(request.url).searchParams.get("code");if(!codeValue)return NextResponse.json({error:"code is required"},{status:400});let row:unknown;try{await ensureDatabaseSchema();const [rows]=await db.execute("SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.citizen_id,m.phone,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1 WHERE s.submission_code=? LIMIT 1",[codeValue]);row=(rows as unknown[])[0];}catch(error){if(!isDatabaseUnavailable(error))throw error;row=await findLocalSubmissionByCode(codeValue);}return row?NextResponse.json(row):NextResponse.json({error:"not found"},{status:404});}
+export async function GET(request:NextRequest){
+  const codeValue=request.nextUrl.searchParams.get("code");
+  if(!codeValue)return NextResponse.json({error:"code is required"},{status:400});
+  const session=getParticipantSession(request.cookies.get(participantSessionCookie)?.value);
+  if(!session)return NextResponse.json({error:"unauthorized"},{status:401});
+  const row=(await findSubmissionsByEmail(session.email)).find((item)=>item.submission_code===codeValue);
+  return row?NextResponse.json(row):NextResponse.json({error:"not found"},{status:404});
+}
 
-function submissionResponse(submissionCode:string,emailStatus:string,status:number){
+function submissionResponse(submissionCode:string,email:string,emailStatus:string,status:number){
   const response=NextResponse.json({submissionCode,emailStatus},{status});
+  response.cookies.set(participantSessionCookie,createParticipantSessionToken({email}),{
+    httpOnly:true,
+    sameSite:"lax",
+    secure:participantCookieSecure(),
+    path:"/",
+    maxAge:participantSessionMaxAge,
+  });
   response.cookies.set(participantSubmissionCookie,submissionCode,{
     httpOnly:true,
     sameSite:"lax",
+    secure:participantCookieSecure(),
     path:"/",
     maxAge:participantSessionMaxAge,
   });

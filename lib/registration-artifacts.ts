@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 import type { RegistrationRecord } from "./local-registrations";
+import { brandedEmailHtml, brandedEmailLogoAttachment } from "./email-theme";
 import {
   drawDocumentFooter,
   drawDocumentHeader,
@@ -152,6 +153,7 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
       html: confirmationHtml(record),
       text: confirmationText(record),
       attachments: [
+        brandedEmailLogoAttachment(),
         { filename: `${record.registration_code}.png`, content: qr, contentType: "image/png", cid: "registration-qr" },
         { filename: `${record.registration_code}.pdf`, content: pdf, contentType: "application/pdf" },
       ],
@@ -165,16 +167,11 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
 }
 
 function confirmationHtml(record: RegistrationRecord) {
-  const detailUrl = `${publicBaseUrl()}/register/success?code=${encodeURIComponent(record.registration_code)}`;
-  return `<div style="margin:0;background:#061127;padding:28px;font-family:Arial,'Noto Sans Thai',Tahoma,sans-serif;color:#172033;line-height:1.7">
-    <div style="max-width:680px;margin:0 auto;border:1px solid #d8b62f;border-radius:14px;overflow:hidden;background:#ffffff">
-      <div style="background:#123c73;color:#ffffff;padding:28px 30px;border-bottom:5px solid #d8b62f">
-        <div style="font-size:13px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:#fff0a8">POLICE INNOVATION CONTEST 2026</div>
-        <h1 style="margin:14px 0 6px;font-size:30px;line-height:1.25;color:#ffffff">ยืนยันการลงทะเบียนเข้าร่วมงาน ${escapeHtml(record.registration_code)}</h1>
-        <p style="margin:0;font-size:16px;color:#dfe8f7">บันทึกการลงทะเบียนของ ${escapeHtml(record.title)}${escapeHtml(record.first_name)} ${escapeHtml(record.last_name)} เรียบร้อยแล้ว</p>
-      </div>
-      <div style="padding:30px">
-        <p style="margin:0 0 18px">เรียน ${escapeHtml(record.title)}${escapeHtml(record.first_name)} ${escapeHtml(record.last_name)}</p>
+  const detailUrl = `${publicBaseUrl()}/profile/login`;
+  return brandedEmailHtml({
+    heading: "ยืนยันการลงทะเบียนเข้าร่วมงาน",
+    subtitle: `${record.registration_code} · บันทึกข้อมูลเรียบร้อยแล้ว`,
+    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(record.title)}${escapeHtml(record.first_name)} ${escapeHtml(record.last_name)}</p>
         <p style="margin:0 0 22px">ระบบได้รับการลงทะเบียนเข้าร่วมงาน Police Innovation Contest 2026 เรียบร้อยแล้ว</p>
         <p style="margin:0 0 22px">
           เลขลงทะเบียน: <strong>${escapeHtml(record.registration_code)}</strong><br>
@@ -188,13 +185,9 @@ function confirmationHtml(record: RegistrationRecord) {
           <img src="cid:registration-qr" alt="QR Code ${escapeHtml(record.registration_code)}" style="width:220px;height:220px;border-radius:12px;background:#fff;display:block;margin:0 auto 16px">
           <div style="display:inline-block;background:#0a2d63;color:#fff0a8;border-radius:999px;padding:8px 18px;font-weight:700">${escapeHtml(record.registration_code)}</div>
         </div>
-        <a href="${escapeHtml(detailUrl)}" style="display:inline-block;background:#d8b62f;color:#07142b;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:9px">ดู QR Code และรายละเอียด</a>
-      </div>
-      <div style="padding:18px 30px;background:#f5f7fb;color:#5a6478;font-size:14px;border-top:1px solid #e6e9f0">
-        อีเมลนี้ส่งจากระบบ Police Innovation Contest 2569 กรุณาอย่าตอบกลับอีเมลอัตโนมัตินี้ หากต้องการติดต่อทีมงานให้ใช้อีเมล <a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a>
-      </div>
-    </div>
-  </div>`;
+        <a href="${escapeHtml(detailUrl)}" style="display:inline-block;background:#d8b62f;color:#07142b;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:9px">เข้าสู่โปรไฟล์และดู QR Code</a>
+      `,
+  });
 }
 
 function confirmationText(record: RegistrationRecord) {

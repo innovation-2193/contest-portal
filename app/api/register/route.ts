@@ -14,7 +14,7 @@ import {
   type RegistrationInput,
 } from "../../../lib/local-registrations";
 import { sendRegistrationConfirmation } from "../../../lib/registration-artifacts";
-import { participantSessionCookie, participantSessionMaxAge } from "../../../lib/participant-session";
+import { createParticipantSessionToken, participantCookieSecure, participantSessionCookie, participantSessionMaxAge } from "../../../lib/participant-session";
 import { isThaiCitizenId } from "../../../lib/validation";
 import { recordAuditEvent } from "../../../lib/audit-log";
 export const runtime = "nodejs";
@@ -49,14 +49,14 @@ export async function POST(request: Request) {
     });
     const email = await sendRegistrationConfirmation(result.record);
     await recordRegistrationCreated(request, result.registrationCode, result.record.email);
-    return registrationResponse(result.registrationCode, email.status);
+    return registrationResponse(result.registrationCode, result.record.email, email.status);
   } catch (error) {
     if (data && isDatabaseUnavailable(error)) {
       try {
         const result = await createLocalRegistration(data);
         const email = await sendRegistrationConfirmation(result.record);
         await recordRegistrationCreated(request, result.registrationCode, result.record.email);
-        return registrationResponse(result.registrationCode, email.status);
+        return registrationResponse(result.registrationCode, result.record.email, email.status);
       } catch (localError) {
         const message = messageFor(localError);
         return NextResponse.json({ error: message }, { status: 422 });
@@ -79,11 +79,12 @@ async function recordRegistrationCreated(request: Request, registrationCode: str
   }, request.headers);
 }
 
-function registrationResponse(registrationCode: string, emailStatus: string) {
+function registrationResponse(registrationCode: string, email: string, emailStatus: string) {
   const response = NextResponse.json({ registrationCode, emailStatus }, { status: 201 });
-  response.cookies.set(participantSessionCookie, registrationCode, {
+  response.cookies.set(participantSessionCookie, createParticipantSessionToken({ email, registrationCode }), {
     httpOnly: true,
     sameSite: "lax",
+    secure: participantCookieSecure(),
     path: "/",
     maxAge: participantSessionMaxAge,
   });

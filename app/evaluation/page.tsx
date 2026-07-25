@@ -7,8 +7,8 @@ import { PageHero, SideNotes } from "../../components/SiteChrome";
 import { getAdminSettings, isSatisfactionEvaluationOpen } from "../../lib/admin-store";
 import { evaluationProfileFields, evaluationScale, evaluationSections } from "../../lib/evaluation-form";
 import { findEvaluationByRegistrationCode, submitEvaluation } from "../../lib/evaluation-store";
-import { participantSessionCookie } from "../../lib/participant-session";
-import { findRegistrationByCode } from "../../lib/registration-lookup";
+import { getParticipantSession, participantSessionCookie } from "../../lib/participant-session";
+import { findRegistrationsByEmail } from "../../lib/registration-lookup";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +21,10 @@ type EvaluationParams = {
 export default async function EvaluationPage({ searchParams }: { searchParams: Promise<EvaluationParams> }) {
   const params = await searchParams;
   const cookieStore = await cookies();
-  const sessionCode = cookieStore.get(participantSessionCookie)?.value ?? "";
-  const registrationCode = (params.code ?? sessionCode).trim();
-  const item = registrationCode ? await findRegistrationByCode(registrationCode) : null;
+  const session = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
+  const registrations = session ? await findRegistrationsByEmail(session.email) : [];
+  const registrationCode = (params.code ?? session?.registrationCode ?? "").trim();
+  const item = registrations.find((registration) => registration.registration_code === registrationCode) ?? null;
   const settings = await getAdminSettings();
   const evaluationOpen = isSatisfactionEvaluationOpen(settings);
   const existing = item ? await findEvaluationByRegistrationCode(item.registration_code) : null;
@@ -161,10 +162,14 @@ function QuestionField({ index, label }: { index: number; label: string }) {
 async function submitEvaluationAction(formData: FormData) {
   "use server";
   const registrationCode = String(formData.get("registrationCode") ?? "").trim();
+  const cookieStore = await cookies();
+  const participantSession = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
+  if (!participantSession) redirect("/profile/login");
+  const ownedRegistrations = await findRegistrationsByEmail(participantSession.email);
+  const item = ownedRegistrations.find((registration) => registration.registration_code === registrationCode) ?? null;
+  if (!item) redirect("/profile");
   const settings = await getAdminSettings();
   if (!isSatisfactionEvaluationOpen(settings)) redirect(`/evaluation?code=${encodeURIComponent(registrationCode)}&error=closed`);
-
-  const item = registrationCode ? await findRegistrationByCode(registrationCode) : null;
   if (!item || item.status !== "attended") redirect(`/evaluation?code=${encodeURIComponent(registrationCode)}&error=attended`);
 
   const scores = evaluationSections.flatMap((section, sectionIndex) => section.items.map((_, itemIndex) => {

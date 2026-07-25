@@ -50,6 +50,9 @@ const maxAuditAgeDays = 90;
 const allowedAuditActions = new Set([
   "auth.super_admin_login",
   "auth.admin_login",
+  "auth.participant_otp_requested",
+  "auth.participant_login",
+  "auth.participant_logout",
   "registration.created",
   "registration.updated",
   "registration.deleted",

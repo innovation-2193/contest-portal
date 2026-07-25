@@ -24,6 +24,7 @@ async function runSchemaRepair() {
   await ensureSubmissionColumns();
   await ensureSatisfactionEvaluationsTable();
   await ensureLuckyDrawResultsTable();
+  await ensureParticipantLoginOtpsTable();
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
 }
@@ -123,6 +124,19 @@ async function ensureLuckyDrawResultsTable() {
       UNIQUE KEY uq_lucky_draw_cycle_prize (cycle_no, prize),
       INDEX idx_lucky_draw_active (reset_at, cycle_no),
       INDEX idx_lucky_draw_registration (registration_code)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureParticipantLoginOtpsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS participant_login_otps (
+      email VARCHAR(255) PRIMARY KEY,
+      code_hash CHAR(64) NOT NULL,
+      expires_at BIGINT UNSIGNED NOT NULL,
+      sent_at BIGINT UNSIGNED NOT NULL,
+      attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      INDEX idx_participant_otp_expiry (expires_at)
     ) ENGINE=InnoDB
   `);
 }
