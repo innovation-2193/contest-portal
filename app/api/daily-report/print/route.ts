@@ -65,7 +65,6 @@ async function dailyReportPdf(
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const teams = submissions.filter((item) => item.submission_type === "team");
-  const recentSubmissions = submissions.slice(0, 10);
 
   doc.info.Title = "รายงานสรุปประจำวัน";
   doc.info.Subject = "Daily report for Police Innovation Contest 2026";
@@ -123,7 +122,14 @@ async function dailyReportPdf(
       fonts,
     }) + 20;
   }
-  drawRecentSubmissionsTable(doc, recentSubmissions, margin, y, contentWidth);
+  drawAllSubmissionsTable(
+    doc,
+    submissions,
+    margin,
+    y,
+    contentWidth,
+    () => addDailyReportPage(doc, siteStats),
+  );
 
   const pageRange = doc.bufferedPageRange();
   for (let index = pageRange.start; index < pageRange.start + pageRange.count; index += 1) {
@@ -143,6 +149,18 @@ function drawPageChrome(doc: PDFKit.PDFDocument) {
     .circle(doc.page.width - 54, 126, 126)
     .fill()
     .restore();
+}
+
+function addDailyReportPage(doc: PDFKit.PDFDocument, siteStats: SiteStats) {
+  doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
+  drawPageChrome(doc);
+  return drawDocumentHeader(doc, {
+    title: "รายงานสรุปประจำวัน",
+    subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+    metaLabel: "ยอดเข้าชมวันนี้",
+    metaValue: siteStats.today.toLocaleString("th-TH"),
+    fonts,
+  }) + 20;
 }
 
 function drawConfidentialStrip(doc: PDFKit.PDFDocument, x: number, y: number, width: number) {
@@ -335,22 +353,40 @@ function drawStatusPanel(
   );
 }
 
-function drawRecentSubmissionsTable(
+function drawAllSubmissionsTable(
   doc: PDFKit.PDFDocument,
   submissions: SubmissionListItem[],
   x: number,
   y: number,
   width: number,
+  addPage: () => number,
 ) {
-  doc.font(pdfFontBold).fontSize(14).fillColor(PDF_THEME.navy).text("ผลงานที่ส่งมาแล้ว 10 รายการล่าสุด", x, y, {
-    width,
-    lineBreak: false,
-  });
-  y += 28;
   const columns = [74, 248, 96, 158, 126, 70];
   const headers = ["รหัส", "ชื่อผลงาน", "ประเภท", "ผู้สมัคร", "หน่วยงาน", "สถานะ"];
-  drawTableRow(doc, headers, columns, x, y, 28, true);
-  y += 28;
+  const bottomY = doc.page.height - 54;
+  const titleHeight = 28;
+  const headerHeight = 28;
+  const rowHeight = 30;
+  const emptyHeight = 48;
+
+  const drawHeading = (cursorY: number, continued = false) => {
+    doc.font(pdfFontBold).fontSize(14).fillColor(PDF_THEME.navy).text(
+      continued
+        ? `ผลงานที่ส่งมาแล้วทั้งหมด (ต่อ) จำนวน ${submissions.length.toLocaleString("th-TH")} รายการ`
+        : `ผลงานที่ส่งมาแล้วทั้งหมด จำนวน ${submissions.length.toLocaleString("th-TH")} รายการ`,
+      x,
+      cursorY,
+      { width, lineBreak: false },
+    );
+    cursorY += titleHeight;
+    drawTableRow(doc, headers, columns, x, cursorY, headerHeight, true);
+    return cursorY + headerHeight;
+  };
+
+  if (y + titleHeight + headerHeight + (submissions.length ? rowHeight : emptyHeight) > bottomY) {
+    y = addPage();
+  }
+  y = drawHeading(y);
 
   if (!submissions.length) {
     doc.roundedRect(x, y, width, 48, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
@@ -363,6 +399,9 @@ function drawRecentSubmissionsTable(
   }
 
   submissions.forEach((item, index) => {
+    if (y + rowHeight > bottomY) {
+      y = drawHeading(addPage(), true);
+    }
     const values = [
       item.submission_code,
       item.title_th,
@@ -371,8 +410,8 @@ function drawRecentSubmissionsTable(
       compactOrg(item),
       statusLabel(item.status),
     ];
-    drawTableRow(doc, values, columns, x, y, 30, false, index % 2 === 1);
-    y += 30;
+    drawTableRow(doc, values, columns, x, y, rowHeight, false, index % 2 === 1);
+    y += rowHeight;
   });
 }
 

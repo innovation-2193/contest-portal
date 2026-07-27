@@ -147,7 +147,7 @@ export default async function DailyReportPage() {
   const qualified = submissions.filter((item) => item.status === "qualified");
   const rejected = submissions.filter((item) => item.status === "rejected");
   const reviewPercent = submissions.length ? Math.round((scored.length / submissions.length) * 100) : 0;
-  const recentSubmissions = submissions.slice(0, 10);
+  const reportSubmissions = submissions;
   const statusStats = buildStatusStats(submissions);
 
   return <div className="admin-page report-page">
@@ -276,11 +276,11 @@ export default async function DailyReportPage() {
       <section className="admin-panel report-panel">
         <header className="admin-section-head">
           <FileText/>
-          <div><h2>ผลงานที่ส่งมาแล้ว</h2><p>แสดง 10 รายการล่าสุดจากระบบรับสมัคร</p></div>
-          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ดูทั้งหมด</Link></div>
+          <div><h2>ผลงานที่ส่งมาแล้วทั้งหมด</h2><p>แสดงผลงานทุกใบสมัครจากระบบรับสมัคร จำนวน {reportSubmissions.length.toLocaleString("th-TH")} รายการ</p></div>
+          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ค้นหา / กรองรายการ</Link></div>
         </header>
         <div className="submission-report-list">
-          {recentSubmissions.length ? recentSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
+          {reportSubmissions.length ? reportSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
         </div>
       </section>
     </div>
