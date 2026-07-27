@@ -3,20 +3,20 @@ import { redirect } from "next/navigation";
 import { Mail, ShieldCheck } from "lucide-react";
 import { PageHero } from "../../../components/SiteChrome";
 import { ParticipantOtpForm } from "../../../components/ParticipantOtpForm";
+import { getActiveSession } from "../../../lib/active-session";
 import {
   getParticipantOtpPendingEmail,
   getParticipantOtpAutoFillCode,
-  getParticipantSession,
   participantOtpAutoFillCookie,
   participantOtpPendingCookie,
-  participantSessionCookie,
 } from "../../../lib/participant-session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParticipantLoginPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const cookieStore = await cookies();
-  if (getParticipantSession(cookieStore.get(participantSessionCookie)?.value)) redirect("/profile");
+  const activeSession = getActiveSession(cookieStore);
+  if (activeSession) redirect(activeSession.href);
   const pendingEmail = getParticipantOtpPendingEmail(cookieStore.get(participantOtpPendingCookie)?.value);
   const autoFillOtp = pendingEmail ? getParticipantOtpAutoFillCode(cookieStore.get(participantOtpAutoFillCookie)?.value) : "";
   const { status } = await searchParams;

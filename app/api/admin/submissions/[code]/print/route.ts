@@ -4,6 +4,7 @@ import PDFKitDocument from "pdfkit";
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
+import { adminUnauthorizedResponse } from "../../../../../../lib/admin-api-response";
 import {
   getSubmissionDetail,
   getSubmissionFile,
@@ -34,7 +35,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return adminUnauthorizedResponse(request);
   }
 
   const { code } = await params;
@@ -60,11 +61,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
         "Cache-Control": "private, no-store",
       },
     });
-  } catch (error) {
-    const missing = (error as { code?: string }).code === "MISSING_FILE";
+  } catch {
     return NextResponse.json(
-      { error: missing ? "ไม่พบไฟล์แนบครบทั้ง 4 รายการ" : "ไม่สามารถสร้างไฟล์ PDF รวมได้" },
-      { status: missing ? 404 : 500 },
+      { error: "ไม่สามารถสร้างไฟล์ PDF รวมได้" },
+      { status: 500 },
     );
   }
 }
@@ -72,18 +72,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 async function submissionPrintPacketPdf(submission: AdminSubmissionDetail) {
   const detailPdf = await submissionDetailPdf(submission);
   const merged = await PdfLibDocument.create();
+  const missingAttachments: string[] = [];
   await appendPdf(merged, detailPdf);
 
   for (const type of submissionDocumentTypes) {
     const file = await getSubmissionFile(submission.submission_code, type);
     if (!file) {
-      throw Object.assign(new Error(`missing ${type}`), { code: "MISSING_FILE" });
+      missingAttachments.push(documentLabels[type]);
+      continue;
     }
     const bytes = await readSubmissionPdfFile(file);
     if (!bytes) {
-      throw Object.assign(new Error(`missing ${type}`), { code: "MISSING_FILE" });
+      missingAttachments.push(`${documentLabels[type]} (${file.original_name})`);
+      continue;
     }
-    await appendPdf(merged, bytes);
+    try {
+      await appendPdf(merged, bytes);
+    } catch {
+      missingAttachments.push(`${documentLabels[type]} (${file.original_name})`);
+    }
+  }
+
+  if (missingAttachments.length > 0) {
+    await appendPdf(merged, await missingAttachmentSummaryPdf(submission, missingAttachments));
   }
 
   return Buffer.from(await merged.save());
@@ -175,6 +186,56 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail) {
   );
 
   footer();
+  doc.end();
+  return pdf;
+}
+
+async function missingAttachmentSummaryPdf(submission: AdminSubmissionDetail, missingAttachments: string[]) {
+  const doc = new PDFKitDocument({ size: "A4", margin: 0 });
+  const pdf = collectPdf(doc);
+  const width = 595.28;
+
+  doc.info.Title = `รายการไฟล์แนบไม่พร้อม ${submission.submission_code}`;
+  doc.rect(0, 0, width, 841.89).fill(PDF_THEME.paper);
+  drawDocumentHeader(doc, {
+    title: "สรุปไฟล์แนบที่ไม่พร้อมพิมพ์",
+    subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+    metaLabel: "เลขที่สมัคร",
+    metaValue: submission.submission_code,
+  });
+
+  let y = 140;
+  doc.roundedRect(34, y, width - 68, 78, 9).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
+  doc.font(pdfFontBold).fontSize(13).fillColor(PDF_THEME.navy).text(
+    "ระบบสร้างไฟล์ข้อมูลผู้สมัครให้แล้ว แต่ไฟล์แนบบางรายการไม่พร้อมรวมใน PDF",
+    52,
+    y + 18,
+    { width: width - 104, lineGap: 3 },
+  );
+  doc.font(pdfFontRegular).fontSize(10).fillColor(PDF_THEME.text).text(
+    "ทีมงานสามารถตรวจสอบหรืออัปโหลดไฟล์แนบใหม่จากหน้ารายละเอียดใบสมัคร",
+    52,
+    y + 52,
+    { width: width - 104 },
+  );
+
+  y += 108;
+  y = drawSectionTitle(doc, "รายการที่ไม่พร้อม", y);
+  missingAttachments.forEach((label, index) => {
+    doc.roundedRect(34, y, width - 68, 38, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(pdfFontBold).fontSize(10).fillColor(PDF_THEME.gold).text(String(index + 1).padStart(2, "0"), 48, y + 13, {
+      width: 34,
+      lineBreak: false,
+    });
+    doc.font(pdfFontRegular).fontSize(10.5).fillColor(PDF_THEME.text).text(label, 88, y + 12, {
+      width: width - 136,
+      ellipsis: true,
+      lineBreak: false,
+    });
+    y += 44;
+  });
+
+  drawPacketFooter(doc, 1, submission.submission_code);
   doc.end();
   return pdf;
 }

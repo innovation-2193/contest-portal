@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogIn, ShieldCheck } from "lucide-react";
 import { PageHero, StepRail } from "../../components/SiteChrome";
+import { getActiveSession } from "../../lib/active-session";
 import { getAdminSettings, isEventRegistrationOpen } from "../../lib/admin-store";
 import { getParticipantSession, participantSessionCookie } from "../../lib/participant-session";
 import { findRegistrationByCode } from "../../lib/registration-lookup";
 
 export default async function Register() {
   const cookieStore = await cookies();
+  const activeSession = getActiveSession(cookieStore);
   const session = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
   const registration = session?.registrationCode
     ? await findRegistrationByCode(session.registrationCode)
@@ -35,17 +37,23 @@ export default async function Register() {
           <p>ใช้อีเมลที่ติดต่อได้จริง ระบบจะตรวจสอบรายการซ้ำและออก QR Code หลังบันทึกข้อมูลสำเร็จ</p>
           <div className="registration-entry-actions">
             <Link href="/register/form?provider=local" className="oauth">กรอกข้อมูลลงทะเบียน</Link>
-            <Link href="/profile/login" className="secondary participant-login-entry"><LogIn/>เข้าสู่ระบบผู้เข้าร่วมงาน</Link>
+            <SessionEntryLink activeSession={activeSession}/>
           </div>
         </> : <>
           <h2>ปิดลงทะเบียนเข้าร่วมงาน</h2>
           <p>ขณะนี้ระบบปิดรับลงทะเบียนเข้าร่วมงานชั่วคราว ผู้ที่ลงทะเบียนแล้วสามารถเข้าสู่โปรไฟล์ได้ตามปกติ</p>
           <div className="registration-entry-actions">
             <span className="oauth disabled-action" aria-disabled="true">ปิดรับลงทะเบียน</span>
-            <Link href="/profile/login" className="secondary participant-login-entry"><LogIn/>เข้าสู่ระบบผู้เข้าร่วมงาน</Link>
+            <SessionEntryLink activeSession={activeSession}/>
           </div>
         </>}
       </div>
     </section>
   </>;
+}
+
+function SessionEntryLink({ activeSession }: { activeSession: ReturnType<typeof getActiveSession> }) {
+  return activeSession
+    ? <Link href={activeSession.href} className="secondary participant-login-entry"><LogIn/>{activeSession.label}</Link>
+    : <Link href="/profile/login" className="secondary participant-login-entry"><LogIn/>เข้าสู่ระบบผู้เข้าร่วมงาน</Link>;
 }

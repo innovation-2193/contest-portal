@@ -61,6 +61,9 @@ async function dailyReportPdf(
     .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
     .slice(0, 10);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
+  const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
+  const boothUnits = buildBoothUnitStats(exhibitorParticipants);
+  const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const teams = submissions.filter((item) => item.submission_type === "team");
   const recentSubmissions = submissions.slice(0, 10);
 
@@ -85,6 +88,7 @@ async function dailyReportPdf(
     ["ยอดเข้าชมสะสม", siteStats.total, `เฉลี่ย 7 วัน ${siteStats.average7Days.toLocaleString("th-TH")} ครั้ง/วัน`],
     ["ลงทะเบียนเข้าร่วมงาน", activeParticipants.length, `วันนี้ลงทะเบียนเพิ่ม ${registeredToday.length.toLocaleString("th-TH")} คน`],
     ["เช็คอินเข้าร่วมงานแล้ว", attended.length, `ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`],
+    ["หน่วยจัดบูธ", boothUnits.length, `${exhibitorParticipants.length.toLocaleString("th-TH")} คน / เช็คอิน ${attendedBoothUnits.length.toLocaleString("th-TH")} หน่วย`],
     ["ส่งผลงานประกวด", submissions.length, `วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`],
     ["ผลงานที่มีคะแนนแล้ว", scored.length, `ส่งแบบทีม ${teams.length.toLocaleString("th-TH")} รายการ`],
   ], margin, y, contentWidth);
@@ -164,22 +168,22 @@ function drawSummaryCards(
   width: number,
 ) {
   const gap = 10;
-  const cardWidth = (width - gap * 5) / 6;
+  const cardWidth = (width - gap * Math.max(0, cards.length - 1)) / cards.length;
   cards.forEach(([label, value, detail], index) => {
     const cardX = x + (cardWidth + gap) * index;
     doc.roundedRect(cardX, y, cardWidth, 110, 9).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-    doc.rect(cardX, y, cardWidth, 5).fill(index < 2 ? PDF_THEME.blue : PDF_THEME.gold);
-    doc.font(pdfFontBold).fontSize(8.7).fillColor(PDF_THEME.muted).text(label, cardX + 11, y + 16, {
+    doc.rect(cardX, y, cardWidth, 5).fill(index < 2 ? PDF_THEME.blue : index === 4 ? PDF_THEME.green : PDF_THEME.gold);
+    doc.font(pdfFontBold).fontSize(cards.length > 6 ? 7.8 : 8.7).fillColor(PDF_THEME.muted).text(label, cardX + 10, y + 16, {
       width: cardWidth - 22,
       height: 24,
     });
-    doc.font(pdfFontBold).fontSize(28).fillColor(PDF_THEME.navy).text(value.toLocaleString("th-TH"), cardX + 11, y + 42, {
-      width: cardWidth - 22,
+    doc.font(pdfFontBold).fontSize(cards.length > 6 ? 24 : 28).fillColor(PDF_THEME.navy).text(value.toLocaleString("th-TH"), cardX + 10, y + 43, {
+      width: cardWidth - 20,
       align: "right",
       lineBreak: false,
     });
-    doc.font(pdfFontRegular).fontSize(8.3).fillColor(PDF_THEME.muted).text(detail, cardX + 11, y + 81, {
-      width: cardWidth - 22,
+    doc.font(pdfFontRegular).fontSize(cards.length > 6 ? 7.5 : 8.3).fillColor(PDF_THEME.muted).text(detail, cardX + 10, y + 81, {
+      width: cardWidth - 20,
       height: 18,
       ellipsis: true,
     });
@@ -303,7 +307,7 @@ function drawStatusPanel(
   width: number,
   height: number,
 ) {
-  drawPanel(doc, x, y, width, height, "สถานะผลงาน", "นับตามสถานะล่าสุดในระบบรับสมัคร");
+  drawPanel(doc, x, y, width, height, "สถานะผลงาน", "ผ่านเกณฑ์ = สถานะ qualified, ไม่ผ่านเกณฑ์ = สถานะ rejected ที่แอดมินกำหนดหลังตรวจ");
   const rows = buildStatusStats(submissions);
   const max = Math.max(1, ...rows.map((item) => item.count));
   let cursorY = y + 58;
@@ -320,8 +324,15 @@ function drawStatusPanel(
       align: "right",
       lineBreak: false,
     });
-    cursorY += 27;
+    cursorY += 23;
   });
+  const noteY = Math.min(y + height - 38, cursorY + 2);
+  doc.font(pdfFontRegular).fontSize(7.8).fillColor(PDF_THEME.muted).text(
+    "หมายเหตุ: ผ่านเกณฑ์/ไม่ผ่านเกณฑ์เป็นผลจากสถานะล่าสุดที่แอดมินตั้งในระบบหลังการตรวจเอกสารหรือคะแนนแล้ว",
+    x + 18,
+    noteY,
+    { width: width - 36, height: 20 },
+  );
 }
 
 function drawRecentSubmissionsTable(
@@ -423,6 +434,29 @@ function participantTypeColor(key: ParticipantTypeGroup["key"]) {
   if (key === "vip" || key === "competitor" || key === "companyExhibitor") return PDF_THEME.gold;
   if (key === "educationExhibitor") return PDF_THEME.blue;
   return PDF_THEME.green;
+}
+
+type BoothUnitStat = {
+  label: string;
+  people: number;
+  attended: number;
+};
+
+function buildBoothUnitStats(participants: RegistrationRecord[]): BoothUnitStat[] {
+  const stats = new Map<string, BoothUnitStat>();
+  for (const participant of participants) {
+    const label = compactBoothUnit(participant);
+    const current = stats.get(label) ?? { label, people: 0, attended: 0 };
+    current.people += 1;
+    if (participant.status === "attended") current.attended += 1;
+    stats.set(label, current);
+  }
+  return [...stats.values()].sort((a, b) => b.people - a.people || b.attended - a.attended || a.label.localeCompare(b.label, "th"));
+}
+
+function compactBoothUnit(participant: RegistrationRecord) {
+  const parts = [participant.division, participant.bureau].map((item) => item.trim()).filter(Boolean);
+  return parts.join(" / ") || "ไม่ระบุหน่วยงาน";
 }
 
 function buildStatusStats(submissions: SubmissionListItem[]) {

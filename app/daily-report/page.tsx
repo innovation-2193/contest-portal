@@ -140,6 +140,9 @@ export default async function DailyReportPage() {
     .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
     .slice(0, 10);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
+  const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
+  const boothUnits = buildBoothUnitStats(exhibitorParticipants);
+  const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const pendingReview = Math.max(0, submissions.length - scored.length);
   const qualified = submissions.filter((item) => item.status === "qualified");
   const rejected = submissions.filter((item) => item.status === "rejected");
@@ -187,6 +190,7 @@ export default async function DailyReportPage() {
             <p><span>ลงทะเบียนเข้าร่วมงาน</span><strong>{activeParticipants.length.toLocaleString("th-TH")} คน</strong></p>
             <p><span>ส่งผลงานประกวด</span><strong>{submissions.length.toLocaleString("th-TH")} รายการ</strong></p>
             <p><span>เช็คอินเข้าร่วมงานแล้ว</span><strong>{attended.length.toLocaleString("th-TH")} คน</strong></p>
+            <p><span>หน่วยจัดบูธที่ลงทะเบียน</span><strong>{boothUnits.length.toLocaleString("th-TH")} หน่วย</strong></p>
             <p><span>รอตรวจผลงานประกวด</span><strong>{pendingReview.toLocaleString("th-TH")} รายการ</strong></p>
           </div>
           <p className="report-hero-note">
@@ -210,6 +214,7 @@ export default async function DailyReportPage() {
         <MetricGroup title="ผู้สมัครและเช็คอิน" detail="สรุปจำนวนผู้เข้าร่วมกิจกรรม">
           <Metric icon={<Users/>} value={activeParticipants.length} label="ลงทะเบียนเข้าร่วมงาน" detail={`วันนี้ลงทะเบียนเพิ่ม ${registeredToday.length.toLocaleString("th-TH")} คน`}/>
           <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินเข้าร่วมงานแล้ว" detail={`ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
+          <Metric icon={<Building2/>} value={boothUnits.length} label="หน่วยจัดบูธ" detail={`${exhibitorParticipants.length.toLocaleString("th-TH")} คน จาก ${attendedBoothUnits.length.toLocaleString("th-TH")} หน่วยที่เช็คอินแล้ว`}/>
         </MetricGroup>
         <MetricGroup title="ผลงานประกวด" detail="สรุปผลงานที่ส่งเข้าระบบ">
           <Metric icon={<FileText/>} value={submissions.length} label="ส่งผลงานประกวด" detail={`วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
@@ -221,6 +226,7 @@ export default async function DailyReportPage() {
 
       <section className="admin-panel report-panel report-participant-panel">
         <header><Users/><div><h2>สรุปประเภทผู้สมัครเข้าร่วมงาน</h2><p>จำแนกตาม Role ผู้เข้าร่วมและชื่อหน่วยงานที่บันทึกในระบบ</p></div></header>
+        <BoothUnitShowcase units={boothUnits} people={exhibitorParticipants.length} attendedUnits={attendedBoothUnits.length}/>
         <div className="report-participant-breakdown">
           {participantTypeBreakdown.map((group) => <ParticipantTypeCard key={group.key} group={group}/>)}
         </div>
@@ -248,8 +254,13 @@ export default async function DailyReportPage() {
             <div className="report-status-kpi-grid">
               <StatusKpi label="ใหม่วันนี้" value={submittedToday.length} detail="ผลงานส่งเข้าระบบวันนี้"/>
               <StatusKpi label="รอตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวม"/>
-              <StatusKpi label="ผ่านเกณฑ์" value={qualified.length} detail="สถานะล่าสุดผ่านเกณฑ์"/>
-              <StatusKpi label="ไม่ผ่านเกณฑ์" value={rejected.length} detail="สถานะล่าสุดไม่ผ่านเกณฑ์"/>
+              <StatusKpi label="ผ่านเกณฑ์" value={qualified.length} detail="แอดมินตรวจแล้วและตั้งสถานะว่าผ่านเงื่อนไขการคัดเลือก"/>
+              <StatusKpi label="ไม่ผ่านเกณฑ์" value={rejected.length} detail="แอดมินตรวจแล้วและตั้งสถานะว่าไม่ผ่านเงื่อนไขการคัดเลือก"/>
+            </div>
+            <div className="report-status-explainer">
+              <b>ความหมายของสถานะ</b>
+              <p><strong>ผ่านเกณฑ์</strong> คือผลงานที่ผ่านการตรวจเอกสาร/คะแนนแล้ว และแอดมินตั้งสถานะเป็น qualified ในระบบ</p>
+              <p><strong>ไม่ผ่านเกณฑ์</strong> คือผลงานที่ตรวจแล้วไม่ผ่านเงื่อนไขการคัดเลือก และแอดมินตั้งสถานะเป็น rejected ในระบบ</p>
             </div>
             <div className="report-status-list">
               {statusStats.map((item) => <div key={item.label}>
@@ -272,6 +283,30 @@ export default async function DailyReportPage() {
           {recentSubmissions.length ? recentSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
         </div>
       </section>
+    </div>
+  </div>;
+}
+
+function BoothUnitShowcase({ units, people, attendedUnits }: { units: BoothUnitStat[]; people: number; attendedUnits: number }) {
+  const topUnits = units.slice(0, 4);
+  return <div className="report-booth-showcase">
+    <div className="report-booth-total">
+      <Building2/>
+      <div>
+        <span>หน่วยจัดบูธที่ลงทะเบียนแล้ว</span>
+        <b>{units.length.toLocaleString("th-TH")} หน่วย</b>
+        <small>นับจากผู้เข้าร่วม Role Exhibitor โดยรวมชื่อหน่วยงาน/สังกัดที่ซ้ำกันให้เหลือหนึ่งหน่วย</small>
+      </div>
+    </div>
+    <div className="report-booth-stats">
+      <span><b>{people.toLocaleString("th-TH")}</b><small>ผู้จัดบูธทั้งหมด</small></span>
+      <span><b>{attendedUnits.toLocaleString("th-TH")}</b><small>หน่วยที่มีคนเช็คอินแล้ว</small></span>
+    </div>
+    <div className="report-booth-units">
+      {topUnits.length ? topUnits.map((unit) => <article key={unit.label}>
+        <b>{unit.label}</b>
+        <span>{unit.people.toLocaleString("th-TH")} คน • เช็คอินแล้ว {unit.attended.toLocaleString("th-TH")} คน</span>
+      </article>) : <p>ยังไม่มีข้อมูลหน่วยจัดบูธในระบบ</p>}
     </div>
   </div>;
 }
@@ -366,6 +401,29 @@ function StatusKpi({ label, value, detail }: { label: string; value: number; det
     <span>{label}</span>
     <small>{detail}</small>
   </div>;
+}
+
+type BoothUnitStat = {
+  label: string;
+  people: number;
+  attended: number;
+};
+
+function buildBoothUnitStats(participants: RegistrationRecord[]): BoothUnitStat[] {
+  const stats = new Map<string, BoothUnitStat>();
+  for (const participant of participants) {
+    const label = compactBoothUnit(participant);
+    const current = stats.get(label) ?? { label, people: 0, attended: 0 };
+    current.people += 1;
+    if (participant.status === "attended") current.attended += 1;
+    stats.set(label, current);
+  }
+  return [...stats.values()].sort((a, b) => b.people - a.people || b.attended - a.attended || a.label.localeCompare(b.label, "th"));
+}
+
+function compactBoothUnit(participant: RegistrationRecord) {
+  const parts = [participant.division, participant.bureau].map((item) => item.trim()).filter(Boolean);
+  return parts.join(" / ") || "ไม่ระบุหน่วยงาน";
 }
 
 function CommandToggle({ item, index }: { item: CommandStat; index: number }) {

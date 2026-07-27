@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
+import { adminUnauthorizedResponse } from "../../../../lib/admin-api-response";
 import { listSubmissions, type SubmissionListItem } from "../../../../lib/admin-store";
 import {
   drawDocumentFooter,
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return adminUnauthorizedResponse(request);
   }
 
   const submissions = await listSubmissions({ assignedAdminEmail: session.role === "super_admin" ? null : session.email });

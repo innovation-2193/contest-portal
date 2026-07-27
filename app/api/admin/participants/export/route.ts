@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../../lib/admin-auth";
+import { adminUnauthorizedResponse } from "../../../../../lib/admin-api-response";
 import { listParticipants } from "../../../../../lib/admin-store";
 import type { RegistrationRecord } from "../../../../../lib/local-registrations";
 import {
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return adminUnauthorizedResponse(request);
   }
 
   const participants = await listParticipants();

@@ -2,6 +2,7 @@ import path from "path";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../../lib/audit-log";
+import { adminUnauthorizedResponse } from "../../../../../../../lib/admin-api-response";
 import { cookieName, getAdminSession } from "../../../../../../../lib/admin-auth";
 import { getSubmissionDetail, getSubmissionFile } from "../../../../../../../lib/admin-store";
 import { readSubmissionPdfFile, submissionDocumentTypes } from "../../../../../../../lib/submission-file-reader";
@@ -18,7 +19,7 @@ export async function GET(
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return adminUnauthorizedResponse(request);
   }
 
   const { code, type } = await params;
