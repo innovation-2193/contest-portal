@@ -80,7 +80,7 @@ export default async function RegisterSuccess({ searchParams }: { searchParams: 
               </dl>
               <div className="ticket-actions">
                 <a className="primary" href={`/api/qr?text=${encodeURIComponent(item.registration_code)}`} download={`${item.registration_code}.png`}><Download/> Download QR</a>
-                <a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} download={`${item.registration_code}.pdf`}><Download/> PDF</a>
+                <a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket?download=1`} download={`${item.registration_code}.pdf`}><Download/> PDF</a>
               </div>
               {canEvaluate && <Link className="evaluation-cta" href={`/evaluation?code=${encodeURIComponent(item.registration_code)}`}>
                 <ClipboardCheck/>

@@ -59,7 +59,7 @@ export default async function ParticipantProfilePage() {
                 </dl>
                 <div className="ticket-actions">
                   <a className="primary" href={`/api/qr?text=${encodeURIComponent(item.registration_code)}`} download={`${item.registration_code}.png`}><Download/>Download QR</a>
-                  <a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} download={`${item.registration_code}.pdf`}><Download/>ดาวน์โหลด PDF</a>
+                  <a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket?download=1`} download={`${item.registration_code}.pdf`}><Download/>ดาวน์โหลด PDF</a>
                 </div>
                 {evaluation
                   ? <div className="evaluation-status-note attended"><ClipboardCheck/><div><b>ส่งแบบประเมินแล้ว</b><p>ระบบบันทึกแบบประเมินของคุณเรียบร้อยแล้ว</p></div></div>
