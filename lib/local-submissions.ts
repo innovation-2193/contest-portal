@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
+import { generateSubmissionHashtags, serializeSubmissionHashtags } from "./submission-hashtags";
 
 export type LocalSubmissionMember = {
   title: string;
@@ -21,6 +22,7 @@ export type LocalSubmissionRecord = {
   title_th: string;
   title_en: string;
   summary: string;
+  hashtags?: string | null;
   video_url: string;
   status: string;
   review_assigned_admin_email?: string | null;
@@ -168,6 +170,7 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       title_th: data.titleTh,
       title_en: data.titleEn ?? "",
       summary: data.summary.slice(0, 500),
+      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary })),
       video_url: data.videoUrl ?? "",
       status: "submitted",
       review_assigned_admin_email: null,
@@ -243,6 +246,7 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
       title_th: input.titleTh,
       title_en: input.titleEn,
       summary: input.summary.slice(0, 500),
+      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary })),
       video_url: input.videoUrl,
       status: input.status,
       email: input.email.trim().toLowerCase(),

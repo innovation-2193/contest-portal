@@ -43,6 +43,7 @@ async function ensureRegistrationColumns() {
 async function ensureSubmissionColumns() {
   if (await tableExists("submissions")) {
     await ensureColumn("submissions", "title_en", "ALTER TABLE submissions ADD COLUMN title_en VARCHAR(255) NULL AFTER title_th");
+    await ensureColumn("submissions", "hashtags", "ALTER TABLE submissions ADD COLUMN hashtags VARCHAR(255) NOT NULL DEFAULT '' AFTER summary");
     await ensureColumn("submissions", "video_url", "ALTER TABLE submissions ADD COLUMN video_url VARCHAR(1000) NULL AFTER summary");
     await ensureColumn("submissions", "review_assigned_admin_email", "ALTER TABLE submissions ADD COLUMN review_assigned_admin_email VARCHAR(255) NULL AFTER status");
     await ensureColumn("submissions", "review_assigned_at", "ALTER TABLE submissions ADD COLUMN review_assigned_at VARCHAR(40) NULL AFTER review_assigned_admin_email");

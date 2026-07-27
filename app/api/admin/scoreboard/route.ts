@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 }
 
 async function scoreboardPdf(submissions: SubmissionListItem[]) {
-  const pageHeight = Math.max(595.28, 178 + submissions.length * 50 + 74);
+  const pageHeight = Math.max(595.28, 178 + submissions.length * 82 + 74);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
@@ -73,8 +73,9 @@ async function scoreboardPdf(submissions: SubmissionListItem[]) {
   y += 30;
 
   submissions.forEach((item, index) => {
-    drawScoreRow(doc, tableX, y, rowHeight, columns, item, index, reportFonts);
-    y += rowHeight + 4;
+    const height = Math.max(rowHeight, scoreRowHeight(doc, columns, item, index, reportFonts));
+    drawScoreRow(doc, tableX, y, height, columns, item, index, reportFonts);
+    y += height + 4;
   });
 
   if (!submissions.length) {
@@ -139,7 +140,24 @@ function drawScoreRow(
 ) {
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   doc.roundedRect(x, y, totalWidth, rowHeight, 6).fillAndStroke(index % 2 === 0 ? PDF_THEME.white : PDF_THEME.paleBlue, PDF_THEME.line);
-  const values = [
+  const values = scoreRowValues(item, index);
+  let cursor = x;
+  values.forEach((value, valueIndex) => {
+    const [, width] = columns[valueIndex];
+    const isScore = valueIndex === 5;
+    const color = valueIndex === 0 || isScore ? PDF_THEME.navy : PDF_THEME.text;
+    const font = valueIndex === 0 || isScore ? fonts.bold : fonts.regular;
+    doc.font(font).fontSize(isScore ? 12 : 8.7).fillColor(color).text(cleanCellText(value), cursor + 6, y + 13, {
+      width: width - 12,
+      align: isScore ? "right" : "left",
+      lineGap: 1,
+    });
+    cursor += width;
+  });
+}
+
+function scoreRowValues(item: SubmissionListItem, index: number) {
+  return [
     `#${index + 1}`,
     item.submission_code,
     item.title_th,
@@ -148,19 +166,22 @@ function drawScoreRow(
     `${item.review_total_score ?? "-"}`,
     "ส่งแล้ว",
   ];
-  let cursor = x;
-  values.forEach((value, valueIndex) => {
+}
+
+function scoreRowHeight(
+  doc: PDFKit.PDFDocument,
+  columns: readonly (readonly [string, number])[],
+  item: SubmissionListItem,
+  index: number,
+  fonts: PdfFontSet,
+) {
+  const values = scoreRowValues(item, index);
+  return Math.max(...values.map((value, valueIndex) => {
     const [, width] = columns[valueIndex];
     const isScore = valueIndex === 5;
-    const color = valueIndex === 0 || isScore ? PDF_THEME.navy : PDF_THEME.text;
-    const font = valueIndex === 0 || isScore ? fonts.bold : fonts.regular;
-    doc.font(font).fontSize(isScore ? 12 : 8.7).fillColor(color).text(fitCellText(doc, value, width - 12, isScore ? fonts.bold : fonts.regular, isScore ? 12 : 8.7), cursor + 6, y + 13, {
-      width: width - 12,
-      align: isScore ? "right" : "left",
-      lineBreak: false,
-    });
-    cursor += width;
-  });
+    doc.font(valueIndex === 0 || isScore ? fonts.bold : fonts.regular).fontSize(isScore ? 12 : 8.7);
+    return 24 + doc.heightOfString(cleanCellText(value), { width: width - 12, lineGap: 1 });
+  }));
 }
 
 function drawSummaryChip(doc: PDFKit.PDFDocument, label: string, value: number, x: number, y: number, background: string, color: string, fonts: PdfFontSet) {
@@ -169,13 +190,8 @@ function drawSummaryChip(doc: PDFKit.PDFDocument, label: string, value: number, 
   doc.font(fonts.bold).fontSize(12).fillColor(color).text(String(value), x + 86, y + 7, { width: 32, align: "right", lineBreak: false });
 }
 
-function fitCellText(doc: PDFKit.PDFDocument, value: string, width: number, font: string, fontSize: number) {
-  const cleaned = value.replace(/\s+/g, " ").trim() || "-";
-  doc.font(font).fontSize(fontSize);
-  if (doc.widthOfString(cleaned) <= width) return cleaned;
-  let output = cleaned;
-  while (output.length > 3 && doc.widthOfString(`${output}...`) > width) output = output.slice(0, -1);
-  return `${output.trim()}...`;
+function cleanCellText(value: string) {
+  return value.replace(/\s+/g, " ").trim() || "-";
 }
 
 function collectPdf(doc: PDFKit.PDFDocument) {

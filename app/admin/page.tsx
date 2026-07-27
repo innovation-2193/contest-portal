@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
@@ -486,7 +486,7 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
     <div className="scoreboard-list">
       {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row" key={submission.submission_code}>
         <b>#{index + 1}</b>
-        <div><strong>{submission.title_th}</strong><small>{submission.submission_code} • {submission.first_name} {submission.last_name}</small></div>
+        <div><strong>{submission.title_th}</strong><small>{submission.submission_code} • {submission.first_name} {submission.last_name}</small><HashtagPills tags={submission.hashtags}/></div>
         <span>{submission.review_total_score}/100</span>
         <div className="scoreboard-actions">
           <form action={registerSubmissionParticipantAction}>
@@ -494,11 +494,17 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
             <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>
           </form>
           <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(submission.submission_code)}`}><Eye/>ดูคะแนน</Link>
+          <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(submission.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ใบสมัคร</a>
         </div>
       </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
     </div>
     <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
   </section>;
+}
+
+function HashtagPills({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return <span className="admin-hashtag-list" aria-label="Hashtags"><Hash aria-hidden="true"/>{tags.map((tag) => <em key={tag}>#{tag}</em>)}</span>;
 }
 
 function AdminAccountsTable({ admins }: { admins: Awaited<ReturnType<typeof listAdminAccounts>> }) {

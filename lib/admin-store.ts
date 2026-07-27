@@ -28,6 +28,11 @@ import {
   updateLocalSubmissionReview,
   type LocalSubmissionRecord,
 } from "./local-submissions";
+import {
+  generateSubmissionHashtags,
+  parseSubmissionHashtags,
+  serializeSubmissionHashtags,
+} from "./submission-hashtags";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -92,6 +97,7 @@ export type SubmissionListItem = {
   submission_type: string;
   team_name: string | null;
   title_th: string;
+  hashtags: string[];
   status: string;
   review_assigned_admin_email: string | null;
   review_assigned_at: string | null;
@@ -690,7 +696,7 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     await ensureDatabaseSchema();
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -698,7 +704,10 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
        ORDER BY s.submitted_at DESC LIMIT 500`,
       assignedEmail ? [assignedEmail] : [],
     );
-    return rows as SubmissionListItem[];
+    return (rows as Array<Omit<SubmissionListItem, "hashtags"> & { title_en?: string | null; summary?: string | null; hashtags?: string | null }>).map((row) => ({
+      ...row,
+      hashtags: parseSubmissionHashtags(row.hashtags, { titleTh: row.title_th, titleEn: row.title_en, summary: row.summary }),
+    }));
   } catch (error) {
     if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat(options);
     if (!isDatabaseUnavailable(error)) throw error;
@@ -713,7 +722,7 @@ export async function getSubmissionDetail(submissionCode: string) {
   try {
     await ensureDatabaseSchema();
     const [submissionRows] = await db.execute(
-      `SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email
+      `SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email
        FROM submissions s JOIN users u ON u.id=s.user_id WHERE s.submission_code=? LIMIT 1`,
       [code],
     );
@@ -725,6 +734,7 @@ export async function getSubmissionDetail(submissionCode: string) {
       title_th: string;
       title_en: string | null;
       summary: string;
+      hashtags: string | null;
       video_url: string | null;
       status: string;
       review_assigned_admin_email: string | null;
@@ -759,6 +769,7 @@ export async function getSubmissionDetail(submissionCode: string) {
 
     return {
       ...submission,
+      hashtags: parseSubmissionHashtags(submission.hashtags, { titleTh: submission.title_th, titleEn: submission.title_en, summary: submission.summary }),
       first_name: primary?.first_name ?? "",
       last_name: primary?.last_name ?? "",
       position: primary?.position ?? "",
@@ -817,13 +828,14 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
         [input.email.trim().toLowerCase(), `${primary.first_name} ${primary.last_name}`, submission.user_id],
       );
       await connection.execute(
-        "UPDATE submissions SET submission_type=?,team_name=?,title_th=?,title_en=?,summary=?,video_url=?,status=? WHERE id=?",
+        "UPDATE submissions SET submission_type=?,team_name=?,title_th=?,title_en=?,summary=?,hashtags=?,video_url=?,status=? WHERE id=?",
         [
           input.submissionType,
           input.submissionType === "team" ? input.teamName : null,
           input.titleTh,
           input.titleEn || null,
           input.summary.slice(0, 500),
+          serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary })),
           input.videoUrl || null,
           input.status,
           submission.id,
@@ -1297,14 +1309,17 @@ async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | n
   try {
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
        ${assignedEmail ? "WHERE 1=0" : ""}
        ORDER BY s.submitted_at DESC LIMIT 500`,
     );
-    return rows as SubmissionListItem[];
+    return (rows as Array<Omit<SubmissionListItem, "hashtags"> & { hashtags?: string | null }>).map((row) => ({
+      ...row,
+      hashtags: parseSubmissionHashtags(row.hashtags, { titleTh: row.title_th }),
+    }));
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
@@ -1319,6 +1334,7 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
     submission_type: local.submission_type,
     team_name: local.team_name,
     title_th: local.title_th,
+    hashtags: parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary }),
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,
     review_assigned_at: local.review_assigned_at ?? null,
@@ -1350,6 +1366,7 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
     title_th: local.title_th,
     title_en: local.title_en,
     summary: local.summary,
+    hashtags: parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary }),
     video_url: local.video_url,
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,

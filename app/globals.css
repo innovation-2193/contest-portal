@@ -6082,6 +6082,7 @@ body:has(.prelander-page)::before {
 
 .scoreboard-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -6095,6 +6096,68 @@ body:has(.prelander-page)::before {
 .scoreboard-actions .small-action {
   min-height: 38px;
   white-space: nowrap;
+}
+
+.admin-hashtag-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-hashtag-list svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.admin-hashtag-list em,
+.admin-hashtag-panel em {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid rgba(113, 215, 212, 0.32);
+  border-radius: 999px;
+  background: rgba(113, 215, 212, 0.08);
+  color: #9debe5;
+  font-style: normal;
+  line-height: 1.2;
+}
+
+.admin-hashtag-panel {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border: 1px solid rgba(113, 215, 212, 0.28);
+  border-radius: 12px;
+  background: rgba(6, 30, 50, 0.42);
+}
+
+.admin-hashtag-panel > svg {
+  width: 24px;
+  height: 24px;
+  color: var(--gold);
+}
+
+.admin-hashtag-panel b,
+.admin-hashtag-panel span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+
+.admin-hashtag-panel b {
+  margin-bottom: 7px;
+  color: var(--ink);
 }
 
 .inline-assign-form {
@@ -14789,4 +14852,77 @@ footer {
   padding: 0 !important;
   flex: 0 0 18px;
   accent-color: var(--gold);
+}
+
+.admin-form .settings-toggle input[type="checkbox"] {
+  position: relative;
+  display: grid;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  max-width: 34px !important;
+  max-height: 34px !important;
+  place-items: center;
+  padding: 0 !important;
+  border: 2px solid rgba(112, 145, 196, 0.88);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(113, 215, 212, 0.14), transparent 58%),
+    rgba(1, 9, 22, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.24);
+  cursor: pointer;
+  flex: 0 0 34px;
+}
+
+.admin-form .settings-toggle input[type="checkbox"]::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: rgba(112, 145, 196, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(191, 222, 255, 0.18);
+  transform: scale(0.78);
+  transition: background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.admin-form .settings-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 13px;
+  margin-top: -2px;
+  border-right: 3px solid #061735;
+  border-bottom: 3px solid #061735;
+  opacity: 0;
+  transform: rotate(42deg) scale(0.72);
+  transform-origin: center;
+  transition: opacity 140ms ease, transform 160ms ease;
+}
+
+.admin-form .settings-toggle input[type="checkbox"]:checked {
+  border-color: rgba(244, 208, 72, 0.96);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 237, 144, 0.55), transparent 62%),
+    linear-gradient(135deg, #2fb86e, #77e394);
+  box-shadow:
+    0 0 0 5px rgba(79, 220, 132, 0.1),
+    0 0 24px rgba(79, 220, 132, 0.32),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.admin-form .settings-toggle input[type="checkbox"]:checked::before {
+  background: rgba(255, 247, 220, 0.94);
+  box-shadow: none;
+  transform: scale(1);
+}
+
+.admin-form .settings-toggle input[type="checkbox"]:checked::after {
+  opacity: 1;
+  transform: rotate(42deg) scale(1);
 }

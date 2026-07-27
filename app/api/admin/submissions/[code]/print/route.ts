@@ -31,6 +31,11 @@ const documentLabels: Record<string, string> = {
   implementation: "3.4 แผนต่อยอดใช้งานจริง",
 };
 
+const detailPageWidth = 595.28;
+const detailPageHeight = 841.89;
+const detailContentTop = 132;
+const detailContentBottom = 782;
+
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
@@ -109,8 +114,8 @@ async function appendPdf(target: PdfLibDocument, sourceBytes: Uint8Array | Buffe
 async function submissionDetailPdf(submission: AdminSubmissionDetail) {
   const doc = new PDFKitDocument({ size: "A4", margin: 0 });
   const pdf = collectPdf(doc);
-  const width = 595.28;
-  const height = 841.89;
+  const width = detailPageWidth;
+  const height = detailPageHeight;
   let page = 1;
 
   doc.info.Title = `ข้อมูลสมัครประกวด ${submission.submission_code}`;
@@ -128,9 +133,17 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail) {
   };
 
   const footer = () => drawPacketFooter(doc, page, submission.submission_code);
+  const nextPage = () => {
+    footer();
+    doc.addPage({ size: "A4", margin: 0 });
+    page += 1;
+    startPage();
+    return detailContentTop;
+  };
+  const ensureRoom = (cursorY: number, neededHeight: number) => cursorY + neededHeight > detailContentBottom ? nextPage() : cursorY;
 
   startPage();
-  let y = 132;
+  let y = detailContentTop;
   y = drawSectionTitle(doc, "ข้อมูลผลงาน", y);
   y = drawInfoGrid(doc, [
     ["ชื่อผลงานภาษาไทย", submission.title_th],
@@ -139,43 +152,28 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail) {
     ["สถานะ", submission.status],
     ["บัญชีอีเมล", submission.email],
     ["Link Video", submission.video_url || "-"],
+    ["Hashtag", submission.hashtags.map((tag) => `#${tag}`).join(" ") || "-"],
     ["คำอธิบายย่อ", submission.summary],
-  ], y);
+  ], y, nextPage);
 
   y += 6;
+  y = ensureRoom(y, 34);
   y = drawSectionTitle(doc, "ข้อมูลผู้สมัครและสมาชิกทีม", y);
   for (const member of submission.members) {
-    if (y > 635) {
-      footer();
-      doc.addPage({ size: "A4", margin: 0 });
-      page += 1;
-      startPage();
-      y = 132;
-    }
+    y = ensureRoom(y, memberCardHeight(doc, member));
     y = drawMemberCard(doc, member.member_order === 1 ? "ผู้สมัครหลัก" : `สมาชิกคนที่ ${member.member_order}`, member, y);
   }
 
-  if (y > 520) {
-    footer();
-    doc.addPage({ size: "A4", margin: 0 });
-    page += 1;
-    startPage();
-    y = 132;
-  }
   y += 4;
+  y = ensureRoom(y, 34 + submissionDocumentTypes.length * 46);
   y = drawSectionTitle(doc, "ไฟล์แนบที่จะพิมพ์ต่อท้าย", y);
   for (const type of submissionDocumentTypes) {
     const file = submission.files.find((item) => item.document_type === type);
+    y = ensureRoom(y, attachmentRowHeight(doc, documentLabels[type], file?.original_name ?? "-"));
     y = drawAttachmentRow(doc, documentLabels[type], file?.original_name ?? "-", y);
   }
 
-  if (y > 720) {
-    footer();
-    doc.addPage({ size: "A4", margin: 0 });
-    page += 1;
-    startPage();
-    y = 132;
-  }
+  y = ensureRoom(y, 68);
 
   doc.roundedRect(34, y + 10, width - 68, 52, 8).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
   doc.font(pdfFontBold).fontSize(11.5).fillColor(PDF_THEME.navy).text(
@@ -222,17 +220,18 @@ async function missingAttachmentSummaryPdf(submission: AdminSubmissionDetail, mi
   y += 108;
   y = drawSectionTitle(doc, "รายการที่ไม่พร้อม", y);
   missingAttachments.forEach((label, index) => {
-    doc.roundedRect(34, y, width - 68, 38, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(pdfFontRegular).fontSize(10.5);
+    const rowHeight = Math.max(38, 18 + doc.heightOfString(label, { width: width - 136, lineGap: 1 }));
+    doc.roundedRect(34, y, width - 68, rowHeight, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
     doc.font(pdfFontBold).fontSize(10).fillColor(PDF_THEME.gold).text(String(index + 1).padStart(2, "0"), 48, y + 13, {
       width: 34,
       lineBreak: false,
     });
     doc.font(pdfFontRegular).fontSize(10.5).fillColor(PDF_THEME.text).text(label, 88, y + 12, {
       width: width - 136,
-      ellipsis: true,
-      lineBreak: false,
+      lineGap: 1,
     });
-    y += 44;
+    y += rowHeight + 6;
   });
 
   drawPacketFooter(doc, 1, submission.submission_code);
@@ -249,23 +248,35 @@ function drawSectionTitle(doc: PDFKit.PDFDocument, title: string, y: number) {
   return y + 34;
 }
 
-function drawInfoGrid(doc: PDFKit.PDFDocument, rows: Array<[string, string]>, y: number) {
+function drawInfoGrid(doc: PDFKit.PDFDocument, rows: Array<[string, string]>, y: number, nextPage: () => number) {
   const x = 34;
   const gap = 8;
   const cellWidth = (527 - gap) / 2;
   let cursorY = y;
   const regularRows = rows.slice(0, -1);
   for (let index = 0; index < regularRows.length; index += 2) {
-    drawInfoCell(doc, regularRows[index][0], regularRows[index][1], x, cursorY, cellWidth, 50);
+    const leftHeight = infoCellHeight(doc, regularRows[index][1], cellWidth);
+    const rightHeight = regularRows[index + 1] ? infoCellHeight(doc, regularRows[index + 1][1], cellWidth) : 50;
+    const rowHeight = Math.max(leftHeight, rightHeight);
+    if (cursorY + rowHeight > detailContentBottom) cursorY = nextPage();
+    drawInfoCell(doc, regularRows[index][0], regularRows[index][1], x, cursorY, cellWidth, rowHeight);
     if (regularRows[index + 1]) {
-      drawInfoCell(doc, regularRows[index + 1][0], regularRows[index + 1][1], x + cellWidth + gap, cursorY, cellWidth, 50);
+      drawInfoCell(doc, regularRows[index + 1][0], regularRows[index + 1][1], x + cellWidth + gap, cursorY, cellWidth, rowHeight);
     }
-    cursorY += 58;
+    cursorY += rowHeight + 8;
   }
 
   const [wideLabel, wideValue] = rows[rows.length - 1];
-  drawInfoCell(doc, wideLabel, wideValue, x, cursorY, 527, 72);
-  return cursorY + 82;
+  const wideHeight = infoCellHeight(doc, wideValue, 527);
+  if (cursorY + wideHeight > detailContentBottom) cursorY = nextPage();
+  drawInfoCell(doc, wideLabel, wideValue, x, cursorY, 527, wideHeight);
+  return cursorY + wideHeight + 10;
+}
+
+function infoCellHeight(doc: PDFKit.PDFDocument, value: string, width: number) {
+  doc.font(pdfFontRegular).fontSize(10.5);
+  const valueHeight = doc.heightOfString(clean(value), { width: width - 22, lineGap: 1 });
+  return Math.max(50, 25 + valueHeight + 13);
 }
 
 function drawInfoCell(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number, height: number) {
@@ -276,10 +287,18 @@ function drawInfoCell(doc: PDFKit.PDFDocument, label: string, value: string, x: 
   });
   doc.font(pdfFontRegular).fontSize(10.5).fillColor(PDF_THEME.text).text(clean(value), x + 11, y + 25, {
     width: width - 22,
-    height: height - 30,
-    ellipsis: true,
     lineGap: 1,
   });
+}
+
+function memberCardHeight(doc: PDFKit.PDFDocument, member: AdminSubmissionDetail["members"][number]) {
+  const nameWidth = 527 - 146;
+  doc.font(pdfFontBold).fontSize(14);
+  const nameHeight = doc.heightOfString(`${member.title}${member.first_name} ${member.last_name}`, { width: nameWidth, lineGap: 1 });
+  const details = memberDetails(member);
+  const detailWidth = (527 - 146 - 12) / 2;
+  const detailRows = chunkPairs(details).map((pair) => Math.max(...pair.map(([, value]) => tinyDetailHeight(doc, value, detailWidth))));
+  return Math.max(108, 18 + Math.max(24, nameHeight) + 14 + detailRows.reduce((sum, item) => sum + item + 8, 0) + 8);
 }
 
 function drawMemberCard(
@@ -290,7 +309,7 @@ function drawMemberCard(
 ) {
   const x = 34;
   const width = 527;
-  const height = 108;
+  const height = memberCardHeight(doc, member);
   doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.roundedRect(x + 12, y + 12, 98, 24, 12).fill(PDF_THEME.paleBlue);
   doc.font(pdfFontBold).fontSize(9).fillColor(PDF_THEME.navy).text(title, x + 22, y + 20, {
@@ -302,10 +321,23 @@ function drawMemberCard(
     `${member.title}${member.first_name} ${member.last_name}`,
     x + 124,
     y + 14,
-    { width: width - 146, height: 24, ellipsis: true },
+    { width: width - 146, lineGap: 1 },
   );
 
-  const details: Array<[string, string]> = [
+  const detailWidth = (width - 146 - 12) / 2;
+  let cursorY = y + 50;
+  for (const pair of chunkPairs(memberDetails(member))) {
+    const rowHeight = Math.max(...pair.map(([, value]) => tinyDetailHeight(doc, value, detailWidth)));
+    pair.forEach(([label, value], index) => {
+      drawTinyDetail(doc, label, value, x + 124 + index * (detailWidth + 12), cursorY, detailWidth);
+    });
+    cursorY += rowHeight + 8;
+  }
+  return y + height + 10;
+}
+
+function memberDetails(member: AdminSubmissionDetail["members"][number]): Array<[string, string]> {
+  return [
     ["อีเมล", member.email],
     ["โทร", member.phone],
     ["เลขบัตรประชาชน", member.citizen_id],
@@ -313,17 +345,17 @@ function drawMemberCard(
     ["กองบังคับการ", member.division],
     ["กองบัญชาการ", member.bureau],
   ];
-  let cursorX = x + 124;
-  let cursorY = y + 46;
-  details.forEach(([label, value], index) => {
-    if (index === 3) {
-      cursorX = x + 124;
-      cursorY += 28;
-    }
-    drawTinyDetail(doc, label, value, cursorX, cursorY, 130);
-    cursorX += 132;
-  });
-  return y + height + 10;
+}
+
+function chunkPairs<T>(items: T[]) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += 2) chunks.push(items.slice(index, index + 2));
+  return chunks;
+}
+
+function tinyDetailHeight(doc: PDFKit.PDFDocument, value: string, width: number) {
+  doc.font(pdfFontRegular).fontSize(8.8);
+  return 11 + doc.heightOfString(clean(value), { width, lineGap: 1 });
 }
 
 function drawTinyDetail(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number) {
@@ -333,23 +365,29 @@ function drawTinyDetail(doc: PDFKit.PDFDocument, label: string, value: string, x
   });
   doc.font(pdfFontRegular).fontSize(8.8).fillColor(PDF_THEME.text).text(clean(value), x, y + 11, {
     width,
-    height: 14,
-    ellipsis: true,
+    lineGap: 1,
   });
 }
 
+function attachmentRowHeight(doc: PDFKit.PDFDocument, label: string, filename: string) {
+  doc.font(pdfFontBold).fontSize(9.5);
+  const labelHeight = doc.heightOfString(label, { width: 214 });
+  doc.font(pdfFontRegular).fontSize(9);
+  const filenameHeight = doc.heightOfString(filename, { width: 276, lineGap: 1 });
+  return Math.max(34, 12 + Math.max(labelHeight, filenameHeight) + 12);
+}
+
 function drawAttachmentRow(doc: PDFKit.PDFDocument, label: string, filename: string, y: number) {
-  doc.roundedRect(34, y, 527, 34, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  const height = attachmentRowHeight(doc, label, filename);
+  doc.roundedRect(34, y, 527, height, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.font(pdfFontBold).fontSize(9.5).fillColor(PDF_THEME.navy).text(label, 46, y + 11, {
     width: 214,
-    lineBreak: false,
   });
   doc.font(pdfFontRegular).fontSize(9).fillColor(PDF_THEME.muted).text(filename, 270, y + 11, {
     width: 276,
-    lineBreak: false,
-    ellipsis: true,
+    lineGap: 1,
   });
-  return y + 40;
+  return y + height + 6;
 }
 
 function drawPacketFooter(doc: PDFKit.PDFDocument, pageNumber: number, reference: string) {

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { ArrowLeft, Eye, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
@@ -38,6 +38,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
     item.position,
     item.division,
     item.bureau,
+    item.hashtags.join(" "),
     item.status,
     item.review_assigned_admin_email,
   ]);
@@ -60,7 +61,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         </form>
         <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.submission_code}>
           <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
-          <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
+          <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small><HashtagPills tags={item.hashtags}/></td>
           <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
           <td data-label="ผู้ตรวจ">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins}/> : item.review_assigned_admin_email || "-"}</td>
           <td data-label="คะแนน"><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
@@ -161,6 +162,11 @@ function reviewStatus(item: Awaited<ReturnType<typeof listSubmissions>>[number])
   if (item.review_submitted_at) return <span className="status-pill attended">ส่งคะแนนแล้ว</span>;
   if (item.review_assigned_admin_email) return <span className="status-pill registered">รอตรวจ</span>;
   return <span className="status-pill cancelled">ยังไม่ assign</span>;
+}
+
+function HashtagPills({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return <span className="admin-hashtag-list" aria-label="Hashtags"><Hash aria-hidden="true"/>{tags.map((tag) => <em key={tag}>#{tag}</em>)}</span>;
 }
 
 function formatAdminDate(value?: string | Date | null) {

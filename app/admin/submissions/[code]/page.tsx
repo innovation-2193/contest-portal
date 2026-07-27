@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, ExternalLink, FileText, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
+import { ArrowLeft, ExternalLink, FileText, Hash, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
 import { AdminNotice } from "../../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { ScoreSubmitConfirmButton } from "../../../../components/ScoreSubmitConfirmButton";
@@ -100,6 +100,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
             <Detail label="Link Video" value={item.video_url || "-"}/>
             <Detail label="คำอธิบายย่อ" value={item.summary} wide/>
           </dl>
+          <HashtagPanel tags={item.hashtags}/>
         </section>
         <section className="admin-detail-block">
           <h3><Users/> ข้อมูลผู้สมัครและสมาชิกทีม</h3>
@@ -190,6 +191,11 @@ function ScorePanel({ item, isSuperAdmin }: { item: AdminSubmissionDetail; isSup
       )}
     </form>
   </div>;
+}
+
+function HashtagPanel({ tags }: { tags: string[] }) {
+  if (!tags.length) return null;
+  return <div className="admin-hashtag-panel"><Hash/><div><b>Hashtag อัตโนมัติ</b><span>{tags.map((tag) => <em key={tag}>#{tag}</em>)}</span></div></div>;
 }
 
 function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {

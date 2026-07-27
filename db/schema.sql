@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   title_th VARCHAR(255) NOT NULL,
   title_en VARCHAR(255) NULL,
   summary VARCHAR(500) NOT NULL,
+  hashtags VARCHAR(255) NOT NULL DEFAULT '',
   video_url VARCHAR(1000) NULL,
   status ENUM('draft','submitted','screening','qualified','rejected') NOT NULL DEFAULT 'submitted',
   review_assigned_admin_email VARCHAR(255) NULL,
