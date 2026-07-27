@@ -6,6 +6,7 @@ import {
   type SubmissionListItem,
 } from "../../../../lib/admin-store";
 import type { RegistrationRecord } from "../../../../lib/local-registrations";
+import { buildBoothUnitStats } from "../../../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../../../lib/participant-type-breakdown";
 import {
   drawDocumentFooter,
@@ -473,29 +474,6 @@ function participantTypeColor(key: ParticipantTypeGroup["key"]) {
   if (key === "vip" || key === "competitor" || key === "companyExhibitor") return PDF_THEME.gold;
   if (key === "educationExhibitor") return PDF_THEME.blue;
   return PDF_THEME.green;
-}
-
-type BoothUnitStat = {
-  label: string;
-  people: number;
-  attended: number;
-};
-
-function buildBoothUnitStats(participants: RegistrationRecord[]): BoothUnitStat[] {
-  const stats = new Map<string, BoothUnitStat>();
-  for (const participant of participants) {
-    const label = compactBoothUnit(participant);
-    const current = stats.get(label) ?? { label, people: 0, attended: 0 };
-    current.people += 1;
-    if (participant.status === "attended") current.attended += 1;
-    stats.set(label, current);
-  }
-  return [...stats.values()].sort((a, b) => b.people - a.people || b.attended - a.attended || a.label.localeCompare(b.label, "th"));
-}
-
-function compactBoothUnit(participant: RegistrationRecord) {
-  const parts = [participant.division, participant.bureau].map((item) => item.trim()).filter(Boolean);
-  return parts.join(" / ") || "ไม่ระบุหน่วยงาน";
 }
 
 function buildStatusStats(submissions: SubmissionListItem[]) {

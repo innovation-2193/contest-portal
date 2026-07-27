@@ -24,6 +24,7 @@ import {
 } from "../../lib/admin-store";
 import { VisitTrendChart } from "../../components/VisitTrendChart";
 import type { RegistrationRecord } from "../../lib/local-registrations";
+import { buildBoothUnitStats, type BoothUnitStat } from "../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
 import { getSiteStats } from "../../lib/site-analytics";
 
@@ -401,29 +402,6 @@ function StatusKpi({ label, value, detail }: { label: string; value: number; det
     <span>{label}</span>
     <small>{detail}</small>
   </div>;
-}
-
-type BoothUnitStat = {
-  label: string;
-  people: number;
-  attended: number;
-};
-
-function buildBoothUnitStats(participants: RegistrationRecord[]): BoothUnitStat[] {
-  const stats = new Map<string, BoothUnitStat>();
-  for (const participant of participants) {
-    const label = compactBoothUnit(participant);
-    const current = stats.get(label) ?? { label, people: 0, attended: 0 };
-    current.people += 1;
-    if (participant.status === "attended") current.attended += 1;
-    stats.set(label, current);
-  }
-  return [...stats.values()].sort((a, b) => b.people - a.people || b.attended - a.attended || a.label.localeCompare(b.label, "th"));
-}
-
-function compactBoothUnit(participant: RegistrationRecord) {
-  const parts = [participant.division, participant.bureau].map((item) => item.trim()).filter(Boolean);
-  return parts.join(" / ") || "ไม่ระบุหน่วยงาน";
 }
 
 function CommandToggle({ item, index }: { item: CommandStat; index: number }) {
