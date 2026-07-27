@@ -13858,3 +13858,230 @@ body:has(.report-page) .brand b {
   min-height: 38px;
   padding: 0;
 }
+
+html,
+body {
+  min-height: 100%;
+  background-color: var(--bg);
+}
+
+body,
+main,
+footer,
+.admin-page {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+footer {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--navy);
+}
+
+.admin-page,
+.page-body,
+.wide {
+  overflow-x: clip;
+}
+
+.admin-page :is(input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select, textarea),
+.admin-page .secret-input,
+.admin-page .admin-form label {
+  min-width: 0;
+  max-width: 100%;
+  justify-self: stretch;
+}
+
+.admin-page input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"]) {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.admin-page input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"])::-webkit-date-and-time-value {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.settings-toggle {
+  align-items: center;
+}
+
+.settings-toggle input[type="checkbox"] {
+  align-self: center;
+  justify-self: center;
+  flex: 0 0 auto;
+  transform: none !important;
+}
+
+.settings-toggle input[type="checkbox"]:checked {
+  transform: none !important;
+}
+
+.settings-toggle span {
+  min-width: 0;
+}
+
+.admin-detail-pdf-actions {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 820px) {
+  html,
+  body {
+    background: var(--bg) !important;
+  }
+
+  .official-site-verification {
+    width: min(100% - 20px, 100%);
+  }
+
+  .official-site-verification > summary {
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .official-site-copy {
+    min-width: 0;
+  }
+
+  .official-site-verification > summary > strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-page {
+    overflow-x: hidden;
+  }
+
+  .admin-page .wide,
+  .admin-detail-page .wide,
+  .wide {
+    width: min(100% - 24px, 100%);
+  }
+
+  .admin-topline,
+  .admin-topline > div,
+  .admin-panel,
+  .admin-login,
+  .admin-detail-block,
+  .printable-sheet {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-topline {
+    grid-template-columns: 1fr !important;
+    overflow: hidden;
+  }
+
+  .admin-topline p {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .admin-role-badge {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .admin-role-badge svg {
+    margin-top: 0;
+  }
+
+  .settings-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-toggle {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 14px !important;
+    align-items: center;
+  }
+
+  .settings-toggle input[type="checkbox"] {
+    width: 42px;
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .admin-form .form-grid,
+  .admin-form .compact-grid {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-form input,
+  .admin-form select,
+  .admin-form textarea,
+  .admin-login input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .admin-actions,
+  .admin-actions form,
+  .admin-actions :is(a, button),
+  .admin-detail-actions,
+  .admin-detail-actions form,
+  .admin-detail-actions button,
+  .audit-filter-actions,
+  .audit-filter-actions :is(a, button),
+  .scoreboard-actions,
+  .scoreboard-actions :is(a, button),
+  .scan-success-actions,
+  .scan-success-actions :is(a, button),
+  .participant-action-grid,
+  .participant-action-grid :is(a, button),
+  .banner-actions,
+  .banner-actions :is(a, button),
+  .ticket-actions,
+  .ticket-actions :is(a, button) {
+    width: 100%;
+  }
+
+  .admin-actions,
+  .admin-detail-actions,
+  .audit-filter-actions,
+  .scoreboard-actions,
+  .scan-success-actions,
+  .participant-action-grid,
+  .banner-actions,
+  .ticket-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .primary,
+  .secondary,
+  .ghost-action,
+  .danger-btn,
+  .small-action,
+  .disabled-action {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+
+  .admin-detail-pdf-actions {
+    margin-bottom: 18px;
+  }
+}

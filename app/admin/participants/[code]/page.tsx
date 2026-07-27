@@ -59,7 +59,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
               <Detail label="เช็คอิน" value={item.checked_in_at ? formatAdminDate(item.checked_in_at) : "-"}/>
               <Detail label="ผู้สแกน QR Code" value={item.checked_in_by_email || "-"}/>
             </dl>
-            <div className="admin-actions print-hidden"><a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} target="_blank" rel="noreferrer"><Download/>เปิด PDF ยืนยัน</a></div>
+            <div className="admin-actions admin-detail-pdf-actions print-hidden"><a className="secondary" href={`/api/register/${encodeURIComponent(item.registration_code)}/ticket`} target="_blank" rel="noreferrer"><Download/>เปิด PDF</a></div>
           </div>
         </section>
         <section className="admin-detail-block print-hidden">
