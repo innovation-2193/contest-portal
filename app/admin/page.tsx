@@ -42,6 +42,7 @@ import {
 	  deleteHomePopup,
 	  deleteWinner,
 	  deleteNews,
+	  getSubmissionDetail,
 	  getAdminSettings,
 	  getHomePopup,
 	  listNews,
@@ -53,6 +54,7 @@ import {
 	  saveHomePopup,
 	} from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
+import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 
 export const dynamic = "force-dynamic";
 
@@ -780,25 +782,31 @@ async function addWinnerAction(formData: FormData) {
   if (!["1", "2", "3", "honorable"].includes(rank)) throw new Error("ประเภทรางวัลไม่ถูกต้อง");
   const submission = (await listSubmissions()).find((item) => item.submission_code === submissionCode);
   if (!submission) throw new Error("ไม่พบผลงานที่เลือก");
+  const submissionDetail = await getSubmissionDetail(submissionCode);
+  if (!submissionDetail) throw new Error("ไม่พบข้อมูลรายละเอียดผลงานที่เลือก");
   const award = rank === "honorable" && honorableNote ? `${formatAward(rank)}: ${honorableNote}` : formatAward(rank);
   const ownerName = submission.submission_type === "team" && submission.team_name
     ? `ทีม ${submission.team_name}`
     : `${submission.first_name} ${submission.last_name}`.trim();
   const division = [submission.division, submission.bureau].map((item) => item?.trim()).filter(Boolean).join(" / ");
+  const published = formData.get("published") === "on";
   await addWinner({
     rank,
     award,
     projectTitle: submission.title_th,
     ownerName,
     division,
-    published: formData.get("published") === "on",
+    published,
   });
+  const winnerNotifications = published
+    ? await sendWinnerAnnouncementEmails({ submission: submissionDetail, award, ownerName })
+    : [];
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "winner.created",
     entityType: "winner",
     summary: `เพิ่มประกาศผลการแข่งขัน ${submission.title_th}`,
-    payload: { rank, submissionCode, honorableNote },
+    payload: { rank, submissionCode, honorableNote, published, winnerNotifications },
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");

@@ -1148,15 +1148,15 @@ nav a.active::after {
 .hero-center p { margin: 14px auto 0; max-width: 760px; color: #d2d9e7; font-size: 20px; line-height: 1.65; }
 
 .home-countdown-wrap {
-  width: min(690px, 100%);
-  margin: 24px auto 0;
-  padding: 14px 16px 16px;
+  width: min(820px, 100%);
+  margin: 26px auto 0;
+  padding: 20px 22px 22px;
   border: 1px solid rgba(223, 186, 51, 0.2);
-  border-radius: 22px;
+  border-radius: 24px;
   background:
     linear-gradient(180deg, rgba(223, 186, 51, 0.08), rgba(2, 11, 27, 0.18)),
     rgba(1, 9, 22, 0.24);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 22px 58px rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(10px);
   animation: home-countdown-rise 520ms cubic-bezier(0.18, 0.86, 0.22, 1) both;
 }
@@ -1170,7 +1170,7 @@ nav a.active::after {
 
 .home-countdown-title {
   color: var(--gold);
-  font-size: 15px;
+  font-size: clamp(18px, 2.05vw, 28px);
   line-height: 1.35;
   font-weight: 950;
   text-transform: uppercase;
@@ -1187,10 +1187,10 @@ nav a.active::after {
 
 .home-countdown {
   display: grid;
-  grid-template-columns: repeat(5, minmax(82px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(128px, 1fr));
+  gap: 14px;
   width: 100%;
-  margin: 11px auto 0;
+  margin: 16px auto 0;
 }
 
 .home-countdown div {
@@ -1199,12 +1199,12 @@ nav a.active::after {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 9px;
-  min-height: 100px;
-  padding: 12px 8px 10px;
+  gap: 10px;
+  min-height: 124px;
+  padding: 16px 10px 14px;
   overflow: hidden;
   border: 1px solid rgba(223, 186, 51, 0.24);
-  border-radius: 14px;
+  border-radius: 18px;
   background:
     radial-gradient(circle at 50% 10%, rgba(223, 186, 51, 0.18), transparent 54%),
     linear-gradient(180deg, rgba(9, 27, 58, 0.92), rgba(2, 11, 27, 0.82));
@@ -1238,7 +1238,7 @@ nav a.active::after {
 .home-countdown strong {
   display: block;
   color: #ffffff;
-  font-size: clamp(32px, 3.8vw, 52px);
+  font-size: clamp(48px, 5.2vw, 76px);
   line-height: 0.9;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
@@ -1252,7 +1252,7 @@ nav a.active::after {
   display: block;
   margin-top: 0;
   color: #ffe794;
-  font-size: 13px;
+  font-size: clamp(15px, 1.35vw, 21px);
   line-height: 1.15;
   font-weight: 900;
   text-shadow: 0 8px 20px rgba(0, 0, 0, 0.42);
@@ -11059,19 +11059,20 @@ body:has(.report-page) .brand b {
   .hero-center h1 { font-size: 48px; }
   .hero-event-info { grid-template-columns: 1fr; width: min(620px, 100%); }
   .home-countdown-wrap {
-    width: min(610px, 100%);
-    padding: 12px;
+    width: min(650px, 100%);
+    padding: 16px;
   }
   .home-countdown {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
   }
   .home-countdown div {
-    min-height: 92px;
+    min-height: 104px;
     gap: 8px;
-    padding: 11px 6px 9px;
+    padding: 13px 7px 10px;
   }
   .home-countdown strong {
-    font-size: clamp(30px, 7vw, 46px);
+    font-size: clamp(36px, 8vw, 54px);
   }
   .home-countdown span {
     font-size: 13px;
@@ -11929,7 +11930,7 @@ body:has(.report-page) .brand b {
   .home-countdown-wrap {
     width: 100%;
     margin-top: 18px;
-    padding: 10px 8px 11px;
+    padding: 12px 10px 13px;
     border-radius: 16px;
   }
   .home-countdown-title {
@@ -11940,22 +11941,22 @@ body:has(.report-page) .brand b {
     font-size: 11.5px;
   }
   .home-countdown {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 5px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
     width: 100%;
     margin-top: 8px;
   }
   .home-countdown div {
-    min-height: 72px;
-    gap: 5px;
-    padding: 8px 4px 7px;
+    min-height: 78px;
+    gap: 6px;
+    padding: 9px 4px 8px;
   }
   .home-countdown strong {
-    font-size: clamp(24px, 7.4vw, 32px);
+    font-size: clamp(24px, 8.6vw, 36px);
   }
   .home-countdown span {
     margin-top: 0;
-    font-size: 9.5px;
+    font-size: 10px;
   }
   .banner-actions { width: 100%; }
   .banner-actions a { width: 100%; min-width: 0; min-height: 56px; font-size: 17px; }
