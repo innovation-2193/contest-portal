@@ -14120,3 +14120,67 @@ footer {
     margin-bottom: 18px;
   }
 }
+
+@media (max-width: 640px) {
+  .official-site-verification {
+    width: calc(100% - 20px);
+  }
+
+  .official-site-verification > summary {
+    grid-template-columns: 28px auto 16px minmax(0, 1fr) 30px;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .official-site-verification > summary::after {
+    width: 11px;
+    height: 11px;
+    justify-self: center;
+    margin-right: 2px;
+    transform: rotate(45deg);
+  }
+
+  .official-site-verification[open] > summary::after {
+    transform: rotate(225deg);
+  }
+
+  .home-countdown-wrap,
+  .hero-event-info,
+  .banner-actions :is(a, .disabled-action) {
+    position: relative;
+    z-index: 2;
+    background-clip: padding-box;
+  }
+
+  .home-countdown-wrap {
+    border-color: rgba(223, 186, 51, 0.46);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 224, 94, 0.12),
+      0 18px 46px rgba(0, 0, 0, 0.34);
+  }
+
+  .banner-actions .primary {
+    border: 1px solid rgba(255, 244, 181, 0.72);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+      0 18px 44px rgba(223, 186, 51, 0.3);
+  }
+
+  .banner-actions .secondary {
+    border-color: rgba(223, 186, 51, 0.7);
+    background: rgba(2, 11, 27, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(223, 186, 51, 0.14);
+  }
+
+  .hero-event-info {
+    border-color: rgba(223, 186, 51, 0.48);
+    background: rgba(3, 12, 29, 0.68);
+    box-shadow: inset 0 0 0 1px rgba(223, 186, 51, 0.08);
+  }
+
+  .hero-event-info span {
+    border-color: rgba(223, 186, 51, 0.36);
+    background: rgba(7, 18, 42, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(223, 186, 51, 0.08);
+  }
+}
