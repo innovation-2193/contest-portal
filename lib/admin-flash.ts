@@ -2,6 +2,8 @@ export const adminNoticeMessages = {
   settings_saved: "บันทึกการตั้งค่าระบบเรียบร้อยแล้ว",
   news_added: "เพิ่มข่าวประชาสัมพันธ์เรียบร้อยแล้ว",
   news_deleted: "ลบข่าวประชาสัมพันธ์เรียบร้อยแล้ว",
+  home_popup_saved: "บันทึก Popup หน้า Home เรียบร้อยแล้ว",
+  home_popup_deleted: "ลบ Popup หน้า Home เรียบร้อยแล้ว",
   winner_added: "เพิ่มประกาศผลการแข่งขันเรียบร้อยแล้ว",
   winner_deleted: "ลบประกาศผลการแข่งขันเรียบร้อยแล้ว",
   assignment_saved: "บันทึกผู้ตรวจใบสมัครเรียบร้อยแล้ว",

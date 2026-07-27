@@ -228,7 +228,7 @@ export default async function DailyReportPage() {
 
       <section className="report-grid">
         <article className="admin-panel report-panel">
-          <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ 7 วันที่มีข้อมูลล่าสุด</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ สามารถย้อนดูช่วงก่อนหน้าที่มียอดมากกว่า 0 ได้</p></div></header>
+          <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ราย 7 วัน</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ และสามารถย้อนดูข้อมูลเป็นช่วงละ 7 วันได้</p></div></header>
           <VisitTrendChart stats={siteStats}/>
         </article>
 

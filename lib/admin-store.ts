@@ -35,6 +35,12 @@ export type AdminSettings = {
   contestSubmissionEnabled: boolean;
   satisfactionEvaluationEnabled: boolean;
   showSiteStats: boolean;
+  checkInShortcutVisibleForAdmin: boolean;
+  checkInShortcutVisibleForSuperAdmin: boolean;
+  homeCountdownEnabled: boolean;
+  homeCountdownTarget: string;
+  homeCountdownTitle: string;
+  homeCountdownNote: string;
   openAt: string;
   closeAt: string;
   prelanderTitle: string;
@@ -71,6 +77,14 @@ export type NewsInput = {
   publishAt: string;
   published: boolean;
   image?: File | null;
+};
+
+export type HomePopupRecord = {
+  id: string;
+  imageName: string;
+  imageOriginalName: string;
+  enabled: boolean;
+  updatedAt: string;
 };
 
 export type SubmissionListItem = {
@@ -172,7 +186,9 @@ const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "stor
 const adminStorePath = path.join(storageDir, "admin-settings.json");
 const winnersStorePath = path.join(storageDir, "winners.json");
 const newsStorePath = path.join(storageDir, "news.json");
+const homePopupStorePath = path.join(storageDir, "home-popup.json");
 const newsUploadsDir = path.join(storageDir, "news");
+const homePopupUploadsDir = path.join(storageDir, "home-popup");
 
 const defaultSettings: AdminSettings = {
   prelanderEnabled: false,
@@ -180,6 +196,12 @@ const defaultSettings: AdminSettings = {
   contestSubmissionEnabled: true,
   satisfactionEvaluationEnabled: false,
   showSiteStats: true,
+  checkInShortcutVisibleForAdmin: true,
+  checkInShortcutVisibleForSuperAdmin: true,
+  homeCountdownEnabled: true,
+  homeCountdownTarget: "2026-08-24T09:00",
+  homeCountdownTitle: "นับถอยหลังสู่วันงาน",
+  homeCountdownNote: "Police Innovation Contest 2026",
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
@@ -197,6 +219,12 @@ export async function saveAdminSettings(input: Partial<AdminSettings>) {
     contestSubmissionEnabled: input.contestSubmissionEnabled !== false,
     satisfactionEvaluationEnabled: input.satisfactionEvaluationEnabled === true,
     showSiteStats: input.showSiteStats !== false,
+    checkInShortcutVisibleForAdmin: input.checkInShortcutVisibleForAdmin !== false,
+    checkInShortcutVisibleForSuperAdmin: input.checkInShortcutVisibleForSuperAdmin !== false,
+    homeCountdownEnabled: input.homeCountdownEnabled !== false,
+    homeCountdownTarget: typeof input.homeCountdownTarget === "string" ? input.homeCountdownTarget.trim() : defaultSettings.homeCountdownTarget,
+    homeCountdownTitle: typeof input.homeCountdownTitle === "string" ? input.homeCountdownTitle.trim() : defaultSettings.homeCountdownTitle,
+    homeCountdownNote: typeof input.homeCountdownNote === "string" ? input.homeCountdownNote.trim() : defaultSettings.homeCountdownNote,
     openAt: input.openAt ?? "",
     closeAt: input.closeAt ?? "",
     prelanderTitle: input.prelanderTitle?.trim() || defaultSettings.prelanderTitle,
@@ -1049,10 +1077,43 @@ export async function deleteNews(id: string) {
   if (imageName) await deleteNewsImage(imageName);
 }
 
+export async function getHomePopup() {
+  return readJson<HomePopupRecord | null>(homePopupStorePath, null);
+}
+
+export async function saveHomePopup(input: { enabled: boolean; image?: File | null }) {
+  const current = await getHomePopup();
+  const hasNewImage = Boolean(input.image && input.image.size > 0);
+  if (!current && !hasNewImage) throw new Error("กรุณาอัปโหลดรูปภาพ popup");
+  const image = hasNewImage ? await saveHomePopupImage(input.image as File) : null;
+  const next: HomePopupRecord = {
+    id: current?.id ?? randomUUID(),
+    imageName: image?.storedName ?? current?.imageName ?? "",
+    imageOriginalName: image?.originalName ?? current?.imageOriginalName ?? "",
+    enabled: input.enabled,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeJson(homePopupStorePath, next);
+  if (image && current?.imageName) await deleteHomePopupImage(current.imageName);
+  return next;
+}
+
+export async function deleteHomePopup() {
+  const current = await getHomePopup();
+  await writeJson(homePopupStorePath, null);
+  if (current?.imageName) await deleteHomePopupImage(current.imageName);
+}
+
 export function getNewsImagePath(imageName: string) {
   const safeName = path.basename(imageName);
   if (!safeName || safeName !== imageName) return null;
   return path.join(newsUploadsDir, safeName);
+}
+
+export function getHomePopupImagePath(imageName: string) {
+  const safeName = path.basename(imageName);
+  if (!safeName || safeName !== imageName) return null;
+  return path.join(homePopupUploadsDir, safeName);
 }
 
 async function readJson<T>(filePath: string, fallback: T): Promise<T> {
@@ -1158,8 +1219,29 @@ async function saveNewsImage(file: File) {
   return { storedName, originalName: file.name || storedName };
 }
 
+async function saveHomePopupImage(file: File) {
+  const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+  if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
+  if (file.size > 10 * 1024 * 1024) throw new Error("ไฟล์ภาพ popup ต้องมีขนาดไม่เกิน 10 MB");
+  await mkdir(homePopupUploadsDir, { recursive: true });
+  const extension = extensionFromFile(file);
+  const storedName = `${randomUUID()}${extension}`;
+  await writeFile(path.join(homePopupUploadsDir, storedName), Buffer.from(await file.arrayBuffer()));
+  return { storedName, originalName: file.name || storedName };
+}
+
 async function deleteNewsImage(imageName: string) {
   const filePath = getNewsImagePath(imageName);
+  if (!filePath) return;
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
+async function deleteHomePopupImage(imageName: string) {
+  const filePath = getHomePopupImagePath(imageName);
   if (!filePath) return;
   try {
     await unlink(filePath);

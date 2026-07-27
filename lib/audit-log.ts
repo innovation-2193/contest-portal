@@ -77,6 +77,8 @@ const allowedAuditActions = new Set([
   "admin_user.deleted",
   "news.created",
   "news.deleted",
+  "home_popup.saved",
+  "home_popup.deleted",
   "winner.created",
   "winner.deleted",
   "evaluation.lucky_draw",

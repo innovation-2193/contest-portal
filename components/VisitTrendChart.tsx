@@ -55,10 +55,10 @@ export function VisitTrendChart({ stats }: { stats: SiteStats }) {
     </div>
     <div className="report-visit-nav">
       <button className="secondary small-action" type="button" disabled={!canGoOlder} onClick={() => moveWindow("older")}><ChevronLeft/>ก่อนหน้า</button>
-      <span>ช่วง {chartLabel}<small>{history.length.toLocaleString("th-TH")} วันที่มียอดเข้าชมมากกว่า 0</small></span>
+      <span>ช่วง {chartLabel}<small>แสดงข้อมูลช่วงละ 7 วัน</small></span>
       <button className="secondary small-action" type="button" disabled={!canGoNewer} onClick={() => moveWindow("newer")}>ถัดไป<ChevronRight/></button>
     </div>
-    <div className="report-line-chart" aria-label="ยอดเข้าชมเว็บไซต์ตามช่วงวันที่มีข้อมูล">
+    <div className="report-line-chart" aria-label="ยอดเข้าชมเว็บไซต์ตามช่วง 7 วัน">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" onPointerLeave={() => setActivePoint(null)}>
         <defs>
           <linearGradient id="visitLineGradient" x1="0" x2="1" y1="0" y2="0">

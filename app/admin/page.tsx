@@ -32,19 +32,22 @@ import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEve
 import { adminNoticePath } from "../../lib/admin-flash";
 import { participantRoleClass } from "../../lib/participant-role-style";
 import {
-  addWinner,
-  addNews,
-  assignSubmissionReviewer,
-  deleteWinner,
-  deleteNews,
-  getAdminSettings,
-  listNews,
-  listParticipants,
-  listSubmissions,
-  listWinners,
-  registerSubmissionAsParticipant,
-  saveAdminSettings,
-} from "../../lib/admin-store";
+	  addWinner,
+	  addNews,
+	  assignSubmissionReviewer,
+	  deleteHomePopup,
+	  deleteWinner,
+	  deleteNews,
+	  getAdminSettings,
+	  getHomePopup,
+	  listNews,
+	  listParticipants,
+	  listSubmissions,
+	  listWinners,
+	  registerSubmissionAsParticipant,
+	  saveAdminSettings,
+	  saveHomePopup,
+	} from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +72,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} /></AdminShell>;
   }
 
-  const { settings, participants, submissions, winners, news, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
+  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
@@ -122,6 +125,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
+  const showCheckInShortcut = isSuperAdmin
+    ? settings.checkInShortcutVisibleForSuperAdmin
+    : settings.checkInShortcutVisibleForAdmin;
   const scoreBoard = submissions
     .filter((item) => item.review_total_score !== null && item.review_total_score !== undefined)
     .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at));
@@ -129,10 +135,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <AdminNotice code={params.notice}/>
-    <section className="admin-panel admin-checkin-cta">
+    {showCheckInShortcut && <section className="admin-panel admin-checkin-cta">
       <div><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
       <Link className="primary" href="/admin/scan"><UserCheck/>เปิดหน้าเช็คอิน</Link>
-    </section>
+    </section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
       <div><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
@@ -143,6 +149,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
+    {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
@@ -191,6 +198,12 @@ const fallbackAdminSettings: Awaited<ReturnType<typeof getAdminSettings>> = {
   contestSubmissionEnabled: true,
   satisfactionEvaluationEnabled: false,
   showSiteStats: true,
+  checkInShortcutVisibleForAdmin: true,
+  checkInShortcutVisibleForSuperAdmin: true,
+  homeCountdownEnabled: true,
+  homeCountdownTarget: "2026-08-24T09:00",
+  homeCountdownTitle: "นับถอยหลังสู่วันงาน",
+  homeCountdownNote: "Police Innovation Contest 2026",
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
@@ -221,17 +234,18 @@ const emptyEvaluationSummary: EvaluationSummary = {
 
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
-  const [settings, participants, submissions, winners, news, adminAccounts, auditEvents] = await Promise.all([
+  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
     withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
     withAdminFallback("winners", listWinners(), []),
     withAdminFallback("news", listNews(), []),
+    isSuperAdmin ? withAdminFallback("home popup", getHomePopup(), null) : Promise.resolve(null),
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
     isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
   ]);
   const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
-  return { settings, participants, submissions, winners, news, adminAccounts, auditEvents, evaluationSummary };
+  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -290,7 +304,7 @@ function SystemOverview({
 
 function SettingsControlPanel({ settings }: { settings: Awaited<ReturnType<typeof getAdminSettings>> }) {
   return <article className="admin-panel settings-panel admin-control-panel">
-    <header className="admin-section-head"><CalendarClock/><div><span className="eyebrow">System Control</span><h2>จัดการเปิด / ปิดระบบ</h2><p>ควบคุม Pre-lander การลงทะเบียน สมัครประกวด แบบประเมิน และสถิติหน้าเว็บ</p></div></header>
+    <header className="admin-section-head"><CalendarClock/><div><span className="eyebrow">System Control</span><h2>จัดการเปิด / ปิดระบบ</h2><p>ควบคุม Pre-lander การลงทะเบียน สมัครประกวด แบบประเมิน สถิติหน้าเว็บ ปุ่มลัดเช็คอิน และตัวนับถอยหลังหน้าโฮม</p></div></header>
     <form action={saveSettingsAction} className="admin-form">
       <div className="settings-toggle-grid">
         <label className="settings-toggle">
@@ -313,8 +327,20 @@ function SettingsControlPanel({ settings }: { settings: Awaited<ReturnType<typeo
           <input type="checkbox" name="showSiteStats" defaultChecked={settings.showSiteStats}/>
           <span><b>แสดงสถิติการเข้าเว็บ</b><small>แสดงยอดเข้าชมทั้งหมดและรายวันใน footer หน้าเว็บ</small></span>
         </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="checkInShortcutVisibleForSuperAdmin" defaultChecked={settings.checkInShortcutVisibleForSuperAdmin}/>
+          <span><b>แสดงกล่องเช็คอินสำหรับ Super Admin</b><small>ควบคุมการแสดงปุ่มลัด “หน้าเช็คอินหน้างาน” บน dashboard ของ Super Admin</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="checkInShortcutVisibleForAdmin" defaultChecked={settings.checkInShortcutVisibleForAdmin}/>
+          <span><b>แสดงกล่องเช็คอินสำหรับ Admin</b><small>ควบคุมการแสดงปุ่มลัด “หน้าเช็คอินหน้างาน” บน dashboard ของ Admin ทั่วไป</small></span>
+        </label>
+        <label className="settings-toggle">
+          <input type="checkbox" name="homeCountdownEnabled" defaultChecked={settings.homeCountdownEnabled}/>
+          <span><b>แสดงตัวนับถอยหลังหน้าโฮม</b><small>แสดง timer บน banner หน้าเว็บไซต์ โดยใช้เวลาปลายทางที่กำหนดด้านล่าง</small></span>
+        </label>
       </div>
-      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label></div>
+      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label><label>เวลานับถอยหลังหน้าโฮม<input type="datetime-local" name="homeCountdownTarget" defaultValue={toInputDate(settings.homeCountdownTarget)}/></label><label>ข้อความเหนือ timer<input name="homeCountdownTitle" defaultValue={settings.homeCountdownTitle} maxLength={120} placeholder="เช่น นับถอยหลังสู่วันงาน"/></label><label>ข้อความใต้ timer<input name="homeCountdownNote" defaultValue={settings.homeCountdownNote} maxLength={160} placeholder="เช่น Police Innovation Contest 2026"/></label></div>
       <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
       <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
       <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
@@ -559,6 +585,34 @@ function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>
   }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}<CardMore total={total} shown={news.length} href="/admin/news"/></div>;
 }
 
+function HomePopupPanel({ popup }: { popup: Awaited<ReturnType<typeof getHomePopup>> }) {
+  return <section className="admin-panel home-popup-admin-panel">
+    <header className="admin-section-head">
+      <ImageIcon/>
+      <div><h2>Popup หน้า Home</h2><p>อัปโหลดรูปภาพ 1 รูปสำหรับแสดงเป็น popup เฉพาะหน้าแรกของเว็บไซต์ รองรับ JPG, PNG, WebP หรือ GIF</p></div>
+    </header>
+    <div className="home-popup-admin-grid">
+      <div className="home-popup-preview">
+        {popup?.imageName
+          ? <img src={`/api/home-popup/${encodeURIComponent(popup.imageName)}`} alt={popup.imageOriginalName || "Popup หน้า Home"}/>
+          : <div><ImageIcon/><span>ยังไม่ได้ตั้งรูป popup</span></div>}
+      </div>
+      <div className="home-popup-admin-form">
+        {popup && <span className={`status-pill ${popup.enabled ? "attended" : "cancelled"}`}>{popup.enabled ? "กำลังแสดงบนหน้า Home" : "ปิดการแสดงผล"}</span>}
+        {popup && <small>ไฟล์ล่าสุด: {popup.imageOriginalName || popup.imageName} • อัปเดต {formatAdminDate(popup.updatedAt)}</small>}
+        <form action={saveHomePopupAction} className="admin-form">
+          <label>รูปภาพ Popup<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required={!popup}/><small className="field-help">{popup ? "อัปโหลดไฟล์ใหม่เมื่อต้องการเปลี่ยนรูปเดิม" : "กรุณาเลือกรูปภาพสำหรับ popup"}</small></label>
+          <label className="inline-check"><input type="checkbox" name="enabled" defaultChecked={popup?.enabled ?? true}/> เปิดแสดง popup บนหน้า Home</label>
+          <button className="primary" type="submit"><ImageIcon/>{popup ? "บันทึก / แก้ไข Popup" : "เพิ่ม Popup"}</button>
+        </form>
+        {popup && <form action={deleteHomePopupAction}>
+          <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบ popup หน้า Home?">ลบ Popup</ConfirmSubmitButton>
+        </form>}
+      </div>
+    </div>
+  </section>;
+}
+
 function CardMore({ total, shown, href }: { total: number; shown: number; href: string }) {
   if (total <= 0) return null;
   const label = total > shown
@@ -670,6 +724,12 @@ async function saveSettingsAction(formData: FormData) {
     contestSubmissionEnabled: formData.get("contestSubmissionEnabled") === "on",
     satisfactionEvaluationEnabled: formData.get("satisfactionEvaluationEnabled") === "on",
     showSiteStats: formData.get("showSiteStats") === "on",
+    checkInShortcutVisibleForSuperAdmin: formData.get("checkInShortcutVisibleForSuperAdmin") === "on",
+    checkInShortcutVisibleForAdmin: formData.get("checkInShortcutVisibleForAdmin") === "on",
+    homeCountdownEnabled: formData.get("homeCountdownEnabled") === "on",
+    homeCountdownTarget: String(formData.get("homeCountdownTarget") ?? ""),
+    homeCountdownTitle: String(formData.get("homeCountdownTitle") ?? ""),
+    homeCountdownNote: String(formData.get("homeCountdownNote") ?? ""),
     openAt: String(formData.get("openAt") ?? ""),
     closeAt: String(formData.get("closeAt") ?? ""),
     prelanderTitle: String(formData.get("prelanderTitle") ?? ""),
@@ -813,6 +873,44 @@ async function deleteNewsAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin");
   redirect(adminNoticePath("/admin", "news_deleted"));
+}
+
+async function saveHomePopupAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const image = formData.get("image") as File | null;
+  const popup = await saveHomePopup({
+    enabled: formData.get("enabled") === "on",
+    image,
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "home_popup.saved",
+    entityType: "home_popup",
+    entityId: popup.id,
+    summary: "บันทึก Popup หน้า Home",
+    payload: { enabled: popup.enabled, imageName: popup.imageName, imageOriginalName: popup.imageOriginalName },
+  }, requestHeaders);
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "home_popup_saved"));
+}
+
+async function deleteHomePopupAction(_formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  await deleteHomePopup();
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "home_popup.deleted",
+    entityType: "home_popup",
+    summary: "ลบ Popup หน้า Home",
+  }, requestHeaders);
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "home_popup_deleted"));
 }
 
 async function assignSubmissionAction(formData: FormData) {

@@ -56,14 +56,14 @@ export async function getSiteStats(): Promise<SiteStats> {
   });
   const peakDay = last7Days.reduce((peak, item) => item.count > peak.count ? item : peak, last7Days[0] ?? { date: today, label: "วันนี้", count: 0 });
   const total7Days = last7Days.reduce((sum, item) => sum + item.count, 0);
-  const visitHistory = Object.entries(store.days)
-    .filter(([, count]) => Number(count) > 0)
-    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-    .map(([date, count]) => ({
+  const visitHistory = Array.from({ length: retentionDays }, (_, index) => {
+    const date = dateKey(index - (retentionDays - 1));
+    return {
       date,
       label: shortThaiDate(date),
-      count: Number(count) || 0,
-    }));
+      count: store.days[date] ?? 0,
+    };
+  });
   return {
     total: store.total,
     today: store.days[today] ?? 0,
