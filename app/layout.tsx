@@ -7,8 +7,34 @@ import { getSiteStats } from "../lib/site-analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://innocontest.police.go.th"),
   title: "Police Innovation Contest 2026",
   description: "ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Police Innovation Contest 2026",
+    description: "ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
+    url: "/",
+    siteName: "Police Innovation Contest 2026",
+    locale: "th_TH",
+    type: "website",
+    images: [
+      {
+        url: "/social-preview.png",
+        width: 1672,
+        height: 941,
+        alt: "Police Innovation Contest 2026",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Police Innovation Contest 2026",
+    description: "ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
+    images: ["/social-preview.png"],
+  },
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
