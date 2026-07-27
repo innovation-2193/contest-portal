@@ -203,7 +203,7 @@ const fallbackAdminSettings: Awaited<ReturnType<typeof getAdminSettings>> = {
   homeCountdownEnabled: true,
   homeCountdownTarget: "2026-08-24T09:00",
   homeCountdownTitle: "นับถอยหลังสู่วันงาน",
-  homeCountdownNote: "Police Innovation Contest 2026",
+  homeCountdownNote: "",
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
@@ -340,7 +340,7 @@ function SettingsControlPanel({ settings }: { settings: Awaited<ReturnType<typeo
           <span><b>แสดงตัวนับถอยหลังหน้าโฮม</b><small>แสดง timer บน banner หน้าเว็บไซต์ โดยใช้เวลาปลายทางที่กำหนดด้านล่าง</small></span>
         </label>
       </div>
-      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label><label>เวลานับถอยหลังหน้าโฮม<input type="datetime-local" name="homeCountdownTarget" defaultValue={toInputDate(settings.homeCountdownTarget)}/></label><label>ข้อความเหนือ timer<input name="homeCountdownTitle" defaultValue={settings.homeCountdownTitle} maxLength={120} placeholder="เช่น นับถอยหลังสู่วันงาน"/></label><label>ข้อความใต้ timer<input name="homeCountdownNote" defaultValue={settings.homeCountdownNote} maxLength={160} placeholder="เช่น Police Innovation Contest 2026"/></label></div>
+      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label><label>เวลานับถอยหลังหน้าโฮม<input type="datetime-local" name="homeCountdownTarget" defaultValue={toInputDate(settings.homeCountdownTarget)}/></label><label>ข้อความเหนือ timer<input name="homeCountdownTitle" defaultValue={settings.homeCountdownTitle} maxLength={120} placeholder="เช่น นับถอยหลังสู่วันงาน"/></label><label>ข้อความใต้ timer<input name="homeCountdownNote" defaultValue={settings.homeCountdownNote} maxLength={160} placeholder="เว้นว่างได้"/></label></div>
       <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
       <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
       <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>

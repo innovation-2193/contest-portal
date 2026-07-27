@@ -201,7 +201,7 @@ const defaultSettings: AdminSettings = {
   homeCountdownEnabled: true,
   homeCountdownTarget: "2026-08-24T09:00",
   homeCountdownTitle: "นับถอยหลังสู่วันงาน",
-  homeCountdownNote: "Police Innovation Contest 2026",
+  homeCountdownNote: "",
   openAt: "",
   closeAt: "",
   prelanderTitle: "Police Innovation Contest 2026",
