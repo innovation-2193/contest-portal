@@ -5,7 +5,9 @@ import { PageHero } from "../../../components/SiteChrome";
 import { ParticipantOtpForm } from "../../../components/ParticipantOtpForm";
 import {
   getParticipantOtpPendingEmail,
+  getParticipantOtpAutoFillCode,
   getParticipantSession,
+  participantOtpAutoFillCookie,
   participantOtpPendingCookie,
   participantSessionCookie,
 } from "../../../lib/participant-session";
@@ -16,6 +18,7 @@ export default async function ParticipantLoginPage({ searchParams }: { searchPar
   const cookieStore = await cookies();
   if (getParticipantSession(cookieStore.get(participantSessionCookie)?.value)) redirect("/profile");
   const pendingEmail = getParticipantOtpPendingEmail(cookieStore.get(participantOtpPendingCookie)?.value);
+  const autoFillOtp = pendingEmail ? getParticipantOtpAutoFillCode(cookieStore.get(participantOtpAutoFillCookie)?.value) : "";
   const { status } = await searchParams;
 
   return <>
@@ -32,7 +35,7 @@ export default async function ParticipantLoginPage({ searchParams }: { searchPar
         {loginMessage(status)}
         {pendingEmail ? <>
           <p>ระบบส่งรหัส OTP ไปยัง <strong>{maskEmail(pendingEmail)}</strong> รหัสมีอายุ 1 ชั่วโมงและใช้ได้ครั้งเดียว</p>
-          <ParticipantOtpForm email={pendingEmail}/>
+          <ParticipantOtpForm email={pendingEmail} autoFillOtp={autoFillOtp}/>
           <form action="/api/participant-auth/request-otp" method="post" className="participant-resend-form">
             <input type="hidden" name="email" value={pendingEmail}/>
             <button className="secondary" type="submit"><Mail/>ส่ง OTP ใหม่</button>

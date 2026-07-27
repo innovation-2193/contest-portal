@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 
 type HomeTimeLeft = {
   total: number;
-  weeks: number;
   days: number;
   hours: number;
   minutes: number;
@@ -14,12 +13,11 @@ type HomeTimeLeft = {
 function getHomeTimeLeft(targetTime: number, now = Date.now()): HomeTimeLeft {
   const total = Math.max(0, targetTime - now);
   const totalDays = Math.floor(total / 86400000);
-  const weeks = Math.floor(totalDays / 7);
-  const days = totalDays % 7;
+  const days = totalDays;
   const hours = Math.floor((total % 86400000) / 3600000);
   const minutes = Math.floor((total % 3600000) / 60000);
   const seconds = Math.floor((total % 60000) / 1000);
-  return { total, weeks, days, hours, minutes, seconds };
+  return { total, days, hours, minutes, seconds };
 }
 
 export function HomeHeroCountdown({
@@ -48,7 +46,6 @@ export function HomeHeroCountdown({
   if (Number.isNaN(targetTime) || timeLeft.total <= 0) return null;
 
   const items = [
-    ["สัปดาห์", timeLeft.weeks],
     ["วัน", timeLeft.days],
     ["ชั่วโมง", timeLeft.hours],
     ["นาที", timeLeft.minutes],

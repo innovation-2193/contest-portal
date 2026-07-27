@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useRouter } from "next/navigation";
 import { Gift, LockKeyhole, Mail, RotateCcw, ShieldCheck, Sparkles, Trophy, Volume2, VolumeX } from "lucide-react";
 import type { LuckyDrawCandidate } from "../lib/evaluation-store";
+import { SecretInput } from "./SecretInput";
 
 type LuckyWinner = {
   registrationCode: string;
@@ -30,11 +31,13 @@ export function LuckyDrawWheel({
   initialWinners,
   isSuperAdmin,
   resetOtpStatus,
+  resetOtpAutoFill = "",
 }: {
   candidates: LuckyDrawCandidate[];
   initialWinners: LuckyWinner[];
   isSuperAdmin: boolean;
   resetOtpStatus?: string;
+  resetOtpAutoFill?: string;
 }) {
   const router = useRouter();
   const [available, setAvailable] = useState(candidates);
@@ -215,7 +218,7 @@ export function LuckyDrawWheel({
             </form>
             {(resetOtpStatus === "sent" || resetOtpStatus === "failed") && (
               <form action="/api/admin/evaluations/lucky-draw/reset" method="post" className="lucky-reset-verify-form">
-                <label>OTP 6 หลัก<input name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} autoComplete="one-time-code" required /></label>
+                <label>OTP 6 หลัก<SecretInput name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} autoComplete="one-time-code" defaultValue={resetOtpAutoFill} required /></label>
                 <button className="danger-btn" type="submit"><RotateCcw />ยืนยัน Reset ผล</button>
               </form>
             )}

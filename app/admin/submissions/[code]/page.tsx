@@ -6,7 +6,17 @@ import { ArrowLeft, ExternalLink, FileText, Mail, Pencil, Printer, ShieldCheck, 
 import { AdminNotice } from "../../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { ScoreSubmitConfirmButton } from "../../../../components/ScoreSubmitConfirmButton";
-import { cookieName, getAdminSession, requestSuperAdminOtp, verifySuperAdminOtp } from "../../../../lib/admin-auth";
+import { SecretInput } from "../../../../components/SecretInput";
+import {
+  adminCookieSecure,
+  adminOtpAutoFillCookie,
+  cookieName,
+  createAdminOtpAutoFillValue,
+  getAdminOtpAutoFillCode,
+  getAdminSession,
+  requestSuperAdminOtp,
+  verifySuperAdminOtp,
+} from "../../../../lib/admin-auth";
 import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmission, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { adminNoticePath } from "../../../../lib/admin-flash";
@@ -60,6 +70,12 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
   const query = await searchParams;
   const issuedAt = formatAdminDate(new Date().toISOString());
   const isSuperAdmin = session.role === "super_admin";
+  const deleteOtpAutoFill = item
+    ? getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, {
+        purpose: "delete_submission",
+        submissionCode: item.submission_code,
+      })
+    : "";
 
   return <div className="admin-page admin-detail-page">
     <div className="wide">
@@ -132,7 +148,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
             </form>
             <form action={deleteSubmissionAction} className="admin-delete-otp-form">
               <input type="hidden" name="submissionCode" value={item.submission_code}/>
-              <label>รหัส OTP<input name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/></label>
+              <label>รหัส OTP<SecretInput name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code" defaultValue={deleteOtpAutoFill}/></label>
               <ConfirmSubmitButton className="danger-btn" type="submit" message={`ยืนยันลบใบสมัคร ${item.submission_code}? เมื่อลบแล้วไม่สามารถกู้คืนจากระบบได้`}><Trash2/>ลบใบสมัครประกวด</ConfirmSubmitButton>
             </form>
           </div>
@@ -332,6 +348,22 @@ async function requestDeleteSubmissionOtpAction(formData: FormData) {
     summary: `ขอ OTP เพื่อลบใบสมัคร ${submissionCode}`,
   }, requestHeaders);
   const status = result.ok ? result.mailStatus === "failed" ? "mail_failed" : "sent" : "wait";
+  const cookieStore = await cookies();
+  if (result.ok && result.autoFillCode) {
+    cookieStore.set(adminOtpAutoFillCookie, createAdminOtpAutoFillValue({
+      purpose: "delete_submission",
+      submissionCode,
+      code: result.autoFillCode,
+    }), {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: adminCookieSecure(),
+      path: "/",
+      maxAge: 5 * 60,
+    });
+  } else {
+    cookieStore.delete(adminOtpAutoFillCookie);
+  }
   redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=${status}`);
 }
 
@@ -346,6 +378,8 @@ async function deleteSubmissionAction(formData: FormData) {
   });
   if (!otpOk) redirect(`/admin/submissions/${encodeURIComponent(submissionCode)}?deleteOtp=failed`);
 
+  const cookieStore = await cookies();
+  cookieStore.delete(adminOtpAutoFillCookie);
   await deleteSubmission(submissionCode);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),

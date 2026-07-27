@@ -7,6 +7,7 @@ import {
   createParticipantSessionToken,
   getParticipantOtpPendingEmail,
   participantCookieSecure,
+  participantOtpAutoFillCookie,
   participantOtpPendingCookie,
   participantSessionCookie,
   participantSessionMaxAge,
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
     maxAge: participantSessionMaxAge,
   });
   response.cookies.delete(participantOtpPendingCookie);
+  response.cookies.delete(participantOtpAutoFillCookie);
   await recordAuditEvent({
     actor: { type: "public", email },
     action: "auth.participant_login",

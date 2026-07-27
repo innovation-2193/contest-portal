@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 export const participantSessionCookie = "contest_participant_registration";
 export const participantSubmissionCookie = "contest_participant_submission";
 export const participantOtpPendingCookie = "contest_participant_otp_pending";
+export const participantOtpAutoFillCookie = "contest_participant_otp_autofill";
 export const participantSessionMaxAge = 60 * 60 * 24;
 export const participantOtpMaxAge = 60 * 60;
 
@@ -52,6 +53,15 @@ export function getParticipantOtpPendingEmail(value?: string, now = Date.now()) 
   return payload.email;
 }
 
+export function createParticipantOtpAutoFillValue(code: string) {
+  return normalizeOtpCode(code);
+}
+
+export function getParticipantOtpAutoFillCode(value?: string) {
+  const code = normalizeOtpCode(value ?? "");
+  return /^\d{6}$/.test(code) ? code : "";
+}
+
 export function participantCookieSecure() {
   if (process.env.PARTICIPANT_COOKIE_SECURE === "false") return false;
   if (process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://")) return true;
@@ -95,6 +105,14 @@ function participantSecret() {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeOtpCode(value: string) {
+  return value
+    .trim()
+    .replace(/[๐-๙]/g, (digit) => String("๐๑๒๓๔๕๖๗๘๙".indexOf(digit)))
+    .replace(/\D/g, "")
+    .slice(0, 6);
 }
 
 function safeEqual(leftValue: string, rightValue: string) {

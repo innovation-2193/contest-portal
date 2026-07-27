@@ -38,6 +38,16 @@
 
 * { box-sizing: border-box; }
 
+::selection {
+  background: #000000;
+  color: #f7d84f;
+}
+
+::-moz-selection {
+  background: #000000;
+  color: #f7d84f;
+}
+
 html {
   scroll-behavior: smooth;
   width: 100%;
@@ -4695,6 +4705,55 @@ body:has(.prelander-page)::before {
   border-radius: var(--radius);
   background: rgba(1, 9, 22, 0.9);
   color: var(--text);
+}
+
+.secret-input {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.participant-login-form .secret-input {
+  grid-column: 1 / -1;
+}
+
+.secret-input input {
+  padding-right: 52px;
+}
+
+.secret-input .secret-input-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(223, 186, 51, 0.34);
+  border-radius: 8px;
+  background: rgba(7, 20, 42, 0.82);
+  color: var(--gold-2);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.secret-input .secret-input-toggle:hover,
+.secret-input .secret-input-toggle:focus-visible {
+  border-color: rgba(247, 216, 79, 0.84);
+  background: rgba(17, 38, 76, 0.94);
+  color: #fff0a8;
+  outline: none;
+}
+
+.secret-input .secret-input-toggle svg {
+  width: 18px;
+  height: 18px;
 }
 
 .admin-form input[type="date"],
@@ -13784,4 +13843,17 @@ body:has(.report-page) .brand b {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
   }
+}
+
+.secret-input .secret-input-toggle,
+.participant-login-form .secret-input .secret-input-toggle,
+.admin-login-card .secret-input .secret-input-toggle,
+.admin-delete-otp-form .secret-input .secret-input-toggle,
+.lucky-reset-actions .secret-input .secret-input-toggle {
+  width: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
 }

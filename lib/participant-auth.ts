@@ -78,7 +78,12 @@ export async function requestParticipantLoginOtp(emailInput: string, now = Date.
         เพื่อความปลอดภัย กรุณาอย่าส่งต่อรหัสนี้ให้ผู้อื่น หากคุณไม่ได้เป็นผู้ขอรหัส สามารถเพิกเฉยต่ออีเมลฉบับนี้ได้
       </div>`,
   });
-  return { ok: true, delivery: mail.status, expiresAt: record.expiresAt };
+  return {
+    ok: true,
+    delivery: mail.status,
+    expiresAt: record.expiresAt,
+    autoFillCode: mail.status === "outbox" ? code : undefined,
+  };
 }
 
 export async function verifyParticipantLoginOtp(emailInput: string, input: string, now = Date.now()) {

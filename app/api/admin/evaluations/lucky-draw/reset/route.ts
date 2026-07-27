@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { cookieName, getAdminSession, verifySuperAdminOtp } from "../../../../../../lib/admin-auth";
+import { adminOtpAutoFillCookie, cookieName, getAdminSession, verifySuperAdminOtp } from "../../../../../../lib/admin-auth";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { markLuckyDrawResetNotified, resetLuckyDraw } from "../../../../../../lib/evaluation-store";
 import { sendLuckyDrawResetEmail } from "../../../../../../lib/lucky-draw-mail";
@@ -64,8 +64,10 @@ export async function POST(request: NextRequest) {
   revalidatePath("/admin");
   revalidatePath("/admin/evaluations");
   const hasFailedMail = notifications.some((item) => item.status === "failed");
-  return NextResponse.redirect(
+  const response = NextResponse.redirect(
     publicSiteUrl(`/admin/evaluations?resetOtp=${hasFailedMail ? "reset_mail_failed" : "reset_done"}`, request),
     303,
   );
+  response.cookies.delete(adminOtpAutoFillCookie);
+  return response;
 }

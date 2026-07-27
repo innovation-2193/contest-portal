@@ -4,6 +4,7 @@ import path from "path";
 import { sendAdminMail } from "./admin-mail";
 
 const cookieName = "contest_admin";
+export const adminOtpAutoFillCookie = "contest_admin_otp_autofill";
 
 export { cookieName };
 
@@ -73,6 +74,33 @@ export function adminCookieSecure() {
   if (process.env.ADMIN_COOKIE_SECURE === "false") return false;
   if (process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://")) return true;
   return process.env.NODE_ENV === "production";
+}
+
+export function createAdminOtpAutoFillValue(input: { purpose?: SuperAdminOtpPurpose; submissionCode?: string; code: string }) {
+  return Buffer.from(JSON.stringify({
+    purpose: input.purpose ?? "login",
+    submissionCode: input.submissionCode?.trim() || undefined,
+    code: normalizeOtpCode(input.code),
+  })).toString("base64url");
+}
+
+export function getAdminOtpAutoFillCode(value: string | undefined, options: Pick<SuperAdminOtpOptions, "purpose" | "submissionCode"> = {}) {
+  if (!value) return "";
+  try {
+    const payload = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as {
+      purpose?: SuperAdminOtpPurpose;
+      submissionCode?: string;
+      code?: string;
+    };
+    const expectedPurpose = options.purpose ?? "login";
+    const expectedSubmissionCode = options.submissionCode?.trim() || undefined;
+    if (payload.purpose !== expectedPurpose) return "";
+    if ((payload.submissionCode?.trim() || undefined) !== expectedSubmissionCode) return "";
+    const code = normalizeOtpCode(String(payload.code ?? ""));
+    return /^\d{6}$/.test(code) ? code : "";
+  } catch {
+    return "";
+  }
 }
 
 export function createAdminSessionToken(session: Pick<AdminSession, "email" | "role">, now = Date.now()) {
@@ -218,7 +246,12 @@ export async function requestSuperAdminOtp(options: SuperAdminOtpOptions = {}) {
     html: message.html,
     outboxKey: `super-admin-otp-${new Date(now).toISOString().replace(/[:.]/g, "-")}`,
   });
-  return { ok: true, expiresAt: record.expiresAt, mailStatus: mail.status };
+  return {
+    ok: true,
+    expiresAt: record.expiresAt,
+    mailStatus: mail.status,
+    autoFillCode: mail.status === "outbox" ? code : undefined,
+  };
 }
 
 export async function verifySuperAdminOtp(input: string, options: SuperAdminOtpOptions = {}) {

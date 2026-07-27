@@ -2,8 +2,9 @@
 
 import { useRef } from "react";
 import { KeyRound, LogIn } from "lucide-react";
+import { SecretInput } from "./SecretInput";
 
-export function ParticipantOtpForm({ email }: { email: string }) {
+export function ParticipantOtpForm({ email, autoFillOtp = "" }: { email: string; autoFillOtp?: string }) {
   const submitting = useRef(false);
 
   function handleInput(event: React.FormEvent<HTMLInputElement>) {
@@ -23,8 +24,7 @@ export function ParticipantOtpForm({ email }: { email: string }) {
     <input type="email" name="username" value={email} autoComplete="username" readOnly hidden/>
     <label>
       <KeyRound/>รหัส OTP 6 หลัก
-      <input
-        type="text"
+      <SecretInput
         name="otp"
         inputMode="numeric"
         pattern="[0-9]{6}"
@@ -35,6 +35,7 @@ export function ParticipantOtpForm({ email }: { email: string }) {
         spellCheck={false}
         placeholder="กรอกรหัส 6 หลัก"
         aria-label="รหัส OTP 6 หลัก"
+        defaultValue={autoFillOtp}
         onInput={handleInput}
         required
         autoFocus

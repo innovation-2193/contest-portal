@@ -7,7 +7,7 @@ import { ArrowLeft, ChevronDown, ClipboardList, FileDown, Gift, Star, Trophy, Us
 import { AdminNotice } from "../../../components/AdminNotice";
 import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
-import { cookieName, getAdminSession } from "../../../lib/admin-auth";
+import { adminOtpAutoFillCookie, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { getAdminSettings } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
@@ -43,6 +43,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
     withFallback(listLuckyDrawCandidates(), []),
   ]);
   const isSuperAdmin = session.role === "super_admin";
+  const resetOtpAutoFill = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "reset_lucky_draw" });
 
   return <div className="admin-page">
     <div className="wide">
@@ -155,6 +156,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           }))}
           isSuperAdmin={isSuperAdmin}
           resetOtpStatus={params.resetOtp}
+          resetOtpAutoFill={resetOtpAutoFill}
         />
       </section>
     </div>

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { recordAuditEvent } from "../../../../lib/audit-log";
 import { normalizeParticipantEmail, requestParticipantLoginOtp } from "../../../../lib/participant-auth";
 import {
+  createParticipantOtpAutoFillValue,
   createParticipantOtpPendingToken,
   participantCookieSecure,
+  participantOtpAutoFillCookie,
   participantOtpMaxAge,
   participantOtpPendingCookie,
 } from "../../../../lib/participant-session";
@@ -37,5 +39,16 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: participantOtpMaxAge,
   });
+  if (result.ok && result.autoFillCode) {
+    response.cookies.set(participantOtpAutoFillCookie, createParticipantOtpAutoFillValue(result.autoFillCode), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: participantCookieSecure(),
+      path: "/",
+      maxAge: 5 * 60,
+    });
+  } else {
+    response.cookies.delete(participantOtpAutoFillCookie);
+  }
   return response;
 }

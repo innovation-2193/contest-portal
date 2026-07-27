@@ -5,15 +5,19 @@ import Link from "next/link";
 import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
+import { SecretInput } from "../../components/SecretInput";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../components/ParticipantRoleTabs";
 import {
+  adminOtpAutoFillCookie,
   adminClientKey,
   adminCookieSecure,
+  createAdminOtpAutoFillValue,
   createAdminSessionToken,
   adminSessionMaxAgeSeconds,
   clearAdminLoginFailures,
   cookieName,
   genericAdminLoginError,
+  getAdminOtpAutoFillCode,
   getAdminSession,
   getAdminLoginStatus,
   recordAdminLoginFailure,
@@ -69,7 +73,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const params = await searchParams;
 
   if (!session) {
-    return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} /></AdminShell>;
+    const autoFillOtp = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "login" });
+    return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
 
   const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
@@ -387,7 +392,7 @@ function ReviewQueuePanel({
   </section>;
 }
 
-function LoginPanel({ message }: { message: string }) {
+function LoginPanel({ message, autoFillOtp = "" }: { message: string; autoFillOtp?: string }) {
   return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>Super Admin ใช้รหัส OTP ทางอีเมล ส่วน Admin ใช้อีเมลและรหัสผ่านที่ได้รับจากลิงก์เชิญ</p>{message && <div className="admin-login-alert">{message}</div>}
     <div className="admin-login-grid">
       <form action={requestOtpAction} className="admin-login-card">
@@ -397,13 +402,13 @@ function LoginPanel({ message }: { message: string }) {
       </form>
       <form action={verifyOtpAction} className="admin-login-card">
         <h2>ยืนยัน OTP</h2>
-        <input name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code"/>
+        <SecretInput name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code" defaultValue={autoFillOtp}/>
         <button className="primary" type="submit">ยืนยันและเข้าสู่ระบบ</button>
       </form>
       <form action={loginAction} className="admin-login-card">
         <h2><Users/>Admin</h2>
         <input type="email" name="email" placeholder="admin@example.com" required autoComplete="username"/>
-        <input type="password" name="password" placeholder="รหัสผ่าน" required autoComplete="current-password"/>
+        <SecretInput name="password" placeholder="รหัสผ่าน" required autoComplete="current-password"/>
         <button className="secondary" type="submit">เข้าสู่ระบบ Admin</button>
       </form>
     </div>
@@ -635,6 +640,18 @@ async function requestOtpAction() {
   "use server";
   const result = await requestSuperAdminOtp();
   if (!result.ok) redirect("/admin?login=otp_wait");
+  const cookieStore = await cookies();
+  if (result.autoFillCode) {
+    cookieStore.set(adminOtpAutoFillCookie, createAdminOtpAutoFillValue({ purpose: "login", code: result.autoFillCode }), {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: adminCookieSecure(),
+      path: "/",
+      maxAge: 5 * 60,
+    });
+  } else {
+    cookieStore.delete(adminOtpAutoFillCookie);
+  }
   redirect(result.mailStatus === "failed" ? "/admin?login=otp_mail_failed" : "/admin?login=otp_sent");
 }
 
@@ -656,6 +673,8 @@ async function verifyOtpAction(formData: FormData) {
   }
 
   await clearAdminLoginFailures(clientKey);
+  const cookieStore = await cookies();
+  cookieStore.delete(adminOtpAutoFillCookie);
   await setAdminSession({ email: "innovation@police.go.th", role: "super_admin" });
   await recordAuditEvent({
     actor: { type: "super_admin", email: "innovation@police.go.th" },
@@ -711,6 +730,7 @@ async function logoutAction() {
   "use server";
   const cookieStore = await cookies();
   cookieStore.delete(cookieName);
+  cookieStore.delete(adminOtpAutoFillCookie);
   redirect("/admin");
 }
 

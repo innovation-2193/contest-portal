@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { KeyRound, ShieldCheck } from "lucide-react";
+import { SecretInput } from "../../../../components/SecretInput";
 import {
   adminCookieSecure,
   adminSessionMaxAgeSeconds,
@@ -28,8 +29,8 @@ export default async function AdminPasswordPage({ params }: { params: Promise<{ 
           <p>ตั้งรหัสผ่านสำหรับ {account.email}</p>
           <form action={setPasswordAction} className="admin-login-card admin-password-card">
             <input type="hidden" name="token" value={token}/>
-            <label>รหัสผ่านใหม่<input type="password" name="password" minLength={8} required autoComplete="new-password"/></label>
-            <label>ยืนยันรหัสผ่าน<input type="password" name="confirmPassword" minLength={8} required autoComplete="new-password"/></label>
+            <label>รหัสผ่านใหม่<SecretInput name="password" minLength={8} required autoComplete="new-password"/></label>
+            <label>ยืนยันรหัสผ่าน<SecretInput name="confirmPassword" minLength={8} required autoComplete="new-password"/></label>
             <button className="primary" type="submit"><KeyRound/>บันทึกรหัสผ่าน</button>
           </form>
         </> : <div className="admin-login-alert"><ShieldCheck/>ลิงก์ตั้งรหัสผ่านหมดอายุหรือไม่ถูกต้อง กรุณาขอให้ Super Admin ส่งลิงก์ใหม่</div>}
