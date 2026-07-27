@@ -14476,7 +14476,12 @@ footer {
 
   .floating-site-actions {
     right: max(12px, env(safe-area-inset-right));
-    bottom: max(78px, calc(env(safe-area-inset-bottom) + 18px));
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
+  }
+
+  .contact-officer-tooltip {
+    right: calc(max(12px, env(safe-area-inset-right)) + 54px);
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 12px));
   }
 
   .home-popup-close {
