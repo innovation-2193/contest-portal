@@ -94,21 +94,23 @@ function drawCoverPage(doc: PDFKit.PDFDocument, submissions: AdminSubmissionDeta
     fonts,
   });
 
-  doc.roundedRect(34, 138, 527, 84, 10).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(fonts.bold).fontSize(15).fillColor(PDF_THEME.navy).text(
-    "ไฟล์นี้รวมข้อมูลผู้ส่งผลงานประกวดที่ได้คะแนน Paper Screening สูงสุด 10 อันดับแรก",
-    52,
-    160,
-    { width: 491, lineGap: 3 },
-  );
-  doc.font(fonts.regular).fontSize(10.5).fillColor(PDF_THEME.text).text(
-    "แต่ละรายการคั่นด้วยเลขอันดับชัดเจน พร้อมข้อมูลผลงาน ผู้สมัคร สมาชิกทีม และคะแนน เพื่อใช้ประกอบการพิจารณาของกรรมการชุดถัดไป",
-    52,
-    191,
-    { width: 491, lineGap: 2 },
-  );
+  const introTitle = "ไฟล์นี้รวมข้อมูลผู้ส่งผลงานประกวดที่ได้คะแนน Paper Screening สูงสุด 10 อันดับแรก";
+  const introBody = "แต่ละรายการคั่นด้วยเลขอันดับชัดเจน พร้อมข้อมูลผลงาน ผู้สมัคร สมาชิกทีม และคะแนน เพื่อใช้ประกอบการพิจารณาของกรรมการชุดถัดไป";
+  const introTitleHeight = textHeight(doc, introTitle, 491, fonts.bold, 15, 3);
+  const introBodyHeight = textHeight(doc, introBody, 491, fonts.regular, 10.5, 2);
+  const introY = 138;
+  const introHeight = Math.max(102, 36 + introTitleHeight + 12 + introBodyHeight + 24);
+  doc.roundedRect(34, introY, 527, introHeight, 10).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(fonts.bold).fontSize(15).fillColor(PDF_THEME.navy).text(introTitle, 52, introY + 22, {
+    width: 491,
+    lineGap: 3,
+  });
+  doc.font(fonts.regular).fontSize(10.5).fillColor(PDF_THEME.text).text(introBody, 52, introY + 22 + introTitleHeight + 12, {
+    width: 491,
+    lineGap: 2,
+  });
 
-  let y = 252;
+  let y = introY + introHeight + 30;
   if (!submissions.length) {
     doc.roundedRect(34, y, 527, 64, 8).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
     doc.font(fonts.bold).fontSize(13).fillColor(PDF_THEME.navy).text("ยังไม่มีคะแนนที่ส่งเข้ามา", 52, y + 22, {
