@@ -215,7 +215,6 @@ export default async function DailyReportPage() {
         <MetricGroup title="ผู้สมัครและเช็คอิน" detail="สรุปจำนวนผู้เข้าร่วมกิจกรรม">
           <Metric icon={<Users/>} value={activeParticipants.length} label="ลงทะเบียนเข้าร่วมงาน" detail={`วันนี้ลงทะเบียนเพิ่ม ${registeredToday.length.toLocaleString("th-TH")} คน`}/>
           <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินเข้าร่วมงานแล้ว" detail={`ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
-          <Metric icon={<Building2/>} value={boothUnits.length} label="หน่วยจัดบูธ" detail={`${exhibitorParticipants.length.toLocaleString("th-TH")} คน จาก ${attendedBoothUnits.length.toLocaleString("th-TH")} หน่วยที่เช็คอินแล้ว`}/>
         </MetricGroup>
         <MetricGroup title="ผลงานประกวด" detail="สรุปผลงานที่ส่งเข้าระบบ">
           <Metric icon={<FileText/>} value={submissions.length} label="ส่งผลงานประกวด" detail={`วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
