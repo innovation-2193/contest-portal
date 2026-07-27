@@ -69,6 +69,7 @@ const allowedAuditActions = new Set([
   "submission.review.assigned",
   "submission.score.submitted",
   "submission.scoreboard_pdf",
+  "submission.scoreboard_top10_pdf",
   "admin.settings.updated",
   "admin_user.created",
   "admin_user.updated",
@@ -619,6 +620,7 @@ function isAdminAuditAction(action: string) {
     action === "submission.review.assigned" ||
     action === "submission.score.submitted" ||
     action === "submission.scoreboard_pdf" ||
+    action === "submission.scoreboard_top10_pdf" ||
     action.startsWith("news.") ||
     action.startsWith("winner.") ||
     action.startsWith("evaluation.");

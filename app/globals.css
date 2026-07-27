@@ -14538,18 +14538,19 @@ footer {
   }
 
   .participant-role-tabs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-flow: row;
-    overflow-x: hidden;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
     overflow-y: hidden;
     padding-inline: 7px;
     scroll-padding-inline: 7px;
   }
 
   .participant-role-tabs a {
-    width: 100%;
-    min-width: 0;
+    width: auto;
+    min-width: max-content;
+    flex: 0 0 auto;
     white-space: nowrap;
   }
 }
@@ -14977,6 +14978,13 @@ footer {
 .admin-form .settings-toggle input[type="checkbox"]:checked::after {
   opacity: 1;
   transform: translateX(24px) rotate(42deg) scale(1);
+}
+
+.settings-toggle input[type="checkbox"]::after,
+.settings-toggle input[type="checkbox"]:checked::after,
+.admin-form .settings-toggle input[type="checkbox"]::after,
+.admin-form .settings-toggle input[type="checkbox"]:checked::after {
+  content: none;
 }
 
 .admin-form .settings-toggle input[type="checkbox"]:focus-visible {

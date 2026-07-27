@@ -482,7 +482,7 @@ function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Aw
 
 function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; total: number }) {
   return <section className="admin-panel">
-    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ PDF</a><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/scoreboard/top10" target="_blank" rel="noreferrer"><Download/>Export Top 10 PDF</a><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ PDF</a><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
     <div className="scoreboard-list">
       {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row" key={submission.submission_code}>
         <b>#{index + 1}</b>
@@ -1072,6 +1072,7 @@ function auditActionLabel(action: string) {
   if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
   if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board";
+  if (action === "submission.scoreboard_top10_pdf") return "Export Top 10 Score Board";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
   if (action === "admin_user.created") return "เพิ่มแอดมิน";
   if (action === "admin_user.updated") return "แก้ไขแอดมิน";
