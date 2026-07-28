@@ -135,7 +135,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const filteredSubmissions = filteredSubmissionsAll.slice(0, dashboardLimit);
   const attendedParticipants = participants.filter((item) => item.status === "attended");
   const activeRegistrations = participants.filter((item) => item.status !== "cancelled");
-  const parkingEligibleParticipants = activeRegistrations.filter((item) => item.participant_role === "VIP" || item.participant_role === "Exhibitor");
+  const parkingEligibleParticipants = activeRegistrations.filter((item) => item.participant_role === "VIP" || item.participant_role === "Exhibitor" || item.participant_role === "Staff");
   const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
@@ -435,30 +435,36 @@ function ParkingReservationPanel({
 }) {
 	const vipCount = reservations.filter((item) => item.participantRole === "VIP").length;
 	const exhibitorCount = reservations.filter((item) => item.participantRole === "Exhibitor").length;
+	const staffCount = reservations.filter((item) => item.participantRole === "Staff").length;
 	const vipParticipants = participants.filter((participant) => participant.participant_role === "VIP");
 	const exhibitorParticipants = participants.filter((participant) => participant.participant_role === "Exhibitor");
+	const staffParticipants = participants.filter((participant) => participant.participant_role === "Staff");
 	const hasEligibleParticipants = participants.length > 0;
 	return <section className="admin-panel parking-panel">
-    <header className="admin-section-head">
-      <Car/>
-      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor</h2><p>เลือกรายชื่อจาก Role VIP หรือ Exhibitor แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน</p></div>
-      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
-    </header>
-    <div className="parking-summary">
-      <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
-      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
-      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
-    </div>
-	    <form action={createParkingReservationAction} className="admin-form parking-form">
-	      <label className="field-wide">เลือกรายชื่อ VIP / Exhibitor<select name="registrationCode" required>
-	        <option value="">{hasEligibleParticipants ? "เลือกรายชื่อที่ต้องการสำรองที่จอดรถ" : "ยังไม่มีรายชื่อ VIP หรือ Exhibitor"}</option>
-	        {vipParticipants.length > 0 && <optgroup label="VIP">
-	          {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
-	        </optgroup>}
-	        {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
-	          {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
-	        </optgroup>}
-	      </select></label>
+	    <header className="admin-section-head">
+	      <Car/>
+	      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor / Staff</h2><p>เลือกรายชื่อจาก Role VIP, Exhibitor หรือ Staff แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน</p></div>
+	      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
+	    </header>
+	    <div className="parking-summary">
+	      <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
+	      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
+	      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
+	      <div><UserCheck/><b>{staffCount.toLocaleString("th-TH")}</b><span>Staff</span></div>
+	    </div>
+		    <form action={createParkingReservationAction} className="admin-form parking-form">
+		      <label className="field-wide">เลือกรายชื่อ VIP / Exhibitor / Staff<select name="registrationCode" required>
+		        <option value="">{hasEligibleParticipants ? "เลือกรายชื่อที่ต้องการสำรองที่จอดรถ" : "ยังไม่มีรายชื่อ VIP, Exhibitor หรือ Staff"}</option>
+		        {vipParticipants.length > 0 && <optgroup label="VIP">
+		          {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
+		        </optgroup>}
+		        {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
+		          {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
+		        </optgroup>}
+		        {staffParticipants.length > 0 && <optgroup label="Staff">
+		          {staffParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
+		        </optgroup>}
+		      </select></label>
       <label>ทะเบียนรถ<input name="carPlate" required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
       <label>หมายเหตุ<input name="note" maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
       <button className="primary" type="submit" disabled={!hasEligibleParticipants}><Car/>เพิ่มที่จอดรถ</button>
@@ -480,10 +486,13 @@ function ParkingReservationPanel({
 	                  {vipParticipants.length > 0 && <optgroup label="VIP">
 	                    {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
 	                  </optgroup>}
-	                  {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
-	                    {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
-	                  </optgroup>}
-	                </select>
+		                  {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
+		                    {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
+		                  </optgroup>}
+		                  {staffParticipants.length > 0 && <optgroup label="Staff">
+		                    {staffParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
+		                  </optgroup>}
+		                </select>
                 <input name="carPlate" defaultValue={reservation.carPlate} required maxLength={32} aria-label="ทะเบียนรถ"/>
                 <input name="note" defaultValue={reservation.note} maxLength={255} aria-label="หมายเหตุ"/>
                 <button className="secondary small-action" type="submit">บันทึก</button>

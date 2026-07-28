@@ -473,7 +473,6 @@ function summarizePeople(names: string[]) {
 function participantTypeColor(key: ParticipantTypeGroup["key"]) {
   if (key === "vip" || key === "competitor" || key === "companyExhibitor") return PDF_THEME.gold;
   if (key === "educationExhibitor") return PDF_THEME.blue;
-  if (key === "staff") return "#20b7a6";
   return PDF_THEME.green;
 }
 

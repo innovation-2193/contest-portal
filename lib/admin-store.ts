@@ -95,7 +95,7 @@ export type HomePopupRecord = {
 export type ParkingReservationRecord = {
   id: string;
   registrationCode: string;
-  participantRole: "VIP" | "Exhibitor";
+  participantRole: "VIP" | "Exhibitor" | "Staff";
   participantName: string;
   phone: string;
   email: string;
@@ -301,7 +301,7 @@ export async function listParkingReservations() {
 	       FROM parking_reservations p
 	       JOIN registrations r ON r.registration_code=p.registration_code
 	       JOIN users u ON u.id=r.user_id
-	       WHERE r.participant_role IN ('VIP','Exhibitor') AND r.status<>'cancelled'
+	       WHERE r.participant_role IN ('VIP','Exhibitor','Staff') AND r.status<>'cancelled'
 	       ORDER BY p.created_at DESC`,
 	    );
     return (rows as ParkingReservationDbRow[]).map(parkingReservationDbRowToRecord);
@@ -1362,7 +1362,7 @@ async function findParkingEligibleParticipant(registrationCode: string) {
     `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider
      FROM registrations r
      JOIN users u ON u.id=r.user_id
-     WHERE r.registration_code=? AND r.participant_role IN ('VIP','Exhibitor') AND r.status<>'cancelled'
+     WHERE r.registration_code=? AND r.participant_role IN ('VIP','Exhibitor','Staff') AND r.status<>'cancelled'
      LIMIT 1`,
     [registrationCode],
   );
@@ -1412,11 +1412,13 @@ function parkingRecordFromParticipant(participant: RegistrationRecord) {
 }
 
 function normalizeParkingRole(role: unknown): ParkingReservationRecord["participantRole"] {
-  return role === "VIP" ? "VIP" : "Exhibitor";
+  if (role === "VIP") return "VIP";
+  if (role === "Staff") return "Staff";
+  return "Exhibitor";
 }
 
 function isParkingEligibleRole(role: unknown): role is ParkingReservationRecord["participantRole"] {
-  return role === "VIP" || role === "Exhibitor";
+  return role === "VIP" || role === "Exhibitor" || role === "Staff";
 }
 
 function filterAndSortNews(records: NewsRecord[], publicOnly = false) {

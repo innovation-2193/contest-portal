@@ -36,7 +36,7 @@ export async function parkingReservationsPdf(reservations: ParkingReservationRec
   }
 
   doc.info.Title = "Police Innovation Contest 2026 parking reservations";
-  doc.info.Subject = "ป้ายสำรองที่จอดรถ VIP / Exhibitor";
+  doc.info.Subject = "ป้ายสำรองที่จอดรถ VIP / Exhibitor / Staff";
   doc.info.Author = "Police Innovation Contest 2026";
   doc.end();
   return pdf;
@@ -46,7 +46,7 @@ function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservatio
   doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
     title: "ป้ายสำรองที่จอดรถ",
-    subtitle: `VIP / Exhibitor Parking • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
+    subtitle: `VIP / Exhibitor / Staff Parking • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     metaLabel: "ประเภท",
     metaValue: reservation?.participantRole ?? "-",
     fonts,
@@ -62,8 +62,12 @@ function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservatio
     return;
   }
 
-  const roleColor = reservation.participantRole === "VIP" ? PDF_THEME.gold : PDF_THEME.blue;
-  const roleSoft = reservation.participantRole === "VIP" ? PDF_THEME.goldSoft : PDF_THEME.paleBlue;
+  const roleColor = parkingRoleColor(reservation.participantRole);
+  const roleSoft = reservation.participantRole === "VIP"
+    ? PDF_THEME.goldSoft
+    : reservation.participantRole === "Staff"
+      ? PDF_THEME.greenSoft
+      : PDF_THEME.paleBlue;
   doc.roundedRect(42, 130, pageWidth - 84, 416, 20)
     .fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.roundedRect(64, 154, pageWidth - 128, 56, 16).fillAndStroke(roleSoft, roleColor);
@@ -129,6 +133,12 @@ function drawDetailBox(doc: PDFKit.PDFDocument, label: string, value: string, x:
     width: width - 28,
     lineGap: 1,
   });
+}
+
+function parkingRoleColor(role: ParkingReservationRecord["participantRole"]) {
+  if (role === "VIP") return PDF_THEME.gold;
+  if (role === "Staff") return "#20b7a6";
+  return PDF_THEME.blue;
 }
 
 function clean(value: string) {
