@@ -1,7 +1,7 @@
 import type { RegistrationRecord } from "./local-registrations";
 import { participantRoleClass } from "./participant-role-style";
 
-export type ParticipantTypeKey = "vip" | "competitor" | "policeAttendee" | "generalAttendee" | "educationExhibitor" | "companyExhibitor";
+export type ParticipantTypeKey = "vip" | "competitor" | "staff" | "policeAttendee" | "generalAttendee" | "educationExhibitor" | "companyExhibitor";
 
 type CompetitorSource = {
   submission_code: string;
@@ -63,6 +63,7 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
   const groups: ParticipantTypeGroup[] = [
     { key: "vip", label: "VIP", detail: "ผู้เข้าร่วมระดับ VIP และแขกสำคัญ", people: [] },
     { key: "competitor", label: "ผู้สมัครประกวด", detail: "ค่าเริ่มต้นแสดงผู้สมัครอันดับ 1-10 จาก Score Board", people: [] },
+    { key: "staff", label: "Staff", detail: "ทีมงานและเจ้าหน้าที่สนับสนุนการจัดงาน", people: [] },
     { key: "policeAttendee", label: "ผู้เข้าร่วมงาน (ตำรวจ)", detail: "Guest จากหน่วยงานตำรวจ", people: [] },
     { key: "generalAttendee", label: "ผู้เข้าร่วมงาน (ทั่วไป)", detail: "Guest จากหน่วยงานทั่วไปหรือผู้เข้าร่วมภายนอก", people: [] },
     { key: "educationExhibitor", label: "ผู้จัดแสดงผลงาน (ส่วนการศึกษา)", detail: "Exhibitor จากสถาบันหรือหน่วยงานด้านการศึกษา", people: [] },
@@ -110,6 +111,7 @@ function participantTypeKey(participant: RegistrationRecord): ParticipantTypeKey
   }
   if (participant.participant_role === "VIP") return "vip";
   if (participant.participant_role === "Competitor") return "competitor";
+  if (participant.participant_role === "Staff") return "staff";
   return isPoliceParticipant(participant) ? "policeAttendee" : "generalAttendee";
 }
 

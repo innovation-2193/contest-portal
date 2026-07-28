@@ -60,6 +60,10 @@ const allowedAuditActions = new Set([
   "registration.checked_in",
   "registration.export_pdf",
   "registration.export_xlsx",
+  "parking.created",
+  "parking.updated",
+  "parking.deleted",
+  "parking.export_pdf",
   "submission.created",
   "submission.updated",
   "submission.deleted",
@@ -612,6 +616,7 @@ function isAdminAuditAction(action: string) {
     action === "registration.checked_in" ||
     action === "registration.export_pdf" ||
     action === "registration.export_xlsx" ||
+    action.startsWith("parking.") ||
     action === "submission.updated" ||
     action === "submission.deleted" ||
     action === "submission.delete_otp_requested" ||

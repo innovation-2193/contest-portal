@@ -3,6 +3,7 @@ export function participantRoleClass(role?: string | null) {
   if (normalized === "vip") return "role-vip";
   if (normalized === "exhibitor") return "role-exhibitor";
   if (normalized === "competitor" || normalized === "ผู้สมัครประกวด") return "role-competitor";
+  if (normalized === "staff") return "role-staff";
   return "role-guest";
 }
 

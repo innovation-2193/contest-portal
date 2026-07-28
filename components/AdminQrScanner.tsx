@@ -5,7 +5,7 @@ import { AlertTriangle, Camera, CheckCircle2, Loader2, QrCode, RotateCcw, Search
 import jsQR from "jsqr";
 import { isFeaturedCheckInRole, participantRoleClass } from "../lib/participant-role-style";
 
-type ParticipantRoleName = "VIP" | "Guest" | "Exhibitor" | "Competitor";
+type ParticipantRoleName = "VIP" | "Guest" | "Exhibitor" | "Competitor" | "Staff";
 
 type ScanResult = {
   registrationCode: string;
@@ -37,7 +37,7 @@ type ParticipantSearchResult = Omit<ScanResult, "checkedInByEmail" | "wasAlready
 
 export type CheckInRoleCounts = Record<ParticipantRoleName, number>;
 
-const scannerRoleOrder: ParticipantRoleName[] = ["VIP", "Guest", "Exhibitor", "Competitor"];
+const scannerRoleOrder: ParticipantRoleName[] = ["VIP", "Guest", "Exhibitor", "Competitor", "Staff"];
 const prosperityParticles = Array.from({ length: 22 }, (_, index) => index);
 
 export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: CheckInRoleCounts }) {

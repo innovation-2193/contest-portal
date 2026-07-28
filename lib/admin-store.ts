@@ -92,6 +92,24 @@ export type HomePopupRecord = {
   updatedAt: string;
 };
 
+export type ParkingReservationRecord = {
+  id: string;
+  registrationCode: string;
+  participantRole: "VIP" | "Exhibitor";
+  participantName: string;
+  phone: string;
+  email: string;
+  position: string;
+  division: string;
+  bureau: string;
+  carPlate: string;
+  note: string;
+  createdByEmail: string;
+  updatedByEmail: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SubmissionListItem = {
   submission_code: string;
   submission_type: string;
@@ -193,6 +211,7 @@ const adminStorePath = path.join(storageDir, "admin-settings.json");
 const winnersStorePath = path.join(storageDir, "winners.json");
 const newsStorePath = path.join(storageDir, "news.json");
 const homePopupStorePath = path.join(storageDir, "home-popup.json");
+const parkingReservationsStorePath = path.join(storageDir, "parking-reservations.json");
 const newsUploadsDir = path.join(storageDir, "news");
 const homePopupUploadsDir = path.join(storageDir, "home-popup");
 
@@ -270,6 +289,115 @@ export async function listParticipants() {
     if (isDatabaseSchemaFallback(error)) return listParticipantsCompat();
     if (!isDatabaseUnavailable(error)) throw error;
     return listLocalRegistrations();
+  }
+}
+
+export async function listParkingReservations() {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT p.id,p.registration_code,p.car_plate,p.note,p.created_by_email,p.updated_by_email,p.created_at,p.updated_at,
+	      r.participant_role,r.title,r.first_name,r.last_name,r.phone,r.position,r.division,r.bureau,u.email
+	       FROM parking_reservations p
+	       JOIN registrations r ON r.registration_code=p.registration_code
+	       JOIN users u ON u.id=r.user_id
+	       WHERE r.participant_role IN ('VIP','Exhibitor') AND r.status<>'cancelled'
+	       ORDER BY p.created_at DESC`,
+	    );
+    return (rows as ParkingReservationDbRow[]).map(parkingReservationDbRowToRecord);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    return hydrateLocalParkingReservations(await readJson<ParkingReservationRecord[]>(parkingReservationsStorePath, []));
+  }
+}
+
+export async function createParkingReservation(input: { registrationCode: string; carPlate: string; note?: string; actorEmail: string }) {
+  const reservation = normalizeParkingInput(input);
+  try {
+    await ensureDatabaseSchema();
+    const participant = await findParkingEligibleParticipant(reservation.registrationCode);
+    if (!participant) throw Object.assign(new Error("participant not eligible"), { code: "NOT_ELIGIBLE" });
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await db.execute(
+      "INSERT INTO parking_reservations(id,registration_code,car_plate,note,created_by_email,updated_by_email,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+      [id, reservation.registrationCode, reservation.carPlate, reservation.note, reservation.actorEmail, reservation.actorEmail, now, now],
+    );
+    return (await listParkingReservations()).find((item) => item.id === id) ?? {
+      ...parkingRecordFromParticipant(participant),
+      id,
+      carPlate: reservation.carPlate,
+      note: reservation.note,
+      createdByEmail: reservation.actorEmail,
+      updatedByEmail: reservation.actorEmail,
+      createdAt: now,
+      updatedAt: now,
+    };
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const participants = await listLocalRegistrations();
+    const participant = participants.find((item) => item.registration_code === reservation.registrationCode && isParkingEligibleRole(item.participant_role));
+    if (!participant) throw Object.assign(new Error("participant not eligible"), { code: "NOT_ELIGIBLE" });
+    const records = await readJson<ParkingReservationRecord[]>(parkingReservationsStorePath, []);
+    const now = new Date().toISOString();
+    const record: ParkingReservationRecord = {
+      ...parkingRecordFromParticipant(participant),
+      id: randomUUID(),
+      carPlate: reservation.carPlate,
+      note: reservation.note,
+      createdByEmail: reservation.actorEmail,
+      updatedByEmail: reservation.actorEmail,
+      createdAt: now,
+      updatedAt: now,
+    };
+    records.unshift(record);
+    await writeJson(parkingReservationsStorePath, records);
+    return record;
+  }
+}
+
+export async function updateParkingReservation(input: { id: string; registrationCode: string; carPlate: string; note?: string; actorEmail: string }) {
+  const id = input.id.trim();
+  const reservation = normalizeParkingInput(input);
+  try {
+    await ensureDatabaseSchema();
+    const participant = await findParkingEligibleParticipant(reservation.registrationCode);
+    if (!participant) throw Object.assign(new Error("participant not eligible"), { code: "NOT_ELIGIBLE" });
+    const now = new Date().toISOString();
+    await db.execute(
+      "UPDATE parking_reservations SET registration_code=?,car_plate=?,note=?,updated_by_email=?,updated_at=? WHERE id=?",
+      [reservation.registrationCode, reservation.carPlate, reservation.note, reservation.actorEmail, now, id],
+    );
+    return (await listParkingReservations()).find((item) => item.id === id) ?? null;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const participants = await listLocalRegistrations();
+    const participant = participants.find((item) => item.registration_code === reservation.registrationCode && isParkingEligibleRole(item.participant_role));
+    if (!participant) throw Object.assign(new Error("participant not eligible"), { code: "NOT_ELIGIBLE" });
+    const records = await readJson<ParkingReservationRecord[]>(parkingReservationsStorePath, []);
+    const now = new Date().toISOString();
+    const next = records.map((record) => record.id === id ? {
+      ...record,
+      ...parkingRecordFromParticipant(participant),
+      carPlate: reservation.carPlate,
+      note: reservation.note,
+      updatedByEmail: reservation.actorEmail,
+      updatedAt: now,
+    } : record);
+    await writeJson(parkingReservationsStorePath, next);
+    return next.find((record) => record.id === id) ?? null;
+  }
+}
+
+export async function deleteParkingReservation(id: string) {
+  const targetId = id.trim();
+  try {
+    await ensureDatabaseSchema();
+    await db.execute("DELETE FROM parking_reservations WHERE id=?", [targetId]);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const records = await readJson<ParkingReservationRecord[]>(parkingReservationsStorePath, []);
+    await writeJson(parkingReservationsStorePath, records.filter((record) => record.id !== targetId));
   }
 }
 
@@ -1175,6 +1303,26 @@ type NewsDbRow = {
   created_at: string | Date;
 };
 
+type ParkingReservationDbRow = {
+  id: string;
+  registration_code: string;
+  car_plate: string;
+  note: string;
+  created_by_email: string;
+  updated_by_email: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+  participant_role: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  position: string;
+  division: string;
+  bureau: string;
+  email: string;
+};
+
 function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
   return {
     id: row.id,
@@ -1187,6 +1335,88 @@ function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
     published: Boolean(row.published),
     createdAt: normalizeStoredDate(row.created_at),
   };
+}
+
+function parkingReservationDbRowToRecord(row: ParkingReservationDbRow): ParkingReservationRecord {
+  return {
+    id: row.id,
+    registrationCode: row.registration_code,
+    participantRole: normalizeParkingRole(row.participant_role),
+    participantName: `${row.title}${row.first_name} ${row.last_name}`.replace(/\s+/g, " ").trim(),
+    phone: row.phone,
+    email: row.email,
+    position: row.position,
+    division: row.division,
+    bureau: row.bureau,
+    carPlate: row.car_plate,
+    note: row.note,
+    createdByEmail: row.created_by_email,
+    updatedByEmail: row.updated_by_email,
+    createdAt: normalizeStoredDate(row.created_at),
+    updatedAt: normalizeStoredDate(row.updated_at),
+  };
+}
+
+async function findParkingEligibleParticipant(registrationCode: string) {
+  const [rows] = await db.execute(
+    `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider
+     FROM registrations r
+     JOIN users u ON u.id=r.user_id
+     WHERE r.registration_code=? AND r.participant_role IN ('VIP','Exhibitor') AND r.status<>'cancelled'
+     LIMIT 1`,
+    [registrationCode],
+  );
+  const participant = (rows as RegistrationRecord[])[0];
+  return participant ? { ...participant, participant_role: normalizeParticipantRole(participant.participant_role) } : null;
+}
+
+async function hydrateLocalParkingReservations(records: ParkingReservationRecord[]) {
+  const participants = await listLocalRegistrations();
+  const participantMap = new Map(participants.map((participant) => [participant.registration_code, participant]));
+  return records
+    .map((record) => {
+      const participant = participantMap.get(record.registrationCode);
+      if (!participant || !isParkingEligibleRole(participant.participant_role) || participant.status === "cancelled") return record;
+      return {
+        ...record,
+        ...parkingRecordFromParticipant(participant),
+      };
+    })
+    .filter((record) => isParkingEligibleRole(record.participantRole));
+}
+
+function normalizeParkingInput(input: { registrationCode: string; carPlate: string; note?: string; actorEmail: string }) {
+  const registrationCode = input.registrationCode.trim();
+  const carPlate = input.carPlate.replace(/\s+/g, " ").trim();
+  if (!registrationCode) throw new Error("registrationCode is required");
+  if (!carPlate) throw new Error("carPlate is required");
+  return {
+    registrationCode,
+    carPlate: carPlate.slice(0, 32),
+    note: (input.note ?? "").replace(/\s+/g, " ").trim().slice(0, 255),
+    actorEmail: input.actorEmail.trim().toLowerCase(),
+  };
+}
+
+function parkingRecordFromParticipant(participant: RegistrationRecord) {
+  return {
+    registrationCode: participant.registration_code,
+    participantRole: normalizeParkingRole(participant.participant_role),
+    participantName: `${participant.title}${participant.first_name} ${participant.last_name}`.replace(/\s+/g, " ").trim(),
+    phone: participant.phone,
+    email: participant.email,
+    position: participant.position,
+    division: participant.division,
+    bureau: participant.bureau,
+  };
+}
+
+function normalizeParkingRole(role: unknown): ParkingReservationRecord["participantRole"] {
+  return role === "VIP" ? "VIP" : "Exhibitor";
+}
+
+function isParkingEligibleRole(role: unknown): role is ParkingReservationRecord["participantRole"] {
+  return role === "VIP" || role === "Exhibitor";
 }
 
 function filterAndSortNews(records: NewsRecord[], publicOnly = false) {

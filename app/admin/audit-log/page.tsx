@@ -22,6 +22,10 @@ const actionOptions = [
   ["registration.bulk_deleted", "ลบผู้เข้าร่วมหลายรายการ"],
   ["registration.export_pdf", "Export รายชื่อ PDF"],
   ["registration.export_xlsx", "Export รายชื่อ Excel"],
+  ["parking.created", "เพิ่มที่จอดรถ"],
+  ["parking.updated", "แก้ไขที่จอดรถ"],
+  ["parking.deleted", "ลบที่จอดรถ"],
+  ["parking.export_pdf", "Export ป้ายจอดรถ PDF"],
   ["submission.created", "สมัครประกวดนวัตกรรม"],
   ["submission.updated", "แก้ไขใบสมัครประกวด"],
   ["submission.deleted", "ลบใบสมัครประกวด"],
@@ -187,6 +191,10 @@ function auditActionLabel(action: string) {
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
   if (action === "registration.export_pdf") return "Export รายชื่อ PDF";
   if (action === "registration.export_xlsx") return "Export รายชื่อ Excel";
+  if (action === "parking.created") return "เพิ่มที่จอดรถ";
+  if (action === "parking.updated") return "แก้ไขที่จอดรถ";
+  if (action === "parking.deleted") return "ลบที่จอดรถ";
+  if (action === "parking.export_pdf") return "Export ป้ายจอดรถ PDF";
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";

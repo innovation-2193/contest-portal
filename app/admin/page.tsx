@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
@@ -43,16 +43,20 @@ import {
 	  deleteWinner,
 	  deleteNews,
 	  getSubmissionDetail,
-	  getAdminSettings,
-	  getHomePopup,
-	  listNews,
-	  listParticipants,
-	  listSubmissions,
-	  listWinners,
-	  registerSubmissionAsParticipant,
-	  saveAdminSettings,
-	  saveHomePopup,
-	} from "../../lib/admin-store";
+		  getAdminSettings,
+		  getHomePopup,
+		  createParkingReservation,
+		  deleteParkingReservation,
+		  listNews,
+		  listParkingReservations,
+		  listParticipants,
+		  listSubmissions,
+		  listWinners,
+		  registerSubmissionAsParticipant,
+		  saveAdminSettings,
+		  saveHomePopup,
+		  updateParkingReservation,
+		} from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 
@@ -81,7 +85,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
 
-  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary } = await loadAdminPageData(session);
+  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
@@ -131,6 +135,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const filteredSubmissions = filteredSubmissionsAll.slice(0, dashboardLimit);
   const attendedParticipants = participants.filter((item) => item.status === "attended");
   const activeRegistrations = participants.filter((item) => item.status !== "cancelled");
+  const parkingEligibleParticipants = activeRegistrations.filter((item) => item.participant_role === "VIP" || item.participant_role === "Exhibitor");
   const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
@@ -154,6 +159,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
+    {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
     <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
@@ -243,7 +249,7 @@ const emptyEvaluationSummary: EvaluationSummary = {
 
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
-  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents] = await Promise.all([
+  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
     withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
@@ -252,9 +258,10 @@ async function loadAdminPageData(session: AdminSession) {
     isSuperAdmin ? withAdminFallback("home popup", getHomePopup(), null) : Promise.resolve(null),
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
     isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
+    isSuperAdmin ? withAdminFallback("parking reservations", listParkingReservations(), []) : Promise.resolve([]),
   ]);
   const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
-  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary };
+  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -415,6 +422,80 @@ function LoginPanel({ message, autoFillOtp = "" }: { message: string; autoFillOt
         <SecretInput name="password" placeholder="รหัสผ่าน" required autoComplete="current-password"/>
         <button className="secondary" type="submit">เข้าสู่ระบบ Admin</button>
       </form>
+    </div>
+  </section>;
+}
+
+function ParkingReservationPanel({
+  participants,
+  reservations,
+}: {
+  participants: Awaited<ReturnType<typeof listParticipants>>;
+  reservations: Awaited<ReturnType<typeof listParkingReservations>>;
+}) {
+	const vipCount = reservations.filter((item) => item.participantRole === "VIP").length;
+	const exhibitorCount = reservations.filter((item) => item.participantRole === "Exhibitor").length;
+	const vipParticipants = participants.filter((participant) => participant.participant_role === "VIP");
+	const exhibitorParticipants = participants.filter((participant) => participant.participant_role === "Exhibitor");
+	const hasEligibleParticipants = participants.length > 0;
+	return <section className="admin-panel parking-panel">
+    <header className="admin-section-head">
+      <Car/>
+      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor</h2><p>เลือกรายชื่อจาก Role VIP หรือ Exhibitor แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน</p></div>
+      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
+    </header>
+    <div className="parking-summary">
+      <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
+      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
+      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
+    </div>
+	    <form action={createParkingReservationAction} className="admin-form parking-form">
+	      <label className="field-wide">เลือกรายชื่อ VIP / Exhibitor<select name="registrationCode" required>
+	        <option value="">{hasEligibleParticipants ? "เลือกรายชื่อที่ต้องการสำรองที่จอดรถ" : "ยังไม่มีรายชื่อ VIP หรือ Exhibitor"}</option>
+	        {vipParticipants.length > 0 && <optgroup label="VIP">
+	          {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
+	        </optgroup>}
+	        {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
+	          {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
+	        </optgroup>}
+	      </select></label>
+      <label>ทะเบียนรถ<input name="carPlate" required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
+      <label>หมายเหตุ<input name="note" maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
+      <button className="primary" type="submit" disabled={!hasEligibleParticipants}><Car/>เพิ่มที่จอดรถ</button>
+    </form>
+    <div className="admin-table-wrap parking-table-wrap">
+      <table className="admin-table compact-admin-table parking-table">
+        <thead><tr><th>ทะเบียนรถ</th><th>ผู้ใช้สิทธิ์</th><th>Role</th><th>เบอร์โทร</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
+        <tbody>{reservations.length ? reservations.map((reservation) => <tr key={reservation.id}>
+          <td data-label="ทะเบียนรถ"><b>{reservation.carPlate}</b><small>{reservation.registrationCode}</small></td>
+          <td data-label="ผู้ใช้สิทธิ์">{reservation.participantName}<small>{reservation.division} / {reservation.bureau}</small></td>
+          <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(reservation.participantRole)}`}>{reservation.participantRole}</span></td>
+	          <td data-label="เบอร์โทร"><span className="parking-phone"><Phone/>{reservation.phone}</span></td>
+          <td data-label="หมายเหตุ">{reservation.note || "-"}</td>
+          <td data-label="จัดการ">
+            <div className="parking-row-actions">
+              <form action={updateParkingReservationAction} className="parking-inline-form">
+	                <input type="hidden" name="id" value={reservation.id}/>
+	                <select name="registrationCode" defaultValue={reservation.registrationCode} aria-label="เลือกรายชื่อ">
+	                  {vipParticipants.length > 0 && <optgroup label="VIP">
+	                    {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
+	                  </optgroup>}
+	                  {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
+	                    {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
+	                  </optgroup>}
+	                </select>
+                <input name="carPlate" defaultValue={reservation.carPlate} required maxLength={32} aria-label="ทะเบียนรถ"/>
+                <input name="note" defaultValue={reservation.note} maxLength={255} aria-label="หมายเหตุ"/>
+                <button className="secondary small-action" type="submit">บันทึก</button>
+              </form>
+              <form action={deleteParkingReservationAction}>
+                <input type="hidden" name="id" value={reservation.id}/>
+                <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบรายการสำรองที่จอดรถนี้?"><Trash2/>ลบ</ConfirmSubmitButton>
+              </form>
+            </div>
+          </td>
+        </tr>) : <tr><td colSpan={6}>ยังไม่มีรายการสำรองที่จอดรถ</td></tr>}</tbody>
+      </table>
     </div>
   </section>;
 }
@@ -784,6 +865,68 @@ async function saveSettingsAction(formData: FormData) {
   redirect(adminNoticePath("/admin", "settings_saved"));
 }
 
+async function createParkingReservationAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const reservation = await createParkingReservation({
+    registrationCode: String(formData.get("registrationCode") ?? ""),
+    carPlate: String(formData.get("carPlate") ?? ""),
+    note: String(formData.get("note") ?? ""),
+    actorEmail: session.email,
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "parking.created",
+    entityType: "parking",
+    entityId: reservation.id,
+    summary: `เพิ่มที่จอดรถ ${reservation.carPlate} สำหรับ ${reservation.participantName}`,
+    payload: { registrationCode: reservation.registrationCode, role: reservation.participantRole },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "parking_saved"));
+}
+
+async function updateParkingReservationAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const reservation = await updateParkingReservation({
+    id: String(formData.get("id") ?? ""),
+    registrationCode: String(formData.get("registrationCode") ?? ""),
+    carPlate: String(formData.get("carPlate") ?? ""),
+    note: String(formData.get("note") ?? ""),
+    actorEmail: session.email,
+  });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "parking.updated",
+    entityType: "parking",
+    entityId: String(formData.get("id") ?? ""),
+    summary: reservation ? `แก้ไขที่จอดรถ ${reservation.carPlate} สำหรับ ${reservation.participantName}` : "แก้ไขที่จอดรถ",
+    payload: { registrationCode: String(formData.get("registrationCode") ?? "") },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "parking_saved"));
+}
+
+async function deleteParkingReservationAction(formData: FormData) {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const id = String(formData.get("id") ?? "").trim();
+  await deleteParkingReservation(id);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "parking.deleted",
+    entityType: "parking",
+    entityId: id,
+    summary: "ลบรายการสำรองที่จอดรถ",
+  }, requestHeaders);
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "parking_deleted"));
+}
+
 async function addWinnerAction(formData: FormData) {
   "use server";
   const session = await requireSuperAdmin();
@@ -1069,6 +1212,10 @@ function auditActionLabel(action: string) {
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
   if (action === "registration.export_pdf") return "Export รายชื่อ PDF";
   if (action === "registration.export_xlsx") return "Export รายชื่อ Excel";
+  if (action === "parking.created") return "เพิ่มที่จอดรถ";
+  if (action === "parking.updated") return "แก้ไขที่จอดรถ";
+  if (action === "parking.deleted") return "ลบที่จอดรถ";
+  if (action === "parking.export_pdf") return "Export ป้ายจอดรถ PDF";
   if (action === "submission.created") return "สมัครประกวดนวัตกรรม";
   if (action === "submission.updated") return "แก้ไขใบสมัครประกวด";
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";

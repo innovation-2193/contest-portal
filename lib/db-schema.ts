@@ -27,6 +27,7 @@ async function runSchemaRepair() {
   await ensureParticipantLoginOtpsTable();
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
+  await ensureParkingReservationsTable();
 }
 
 async function ensureRegistrationColumns() {
@@ -185,6 +186,24 @@ export async function ensureAppAuditEventsTable() {
   await ensureColumn("app_audit_events", "payload", "ALTER TABLE app_audit_events ADD COLUMN payload JSON NULL AFTER summary");
   await ensureColumn("app_audit_events", "ip_address", "ALTER TABLE app_audit_events ADD COLUMN ip_address VARCHAR(64) NULL AFTER payload");
   await ensureColumn("app_audit_events", "user_agent", "ALTER TABLE app_audit_events ADD COLUMN user_agent VARCHAR(500) NULL AFTER ip_address");
+}
+
+async function ensureParkingReservationsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS parking_reservations (
+      id CHAR(36) PRIMARY KEY,
+      registration_code VARCHAR(32) NOT NULL,
+      car_plate VARCHAR(32) NOT NULL,
+      note VARCHAR(255) NOT NULL DEFAULT '',
+      created_by_email VARCHAR(255) NOT NULL,
+      updated_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL,
+      CONSTRAINT fk_parking_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
+      INDEX idx_parking_registration (registration_code),
+      INDEX idx_parking_created (created_at)
+    ) ENGINE=InnoDB
+  `);
 }
 
 async function ensureColumn(tableName: string, columnName: string, alterSql: string) {

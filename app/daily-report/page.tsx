@@ -337,6 +337,7 @@ function ParticipantTypeCard({ group }: { group: ParticipantTypeGroup }) {
 function participantTypeIcon(key: ParticipantTypeGroup["key"]) {
   if (key === "vip") return <ShieldCheck/>;
   if (key === "competitor") return <Trophy/>;
+  if (key === "staff") return <UserCheck/>;
   if (key === "educationExhibitor") return <GraduationCap/>;
   if (key === "companyExhibitor") return <Building2/>;
   if (key === "policeAttendee") return <ShieldCheck/>;

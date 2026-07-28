@@ -10,6 +10,7 @@ const roleLabels: Record<ParticipantRoleFilter, string> = {
   Guest: "Guest",
   Exhibitor: "Exhibitor",
   Competitor: "Competitor",
+  Staff: "Staff",
 };
 
 export function normalizeParticipantRoleFilter(value?: string | null): ParticipantRoleFilter {

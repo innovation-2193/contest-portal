@@ -214,5 +214,6 @@ function roleLabel(role?: string | null) {
   if (normalized === "vip") return "VIP";
   if (normalized === "exhibitor") return "Exhibitor";
   if (normalized === "competitor") return "Competitor";
+  if (normalized === "staff") return "Staff";
   return "Guest";
 }
