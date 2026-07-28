@@ -4681,12 +4681,171 @@ body:has(.prelander-page)::before {
   white-space: nowrap;
 }
 
+.parking-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.parking-picker-box {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid rgba(68, 99, 145, 0.95);
+  border-radius: var(--radius);
+  background: rgba(1, 9, 22, 0.9);
+}
+
+.parking-picker-box svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.admin-form .parking-picker-box input {
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  box-shadow: none;
+}
+
+.parking-picker-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  display: grid;
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid rgba(102, 222, 206, 0.42);
+  border-radius: 12px;
+  background: rgba(2, 11, 27, 0.98);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42);
+}
+
+.parking-picker-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(64, 89, 128, 0.36);
+  border-radius: 0;
+  background: transparent;
+  color: #edf3ff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.parking-picker-option:hover,
+.parking-picker-option[aria-selected="true"] {
+  background: rgba(102, 222, 206, 0.1);
+}
+
+.parking-picker-option b,
+.parking-picker-option small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parking-picker-option b {
+  color: #edf3ff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.parking-picker-option small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.parking-picker-option > svg {
+  width: 18px;
+  height: 18px;
+  color: #6ee0d3;
+}
+
+.parking-picker-empty {
+  padding: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.parking-edit-panel {
+  margin-bottom: 14px;
+  border-color: rgba(223, 186, 51, 0.42);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(223, 186, 51, 0.14), transparent 34%),
+    rgba(1, 9, 22, 0.58);
+}
+
+.parking-edit-head {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.parking-edit-head > svg {
+  flex: 0 0 auto;
+  width: 21px;
+  height: 21px;
+  color: var(--gold);
+}
+
+.parking-edit-head div {
+  display: grid;
+  min-width: 0;
+}
+
+.parking-edit-head b {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.parking-edit-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.parking-edit-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 10px;
+  align-items: center;
+}
+
+.parking-edit-actions > * {
+  min-height: 44px;
+}
+
 .parking-table-wrap {
   border-color: rgba(64, 89, 128, 0.52);
 }
 
 .parking-table {
-  min-width: 1100px;
+  min-width: 920px;
 }
 
 .parking-table td:first-child b {
@@ -4715,14 +4874,6 @@ body:has(.prelander-page)::before {
   display: grid;
   gap: 8px;
   min-width: 0;
-}
-
-.parking-inline-form {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.25fr) minmax(120px, 0.7fr) minmax(150px, 0.95fr) 88px;
-  gap: 8px;
-  align-items: center;
-  min-width: 570px;
 }
 
 .parking-row-actions > form:last-child {
@@ -13083,20 +13234,15 @@ body:has(.report-page) .brand b {
     width: 100%;
   }
 
-  .parking-inline-form {
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 0.7fr);
-    min-width: 0;
-  }
-
-  .parking-inline-form input[name="note"],
-  .parking-inline-form button {
-    grid-column: 1 / -1;
-  }
-
-  .parking-inline-form button,
+  .parking-edit-actions,
+  .parking-edit-actions > *,
   .parking-row-actions > form:last-child,
   .parking-row-actions .small-action {
     width: 100%;
+  }
+
+  .parking-edit-actions {
+    display: grid;
   }
 
   .stat-panel,
@@ -13322,8 +13468,7 @@ body:has(.report-page) .brand b {
   }
 
   .parking-summary,
-  .parking-form,
-  .parking-inline-form {
+  .parking-form {
     grid-template-columns: 1fr;
   }
 
@@ -13343,10 +13488,6 @@ body:has(.report-page) .brand b {
 
   .parking-form {
     padding: 13px;
-  }
-
-  .parking-inline-form {
-    width: 100%;
   }
 
   .parking-row-actions form,

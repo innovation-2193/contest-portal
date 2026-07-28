@@ -2,9 +2,10 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
+import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
 import { SecretInput } from "../../components/SecretInput";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../components/ParticipantRoleTabs";
 import {
@@ -73,7 +74,7 @@ const awardLabels: Record<string, string> = {
 type ParticipantSort = "newest" | "oldest";
 const dashboardLimit = 10;
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string; parkingAll?: string; parkingEdit?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
@@ -139,6 +140,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const waitingCheckInCount = activeRegistrations.length - attendedParticipants.length;
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
+  const showAllParkingReservations = params.parkingAll === "1";
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
@@ -159,7 +161,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
-    {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations}/>}
+    {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
     <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
@@ -429,74 +431,64 @@ function LoginPanel({ message, autoFillOtp = "" }: { message: string; autoFillOt
 function ParkingReservationPanel({
   participants,
   reservations,
+  editId,
+  showAll,
 }: {
   participants: Awaited<ReturnType<typeof listParticipants>>;
   reservations: Awaited<ReturnType<typeof listParkingReservations>>;
+  editId?: string;
+  showAll: boolean;
 }) {
-	const vipCount = reservations.filter((item) => item.participantRole === "VIP").length;
-	const exhibitorCount = reservations.filter((item) => item.participantRole === "Exhibitor").length;
-	const staffCount = reservations.filter((item) => item.participantRole === "Staff").length;
-	const vipParticipants = participants.filter((participant) => participant.participant_role === "VIP");
-	const exhibitorParticipants = participants.filter((participant) => participant.participant_role === "Exhibitor");
-	const staffParticipants = participants.filter((participant) => participant.participant_role === "Staff");
-	const hasEligibleParticipants = participants.length > 0;
-	return <section className="admin-panel parking-panel">
-	    <header className="admin-section-head">
-	      <Car/>
-	      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor / Staff</h2><p>เลือกรายชื่อจาก Role VIP, Exhibitor หรือ Staff แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน</p></div>
-	      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
-	    </header>
-	    <div className="parking-summary">
-	      <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
-	      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
-	      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
-	      <div><UserCheck/><b>{staffCount.toLocaleString("th-TH")}</b><span>Staff</span></div>
-	    </div>
-		    <form action={createParkingReservationAction} className="admin-form parking-form">
-		      <label className="field-wide">เลือกรายชื่อ VIP / Exhibitor / Staff<select name="registrationCode" required>
-		        <option value="">{hasEligibleParticipants ? "เลือกรายชื่อที่ต้องการสำรองที่จอดรถ" : "ยังไม่มีรายชื่อ VIP, Exhibitor หรือ Staff"}</option>
-		        {vipParticipants.length > 0 && <optgroup label="VIP">
-		          {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
-		        </optgroup>}
-		        {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
-		          {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
-		        </optgroup>}
-		        {staffParticipants.length > 0 && <optgroup label="Staff">
-		          {staffParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name} • {participant.phone} • {participant.bureau || participant.division}</option>)}
-		        </optgroup>}
-		      </select></label>
+  const vipCount = reservations.filter((item) => item.participantRole === "VIP").length;
+  const exhibitorCount = reservations.filter((item) => item.participantRole === "Exhibitor").length;
+  const staffCount = reservations.filter((item) => item.participantRole === "Staff").length;
+  const hasEligibleParticipants = participants.length > 0;
+  const visibleReservations = showAll ? reservations : reservations.slice(0, dashboardLimit);
+  const editingReservation = editId ? reservations.find((reservation) => reservation.id === editId) : null;
+  const editBase = showAll ? "/admin?parkingAll=1" : "/admin";
+  const editSeparator = showAll ? "&" : "?";
+  const listHref = showAll ? "/admin?parkingAll=1#parking-reservations" : "/admin#parking-reservations";
+  return <section className="admin-panel parking-panel" id="parking-reservations">
+    <header className="admin-section-head">
+      <Car/>
+      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor / Staff</h2><p>ค้นหารายชื่อจาก Role VIP, Exhibitor หรือ Staff แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน โดยตารางนี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div>
+      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
+    </header>
+    <div className="parking-summary">
+      <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
+      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
+      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
+      <div><UserCheck/><b>{staffCount.toLocaleString("th-TH")}</b><span>Staff</span></div>
+    </div>
+    <form action={createParkingReservationAction} className="admin-form parking-form">
+      <label className="field-wide">ค้นหารายชื่อ VIP / Exhibitor / Staff<ParkingParticipantPicker participants={participants}/></label>
       <label>ทะเบียนรถ<input name="carPlate" required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
       <label>หมายเหตุ<input name="note" maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
       <button className="primary" type="submit" disabled={!hasEligibleParticipants}><Car/>เพิ่มที่จอดรถ</button>
     </form>
+    {editingReservation && <form action={updateParkingReservationAction} className="admin-form parking-form parking-edit-panel" id="parking-edit">
+      <input type="hidden" name="id" value={editingReservation.id}/>
+      <div className="parking-edit-head">
+        <Pencil/>
+        <div><b>แก้ไขรายการสำรองที่จอดรถ</b><span>{editingReservation.carPlate} • {editingReservation.participantName}</span></div>
+      </div>
+      <label className="field-wide">ค้นหารายชื่อ VIP / Exhibitor / Staff<ParkingParticipantPicker participants={participants} defaultValue={editingReservation.registrationCode}/></label>
+      <label>ทะเบียนรถ<input name="carPlate" defaultValue={editingReservation.carPlate} required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
+      <label>หมายเหตุ<input name="note" defaultValue={editingReservation.note} maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
+      <div className="parking-edit-actions"><button className="primary" type="submit"><Car/>บันทึกการแก้ไข</button><Link className="secondary" href={listHref}>ยกเลิก</Link></div>
+    </form>}
     <div className="admin-table-wrap parking-table-wrap">
       <table className="admin-table compact-admin-table parking-table">
         <thead><tr><th>ทะเบียนรถ</th><th>ผู้ใช้สิทธิ์</th><th>Role</th><th>เบอร์โทร</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
-        <tbody>{reservations.length ? reservations.map((reservation) => <tr key={reservation.id}>
+        <tbody>{visibleReservations.length ? visibleReservations.map((reservation) => <tr key={reservation.id}>
           <td data-label="ทะเบียนรถ"><b>{reservation.carPlate}</b><small>{reservation.registrationCode}</small></td>
           <td data-label="ผู้ใช้สิทธิ์">{reservation.participantName}<small>{reservation.division} / {reservation.bureau}</small></td>
           <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(reservation.participantRole)}`}>{reservation.participantRole}</span></td>
-	          <td data-label="เบอร์โทร"><span className="parking-phone"><Phone/>{reservation.phone}</span></td>
+          <td data-label="เบอร์โทร"><span className="parking-phone"><Phone/>{reservation.phone}</span></td>
           <td data-label="หมายเหตุ">{reservation.note || "-"}</td>
           <td data-label="จัดการ">
             <div className="parking-row-actions">
-              <form action={updateParkingReservationAction} className="parking-inline-form">
-	                <input type="hidden" name="id" value={reservation.id}/>
-	                <select name="registrationCode" defaultValue={reservation.registrationCode} aria-label="เลือกรายชื่อ">
-	                  {vipParticipants.length > 0 && <optgroup label="VIP">
-	                    {vipParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
-	                  </optgroup>}
-		                  {exhibitorParticipants.length > 0 && <optgroup label="Exhibitor">
-		                    {exhibitorParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
-		                  </optgroup>}
-		                  {staffParticipants.length > 0 && <optgroup label="Staff">
-		                    {staffParticipants.map((participant) => <option key={participant.registration_code} value={participant.registration_code}>{participant.title}{participant.first_name} {participant.last_name}</option>)}
-		                  </optgroup>}
-		                </select>
-                <input name="carPlate" defaultValue={reservation.carPlate} required maxLength={32} aria-label="ทะเบียนรถ"/>
-                <input name="note" defaultValue={reservation.note} maxLength={255} aria-label="หมายเหตุ"/>
-                <button className="secondary small-action" type="submit">บันทึก</button>
-              </form>
+              <Link className="secondary small-action" href={`${editBase}${editSeparator}parkingEdit=${encodeURIComponent(reservation.id)}#parking-edit`}><Pencil/>แก้ไข</Link>
               <form action={deleteParkingReservationAction}>
                 <input type="hidden" name="id" value={reservation.id}/>
                 <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบรายการสำรองที่จอดรถนี้?"><Trash2/>ลบ</ConfirmSubmitButton>
@@ -506,6 +498,9 @@ function ParkingReservationPanel({
         </tr>) : <tr><td colSpan={6}>ยังไม่มีรายการสำรองที่จอดรถ</td></tr>}</tbody>
       </table>
     </div>
+    {showAll
+      ? <div className="card-more"><span>แสดง {visibleReservations.length.toLocaleString("th-TH")} รายการทั้งหมด</span><Link className="secondary" href="/admin#parking-reservations">กลับไปดู 10 ล่าสุด</Link></div>
+      : <CardMore total={reservations.length} shown={visibleReservations.length} href="/admin?parkingAll=1#parking-reservations"/>}
   </section>;
 }
 
