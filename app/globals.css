@@ -4683,6 +4683,7 @@ body:has(.prelander-page)::before {
 
 .parking-picker {
   position: relative;
+  isolation: isolate;
   min-width: 0;
 }
 
@@ -4690,12 +4691,15 @@ body:has(.prelander-page)::before {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 11px;
+  gap: 11px;
+  min-height: 46px;
+  padding: 0 14px;
   border: 1px solid rgba(68, 99, 145, 0.95);
   border-radius: var(--radius);
-  background: rgba(1, 9, 22, 0.9);
+  background:
+    linear-gradient(180deg, rgba(5, 18, 40, 0.96), rgba(1, 9, 22, 0.94)),
+    rgba(1, 9, 22, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .parking-picker-box svg {
@@ -4704,29 +4708,52 @@ body:has(.prelander-page)::before {
   color: var(--gold);
 }
 
-.admin-form .parking-picker-box input {
-  min-height: 38px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+.admin-form .parking-picker .parking-picker-box input:not([type="checkbox"]):not([type="radio"]) {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0;
+  background: transparent !important;
   color: var(--text);
   font: inherit;
-  box-shadow: none;
+  font-weight: 900;
+  box-shadow: none !important;
+}
+
+.admin-form .parking-picker .parking-picker-box input:not([type="checkbox"]):not([type="radio"]):focus {
+  border: 0 !important;
+  outline: 0;
+  box-shadow: none !important;
 }
 
 .parking-picker-results {
-  position: absolute;
-  z-index: 20;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
+  position: fixed;
+  z-index: 1000;
   display: grid;
-  max-height: 300px;
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid rgba(102, 222, 206, 0.42);
   border-radius: 12px;
   background: rgba(2, 11, 27, 0.98);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42);
+  scrollbar-color: rgba(102, 222, 206, 0.72) rgba(31, 51, 81, 0.48);
+  scrollbar-width: thin;
+}
+
+.parking-picker-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.parking-picker-results::-webkit-scrollbar-track {
+  border-radius: 99px;
+  background: rgba(31, 51, 81, 0.48);
+}
+
+.parking-picker-results::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(102, 222, 206, 0.72);
 }
 
 .parking-picker-option {
@@ -4872,16 +4899,22 @@ body:has(.prelander-page)::before {
 
 .parking-row-actions {
   display: grid;
-  gap: 8px;
-  min-width: 0;
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  gap: 10px;
+  align-items: center;
+  min-width: 238px;
 }
 
-.parking-row-actions > form:last-child {
-  justify-self: start;
+.parking-row-actions form {
+  width: 100%;
+  margin: 0;
 }
 
 .parking-row-actions .small-action {
-  min-height: 36px;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border-radius: 10px;
 }
 
 .stats-panel {
@@ -14721,6 +14754,13 @@ footer {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+  }
+
+  .admin-form .parking-picker .parking-picker-box input:not([type="checkbox"]):not([type="radio"]) {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .admin-actions,
