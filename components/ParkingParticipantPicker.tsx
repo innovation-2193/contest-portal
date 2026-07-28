@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Search } from "lucide-react";
 
 type ParkingParticipant = {
@@ -48,9 +48,7 @@ export function ParkingParticipantPicker({
     () => participants.find((participant) => participant.registration_code === defaultValue),
     [defaultValue, participants],
   );
-  const pickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [resultsStyle, setResultsStyle] = useState<CSSProperties>({});
   const [selectedCode, setSelectedCode] = useState(initialParticipant?.registration_code ?? "");
   const [query, setQuery] = useState(initialParticipant ? participantLabel(initialParticipant) : "");
   const [open, setOpen] = useState(false);
@@ -73,37 +71,7 @@ export function ParkingParticipantPicker({
     inputRef.current?.setCustomValidity(!query.trim() || selectedCode ? "" : "กรุณาเลือกรายชื่อจากผลการค้นหา");
   }, [query, selectedCode]);
 
-  useEffect(() => {
-    if (!open) return;
-    function updateResultsPosition() {
-      const rect = pickerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const edgePadding = 16;
-      const gap = 6;
-      const spaceBelow = window.innerHeight - rect.bottom - edgePadding;
-      const spaceAbove = rect.top - edgePadding;
-      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
-      const availableSpace = Math.max(openUp ? spaceAbove : spaceBelow, 160);
-      const maxHeight = Math.min(360, availableSpace - gap);
-      const width = Math.min(rect.width, window.innerWidth - edgePadding * 2);
-      setResultsStyle({
-        left: Math.min(Math.max(edgePadding, rect.left), window.innerWidth - edgePadding - width),
-        maxHeight,
-        top: openUp ? Math.max(edgePadding, rect.top - maxHeight - gap) : rect.bottom + gap,
-        width,
-      });
-    }
-
-    updateResultsPosition();
-    window.addEventListener("resize", updateResultsPosition);
-    window.addEventListener("scroll", updateResultsPosition, true);
-    return () => {
-      window.removeEventListener("resize", updateResultsPosition);
-      window.removeEventListener("scroll", updateResultsPosition, true);
-    };
-  }, [open, query, filteredParticipants.length]);
-
-  return <div className="parking-picker" ref={pickerRef}>
+  return <div className="parking-picker">
     <input type="hidden" name={name} value={selectedCode}/>
     <div className="parking-picker-box">
       <Search aria-hidden="true"/>
@@ -130,7 +98,7 @@ export function ParkingParticipantPicker({
         value={query}
       />
     </div>
-    {open && <div className="parking-picker-results" role="listbox" style={resultsStyle}>
+    {open && <div className="parking-picker-results" role="listbox">
       {filteredParticipants.length ? filteredParticipants.map((participant) => {
         const selected = participant.registration_code === selectedCode;
         return <button
