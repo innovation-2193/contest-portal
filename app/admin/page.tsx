@@ -74,6 +74,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
 
+  if (session && params.login) redirect("/admin");
+
   if (!session) {
     const autoFillOtp = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "login" });
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
@@ -646,9 +648,10 @@ function adminParticipantHref(role: string) {
 
 async function requestOtpAction() {
   "use server";
+  const cookieStore = await cookies();
+  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
   const result = await requestSuperAdminOtp();
   if (!result.ok) redirect("/admin?login=otp_wait");
-  const cookieStore = await cookies();
   if (result.autoFillCode) {
     cookieStore.set(adminOtpAutoFillCookie, createAdminOtpAutoFillValue({ purpose: "login", code: result.autoFillCode }), {
       httpOnly: true,
@@ -665,6 +668,8 @@ async function requestOtpAction() {
 
 async function verifyOtpAction(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
   const requestHeaders = await headers();
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);
@@ -681,7 +686,6 @@ async function verifyOtpAction(formData: FormData) {
   }
 
   await clearAdminLoginFailures(clientKey);
-  const cookieStore = await cookies();
   cookieStore.delete(adminOtpAutoFillCookie);
   await setAdminSession({ email: "innovation@police.go.th", role: "super_admin" });
   await recordAuditEvent({
@@ -695,6 +699,8 @@ async function verifyOtpAction(formData: FormData) {
 
 async function loginAction(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
   const requestHeaders = await headers();
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);
