@@ -54,6 +54,7 @@ export type AdminSettings = {
 
 export type WinnerRecord = {
   id: string;
+  submissionCode?: string;
   rank: string;
   award: string;
   projectTitle: string;

@@ -147,6 +147,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const scoreBoard = submissions
     .filter((item) => item.review_total_score !== null && item.review_total_score !== undefined)
     .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at));
+  const awardedSubmissionKeys = new Set(winners.map((winner) => winner.submissionCode || winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division)));
+  const availableWinnerSubmissions = submissions.filter((submission) => {
+    const key = winnerFallbackKey(submission.title_th, submissionOwnerName(submission), submissionDivision(submission));
+    return !awardedSubmissionKeys.has(submission.submission_code) && !awardedSubmissionKeys.has(key);
+  });
 
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
@@ -184,18 +189,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
     {isSuperAdmin && <section className="admin-panel">
-      <header><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการจากผลงานที่สมัครเข้ามา ลดการพิมพ์ชื่อผลงาน เจ้าของ และหน่วยงานเอง</p></div></header>
+      <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการจากผลงานที่สมัครเข้ามา ลดการพิมพ์ชื่อผลงาน เจ้าของ และหน่วยงานเอง</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
         <label>ประเภทรางวัล<select name="rank" defaultValue="1">
           {["1", "2", "3", "honorable"].map((value)=><option key={value} value={value}>{awardLabels[value]}</option>)}
         </select></label>
         <label>เลือกผลงาน<select name="submissionCode" required>
-          <option value="">เลือกจากใบสมัครประกวด</option>
-          {submissions.map((submission)=><option key={submission.submission_code} value={submission.submission_code}>{submission.submission_code} • {submission.title_th} • {submission.first_name} {submission.last_name}{submission.review_total_score !== null && submission.review_total_score !== undefined ? ` • ${submission.review_total_score}/100` : ""}</option>)}
+          <option value="">{availableWinnerSubmissions.length ? "เลือกจากใบสมัครประกวดที่ยังไม่เคยประกาศผล" : "ไม่มีผลงานที่เหลือให้ประกาศผล"}</option>
+          {availableWinnerSubmissions.map((submission)=><option key={submission.submission_code} value={submission.submission_code}>{submission.submission_code} • {submission.title_th} • {submission.first_name} {submission.last_name}{submission.review_total_score !== null && submission.review_total_score !== undefined ? ` • ${submission.review_total_score}/100` : ""}</option>)}
         </select></label>
         <label>หมายเหตุรางวัลชมเชย<input name="honorableNote" placeholder="เช่น ด้านความคิดสร้างสรรค์ / ด้านการนำไปใช้จริง"/></label>
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่</label>
-        <button className="primary" type="submit">เพิ่มผู้ชนะ</button>
+        <button className="primary" type="submit" disabled={!availableWinnerSubmissions.length}>เพิ่มผู้ชนะ</button>
       </form>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td data-label="รอบ / รางวัล">{winner.award || formatAward(winner.rank)}</td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
@@ -944,12 +949,18 @@ async function addWinnerAction(formData: FormData) {
   const submissionDetail = await getSubmissionDetail(submissionCode);
   if (!submissionDetail) throw new Error("ไม่พบข้อมูลรายละเอียดผลงานที่เลือก");
   const award = rank === "honorable" && honorableNote ? `${formatAward(rank)}: ${honorableNote}` : formatAward(rank);
-  const ownerName = submission.submission_type === "team" && submission.team_name
-    ? `ทีม ${submission.team_name}`
-    : `${submission.first_name} ${submission.last_name}`.trim();
-  const division = [submission.division, submission.bureau].map((item) => item?.trim()).filter(Boolean).join(" / ");
+  const ownerName = submissionOwnerName(submission);
+  const division = submissionDivision(submission);
+  const submissionKey = winnerFallbackKey(submission.title_th, ownerName, division);
+  const existingWinners = await listWinners();
+  const alreadyAwarded = existingWinners.some((winner) =>
+    winner.submissionCode === submissionCode ||
+    winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division) === submissionKey,
+  );
+  if (alreadyAwarded) throw new Error("ผลงานนี้ถูกประกาศผลแล้ว กรุณาเลือกผลงานอื่น");
   const published = formData.get("published") === "on";
   await addWinner({
+    submissionCode,
     rank,
     award,
     projectTitle: submission.title_th,
@@ -1188,6 +1199,20 @@ function formatAward(rank: string) {
   return awardLabels[rank] ?? awardLabels.honorable;
 }
 
+function submissionOwnerName(submission: Pick<Awaited<ReturnType<typeof listSubmissions>>[number], "submission_type" | "team_name" | "first_name" | "last_name">) {
+  return submission.submission_type === "team" && submission.team_name
+    ? `ทีม ${submission.team_name}`
+    : `${submission.first_name} ${submission.last_name}`.trim();
+}
+
+function submissionDivision(submission: Pick<Awaited<ReturnType<typeof listSubmissions>>[number], "division" | "bureau">) {
+  return [submission.division, submission.bureau].map((item) => item?.trim()).filter(Boolean).join(" / ");
+}
+
+function winnerFallbackKey(projectTitle: string, ownerName: string, division: string) {
+  return [projectTitle, ownerName, division].map((item) => normalizeSearch(item)).join("|");
+}
+
 function profileLabel(key: string) {
   if (key === "gender") return "เพศ";
   if (key === "ageRange") return "อายุ";
@@ -1240,6 +1265,7 @@ function auditActionLabel(action: string) {
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";

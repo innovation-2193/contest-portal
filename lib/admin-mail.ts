@@ -9,6 +9,12 @@ type AdminMailInput = {
   text: string;
   html: string;
   outboxKey: string;
+  attachments?: Array<{
+    filename: string;
+    path: string;
+    cid?: string;
+    contentType?: string;
+  }>;
   emailHeading?: string;
   emailEyebrow?: string;
   emailSubtitle?: string;
@@ -55,7 +61,7 @@ export async function sendAdminMail(input: AdminMailInput) {
       subject: input.subject,
       text: input.text,
       html,
-      attachments: [brandedEmailLogoAttachment()],
+      attachments: [brandedEmailLogoAttachment(), ...(input.attachments ?? [])],
     });
     return { status: "sent" satisfies MailStatus };
   } catch (error) {
@@ -80,6 +86,11 @@ async function writeDevOutbox(input: AdminMailInput) {
       subject: input.subject,
       text: input.text,
       html,
+      attachments: input.attachments?.map((attachment) => ({
+        filename: attachment.filename,
+        cid: attachment.cid,
+        contentType: attachment.contentType,
+      })) ?? [],
       createdAt: new Date().toISOString(),
     }, null, 2)}\n`,
     "utf8",

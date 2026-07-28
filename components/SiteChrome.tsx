@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Activity, BarChart3, ChevronDown, Landmark, Lightbulb, LockKeyhole, Mail, Menu, Phone, ShieldCheck, TrendingUp, X } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
 
-const navItems = [
+const baseNavItems = [
   { href: "/#project", hash: "#project", label: "ข้อมูลโครงการ" },
   { href: "/#schedule", hash: "#schedule", label: "กำหนดการ" },
   { href: "/#awards", hash: "#awards", label: "เกณฑ์และรางวัล" },
@@ -197,13 +197,20 @@ export function SamePageScrollRestorer() {
 
 const scrollMemoryKey = "police-innovation-scroll-restore";
 
-export function Header() {
+export function Header({ showAnnouncement = false }: { showAnnouncement?: boolean }) {
   const [open,setOpen]=useState(false);
   const [activeHash, setActiveHash] = useState("#project");
   const manualActiveUntil = useRef(0);
   const headerRef = useRef<HTMLElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const pathname = usePathname();
+  const navItems = useMemo(() => showAnnouncement
+    ? [
+      ...baseNavItems.slice(0, 3),
+      { href: "/#announcement", hash: "#announcement", label: "ประกาศผลการแข่งขัน" },
+      ...baseNavItems.slice(3),
+    ]
+    : baseNavItems, [showAnnouncement]);
 
   useEffect(() => {
     setOpen(false);
@@ -265,7 +272,7 @@ export function Header() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, [pathname]);
+  }, [pathname, navItems]);
 
   return <header className="site-header" ref={headerRef}><div className="wide header-row">
     <Link className="brand" href="/"><span className="brand-logo"><img src="/logo-3d.png" alt="Police Innovation Contest 2026"/></span><div><b>Police Innovation Contest 2026</b><small>ประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</small></div></Link>

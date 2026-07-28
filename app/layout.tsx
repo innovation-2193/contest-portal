@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Footer, Header, MobileZoomLock, OfficialSiteBar, SamePageScrollRestorer, SiteVisitTracker } from "../components/SiteChrome";
 import { BackToTop } from "../components/BackToTop";
-import { getAdminSettings } from "../lib/admin-store";
+import { getAdminSettings, listWinners } from "../lib/admin-store";
 import { getSiteStats } from "../lib/site-analytics";
 import "./globals.css";
 
@@ -51,15 +51,16 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const settings = await getAdminSettings();
+  const [settings, winners] = await Promise.all([getAdminSettings(), listWinners()]);
   const siteStats = settings.showSiteStats ? await getSiteStats() : null;
+  const showAnnouncementNav = winners.some((winner) => winner.published);
   return <html lang="th" data-scroll-behavior="smooth" suppressHydrationWarning>
     <body suppressHydrationWarning>
       <MobileZoomLock/>
       <Suspense fallback={null}><SamePageScrollRestorer/></Suspense>
       <SiteVisitTracker/>
       <OfficialSiteBar/>
-      <Header/>
+      <Header showAnnouncement={showAnnouncementNav}/>
       <main>{children}</main>
       <Footer stats={siteStats}/>
       <BackToTop/>

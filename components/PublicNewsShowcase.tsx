@@ -74,7 +74,7 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
           </div>
         </header>
 
-        <div className="public-news-track" ref={trackRef} onScroll={updateActiveCard}>
+        <div className={`public-news-track public-news-count-${Math.min(news.length, 3)}`} ref={trackRef} onScroll={updateActiveCard}>
           {news.map((item, index) => (
             <article className="public-news-card" key={item.id}>
               <div className="public-news-media">

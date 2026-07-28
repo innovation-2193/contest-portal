@@ -86,6 +86,7 @@ const allowedAuditActions = new Set([
   "home_popup.deleted",
   "winner.created",
   "winner.deleted",
+  "winner.export_pdf",
   "evaluation.lucky_draw",
   "evaluation.lucky_draw_reset_otp_requested",
   "evaluation.lucky_draw_reset",

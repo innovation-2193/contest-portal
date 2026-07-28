@@ -46,6 +46,7 @@ const actionOptions = [
   ["news.deleted", "ลบข่าวประชาสัมพันธ์"],
   ["winner.created", "เพิ่มประกาศผล"],
   ["winner.deleted", "ลบประกาศผล"],
+  ["winner.export_pdf", "Export ประกาศผล PDF"],
   ["evaluation.lucky_draw", "สุ่ม Lucky Draw"],
   ["evaluation.lucky_draw_reset_otp_requested", "ขอ OTP Reset Lucky Draw"],
   ["evaluation.lucky_draw_reset", "Reset ผล Lucky Draw"],
@@ -215,6 +216,7 @@ function auditActionLabel(action: string) {
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";

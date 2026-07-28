@@ -1,6 +1,11 @@
 import { sendAdminMail } from "./admin-mail";
 import { publicBaseUrl } from "./public-url";
 import type { AdminSubmissionDetail } from "./admin-store";
+import path from "path";
+
+const lineCoordinationQrCid = "police-innovation-line-coordination-qr";
+const lineCoordinationDeadline = "14 สิงหาคม 2569";
+const lineCoordinationUrl = "https://line.me/ti/g/Fg6PscYxwQ";
 
 type WinnerAnnouncementInput = {
   submission: AdminSubmissionDetail;
@@ -23,11 +28,12 @@ export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInpu
       to: recipient.email,
       subject: `ขอแสดงความยินดี ผลงานของท่านได้รับ${input.award}`,
       emailEyebrow: "WINNER ANNOUNCEMENT",
-      emailHeading: "ประกาศผลการแข่งขัน",
-      emailSubtitle: "Police Innovation Contest 2026",
+      emailHeading: "ขอแสดงความยินดี",
+      emailSubtitle: "ผู้ได้รับรางวัล Police Innovation Contest 2026 | สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
       outboxKey: `winner-announcement-${input.submission.submission_code}-${safeOutboxKey(recipient.email)}-${Date.now()}`,
       text: winnerAnnouncementText(input, recipient.name),
       html: winnerAnnouncementHtml(input, recipient.name),
+      attachments: [lineCoordinationQrAttachment()],
     });
     results.push({ email: recipient.email, status: winnerMailStatus(mail.status) });
   }
@@ -76,28 +82,69 @@ function winnerAnnouncementText(input: WinnerAnnouncementInput, recipientName: s
     `รหัสผลงาน: ${input.submission.submission_code}`,
     `ผลรางวัล: ${input.award}`,
     "",
-    "รายละเอียดเพิ่มเติม ทีมงานจะประสานงานเพื่อให้ข้อมูลและขั้นตอนถัดไปเพิ่มเติม",
+    `กรุณาเข้ากลุ่มประสานงาน LINE ตาม QR Code ที่แนบในอีเมลนี้ ภายในวันที่ ${lineCoordinationDeadline}`,
+    `ลิงก์กลุ่ม LINE: ${lineCoordinationUrl}`,
+    "ทีมงานจะใช้กลุ่มนี้ในการแจ้งรายละเอียดและประสานงานต่อเนื่องจนเสร็จสิ้นกระบวนการประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
+    "",
     `ดูประกาศได้ที่ ${detailUrl}`,
   ].join("\n");
 }
 
 function winnerAnnouncementHtml(input: WinnerAnnouncementInput, recipientName: string) {
   const detailUrl = publicBaseUrl();
+  const awardParts = splitAward(input.award);
   return `<p style="margin:0 0 16px">เรียน <strong>${escapeHtml(recipientName || input.ownerName)}</strong></p>
-    <p style="margin:0 0 18px;line-height:1.8">ทีมงาน <strong>Police Innovation Contest 2026</strong> ขอแสดงความยินดี ผลงานของท่านได้รับรางวัลจากการประกวดนวัตกรรมสำนักงานตำรวจแห่งชาติ</p>
-    <div style="margin:20px 0;padding:20px 18px;border:1px solid #d8b62f;border-radius:12px;background:#fff9e8">
+    <p style="margin:0 0 18px;line-height:1.8">ทีมงาน <strong>Police Innovation Contest 2026</strong> ขอแสดงความยินดีเป็นอย่างยิ่ง ผลงานของท่านได้รับรางวัลจากการประกวดนวัตกรรมสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p>
+    <div style="margin:20px 0;padding:22px 20px;border:1px solid #d8b62f;border-radius:14px;background:#fff9e8">
       <div style="font-size:13px;font-weight:700;color:#6d5b16">ผลรางวัล</div>
-      <div style="margin-top:5px;font-size:25px;font-weight:800;color:#0a2d63;line-height:1.35">${escapeHtml(input.award)}</div>
+      <div class="winner-award-title" style="margin-top:5px;font-size:25px;font-weight:800;color:#0a2d63;line-height:1.35">${escapeHtml(awardParts.title)}</div>
+      ${awardParts.note ? `<div style="margin-top:6px;font-size:18px;font-weight:700;color:#314158;line-height:1.55">${escapeHtml(awardParts.note)}</div>` : ""}
     </div>
     <div style="margin:0 0 20px;padding:16px 18px;border:1px solid #dce3ed;border-radius:10px;background:#f6f8fc">
       <div style="font-size:12px;font-weight:700;color:#657083">ผลงาน</div>
       <div style="margin-top:3px;font-size:18px;font-weight:800;color:#0a2d63;line-height:1.45">${escapeHtml(input.submission.title_th)}</div>
       <div style="margin-top:7px;color:#46536a">รหัสผลงาน: <strong>${escapeHtml(input.submission.submission_code)}</strong></div>
     </div>
-    <p style="margin:0 0 22px;color:#46536a;line-height:1.8">รายละเอียดเพิ่มเติม ทีมงานจะประสานงานเพื่อให้ข้อมูลและขั้นตอนถัดไปเพิ่มเติม</p>
+    <div style="margin:0 0 22px;padding:18px;border:1px solid #dce3ed;border-radius:14px;background:#f6f8fc">
+      <table class="winner-line-grid" role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td class="winner-line-qr" width="164" valign="top" align="center" style="padding:0 18px 0 0">
+            <a href="${escapeHtml(lineCoordinationUrl)}" style="display:inline-block;text-decoration:none">
+              <img src="cid:${lineCoordinationQrCid}" width="148" height="148" alt="QR Code กลุ่มประสานงาน LINE" style="display:block;width:148px;height:148px;border:1px solid #dce3ed;border-radius:10px;background:#ffffff">
+            </a>
+            <div style="margin-top:6px;font-size:12px;font-weight:800;color:#657083">LINE Group</div>
+          </td>
+          <td class="winner-line-copy" valign="top" style="padding:0">
+            <div style="font-size:13px;font-weight:800;color:#6d5b16">ขั้นตอนถัดไป</div>
+            <div style="margin-top:6px;font-size:18px;font-weight:800;color:#0a2d63;line-height:1.45">เข้ากลุ่มประสานงาน LINE ภายในวันที่ ${escapeHtml(lineCoordinationDeadline)}</div>
+            <p style="margin:10px 0 0;color:#46536a;line-height:1.8">กรุณาสแกนหรือกดที่ QR Code เพื่อเข้ากลุ่มประสานงานผู้ได้รับรางวัล ทีมงานจะใช้กลุ่มนี้ในการแจ้งรายละเอียดและประสานงานต่อเนื่องจนเสร็จสิ้นกระบวนการประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:16px;text-align:center">
+        <a href="${escapeHtml(lineCoordinationUrl)}" style="display:inline-block;min-width:210px;background:#06c755;color:#ffffff;text-decoration:none;font-weight:800;padding:12px 18px;border-radius:9px;text-align:center">เข้ากลุ่มประสานงาน LINE</a>
+      </div>
+    </div>
     <div style="text-align:center">
       <a href="${escapeHtml(detailUrl)}" style="display:inline-block;min-width:210px;background:#d8b62f;color:#07142b;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:9px;text-align:center">ดูประกาศบนเว็บไซต์</a>
     </div>`;
+}
+
+function splitAward(award: string) {
+  const [title, ...noteParts] = award.split(":");
+  return {
+    title: title.trim() || award,
+    note: noteParts.join(":").trim(),
+  };
+}
+
+function lineCoordinationQrAttachment() {
+  return {
+    filename: "line-coordination-qr.jpg",
+    path: path.join(process.cwd(), "public", "line-coordination-qr.jpg"),
+    cid: lineCoordinationQrCid,
+    contentType: "image/jpeg",
+  };
 }
 
 function safeOutboxKey(value: string) {
