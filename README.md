@@ -31,7 +31,7 @@ npm.cmd run build
 
 ## หน้าแจ้งเตือนระหว่าง deploy
 
-โปรเจกต์มีไฟล์ `public/503.html` สำหรับใช้แทนหน้า default `Service Unavailable` ตอน Next.js restart ระหว่าง deploy. หากใช้ nginx เป็น reverse proxy ให้ include ตัวอย่างใน `deploy/nginx-error-pages.conf` ภายใน server block ของโดเมน เพื่อให้ 502/503/504 แสดงข้อความ “เว็บไซต์กำลังอัปเดตข้อมูล กรุณา refresh หน้าจออีกครั้ง” แทนหน้า error เปล่า.
+โปรเจกต์มีไฟล์ `public/503.html` สำหรับใช้แทนหน้า default `Service Unavailable` ตอน Next.js restart ระหว่าง deploy. ต้องให้ reverse proxy เสิร์ฟไฟล์นี้เองโดยตรง เพราะช่วงที่ container `web` ถูก recreate แอป Next.js ยังตอบไม่ได้ หากใช้ Apache ให้ include `deploy/apache-error-pages.conf` ใน VirtualHost ของโดเมน หรือหากใช้ nginx ให้ include `deploy/nginx-error-pages.conf` ใน server block เพื่อให้ 502/503/504 แสดงข้อความ “เว็บไซต์กำลังอัปเดตข้อมูล กรุณา refresh หน้าจออีกครั้ง” แทนหน้า error เปล่า.
 
 ## โครงสร้างข้อมูล
 
