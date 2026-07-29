@@ -29,6 +29,10 @@ npm.cmd run build
 
 `npm run build` จะเตรียมไฟล์สำหรับ standalone deployment ให้อัตโนมัติ และ `npm run start` เปิด production ที่พอร์ต 3003
 
+## หน้าแจ้งเตือนระหว่าง deploy
+
+โปรเจกต์มีไฟล์ `public/503.html` สำหรับใช้แทนหน้า default `Service Unavailable` ตอน Next.js restart ระหว่าง deploy. หากใช้ nginx เป็น reverse proxy ให้ include ตัวอย่างใน `deploy/nginx-error-pages.conf` ภายใน server block ของโดเมน เพื่อให้ 502/503/504 แสดงข้อความ “เว็บไซต์กำลังอัปเดตข้อมูล กรุณา refresh หน้าจออีกครั้ง” แทนหน้า error เปล่า.
+
 ## โครงสร้างข้อมูล
 
 - `users` บัญชีอีเมลผู้ใช้
