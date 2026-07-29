@@ -157,7 +157,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   });
 
   return <AdminShell>
-    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1><p>{isSuperAdmin ? "Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน" : "Admin สามารถจัดการข้อมูลระบบได้ ยกเว้นการตั้งค่า Pre-lander และประกาศผลการแข่งขัน"}</p><small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
+    <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1>{isSuperAdmin && <p>Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน</p>}<small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <AdminNotice code={params.notice}/>
     {showCheckInShortcut && <section className="admin-panel admin-checkin-cta">
       <div><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
@@ -171,7 +171,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
-    <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>
+    {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>}
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
@@ -188,7 +188,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </form>
       <NewsTable news={visibleNews} total={news.length}/>
     </section>}
-    {!isSuperAdmin && <section className="admin-panel admin-notice-panel"><header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>การเพิ่ม/ลบข่าวประชาสัมพันธ์ถูกจำกัดให้ Super Admin เท่านั้น</p></div></header></section>}
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
     {isSuperAdmin && <section className="admin-panel">
@@ -207,13 +206,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </form>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>รอบ / รางวัล</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map(winner=><tr key={winner.id}><td data-label="รอบ / รางวัล">{winner.award || formatAward(winner.rank)}</td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
-    <section className="admin-panel">
+    {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Users/><div><h2>ผู้เข้าร่วมงาน</h2><p>แก้ไขข้อมูล ลบรายการ ค้นหา ดาวน์โหลดรายชื่อ และตรวจสถานะเช็คอินหน้างาน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/scan"><QrCode/>เปิดหน้าเช็คอิน</Link><a className="secondary" href="/api/admin/participants/export"><Download/>Export PDF</a><a className="primary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel</a></div></header>
       <ParticipantRoleTabs activeRole={participantRole} basePath="/admin" counts={participantRoleCounts} query={{ participantSearch, participantSort }}/>
       <ParticipantFilterBar role={participantRole} search={participantSearch} sort={participantSort}/>
       <ParticipantsTable participants={filteredParticipants}/>
       <CardMore total={filteredParticipantsAll.length} shown={filteredParticipants.length} href={participantListHref(participantRole)}/>
-    </section>
+    </section>}
   </AdminShell>;
 }
 
