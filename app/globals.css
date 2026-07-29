@@ -9088,6 +9088,22 @@ body.scan-result-modal-open .step-rail {
   font-size: 18px;
 }
 
+.site-version {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 11px;
+  border: 1px solid rgba(223, 186, 51, 0.28);
+  border-radius: 999px;
+  color: rgba(255, 240, 168, 0.84);
+  background: rgba(223, 186, 51, 0.08);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 .footer-links {
   justify-items: start;
 }

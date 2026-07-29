@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Activity, BarChart3, ChevronDown, Landmark, Lightbulb, LockKeyhole, Mail, Menu, Phone, ShieldCheck, TrendingUp, X } from "lucide-react";
 import type { SiteStats } from "../lib/site-analytics";
+import packageInfo from "../package.json";
+
+const appVersion = packageInfo.version;
 
 const baseNavItems = [
   { href: "/#project", hash: "#project", label: "ข้อมูลโครงการ" },
@@ -300,7 +303,7 @@ export function Header({ showAnnouncement = false }: { showAnnouncement?: boolea
 export function Footer({ stats }: { stats?: SiteStats | null }) {
   const maxDaily = Math.max(1, ...(stats?.last7Days.map((item) => item.count) ?? [1]));
   return <footer><div className={stats ? "wide footer-grid footer-grid-with-stats" : "wide footer-grid"}>
-    <div className="footer-column footer-brand"><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p></div>
+    <div className="footer-column footer-brand"><b>Police Innovation Contest 2026</b><p>ระบบลงทะเบียนเข้าร่วมงานและส่งผลงานประกวดนวัตกรรม สำหรับสำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569</p><span className="site-version">Version {appVersion}</span></div>
     {stats && <section className="footer-stats" aria-label="สถิติการเข้าใช้งานเว็บไซต์">
       <div className="footer-stats-head"><Activity/><div><span>Website Activity</span><b>สถิติการเข้าใช้งาน</b></div></div>
       <div className="footer-stats-numbers">
