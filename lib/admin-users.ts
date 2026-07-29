@@ -150,8 +150,38 @@ export async function getAdminAccountByResetToken(token: string) {
   )) ?? null;
 }
 
+export function validateAdminPasswordStrength(password: string) {
+  const value = String(password ?? "");
+  const commonPasswords = new Set([
+    "password",
+    "password123",
+    "admin",
+    "admin123",
+    "admin1234",
+    "12345678",
+    "123456789",
+    "police",
+    "police123",
+    "police1234",
+    "innovation",
+    "contest",
+  ]);
+  const categories = [
+    /[a-z]/.test(value),
+    /[A-Z]/.test(value),
+    /\d/.test(value),
+    /[^A-Za-z0-9\s]/.test(value),
+  ].filter(Boolean).length;
+  if (value.length < 10) return { ok: false, message: "รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร" };
+  if (value.trim() !== value || /\s/.test(value)) return { ok: false, message: "รหัสผ่านต้องไม่มีช่องว่าง" };
+  if (commonPasswords.has(value.toLowerCase())) return { ok: false, message: "รหัสผ่านนี้เดาง่ายเกินไป กรุณาตั้งใหม่ให้ซับซ้อนกว่าเดิม" };
+  if (categories < 3) return { ok: false, message: "รหัสผ่านต้องผสมอย่างน้อย 3 แบบ: ตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ ตัวเลข หรือสัญลักษณ์" };
+  return { ok: true, message: "" };
+}
+
 export async function setAdminPasswordByResetToken(token: string, password: string) {
-  if (password.length < 8) throw new Error("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
+  const strength = validateAdminPasswordStrength(password);
+  if (!strength.ok) throw new Error(strength.message);
   const normalizedToken = normalizeResetToken(token);
   return enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
