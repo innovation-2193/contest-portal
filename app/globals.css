@@ -333,6 +333,18 @@ svg { flex: 0 0 auto; }
   100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
 }
 
+@keyframes countdown-number-in-down {
+  0% { transform: translate3d(0, -118%, 0); opacity: 0; filter: blur(1.4px); }
+  62% { transform: translate3d(0, 9%, 0); opacity: 1; filter: blur(0); }
+  100% { transform: translate3d(0, 0, 0); opacity: 1; filter: blur(0); }
+}
+
+@keyframes countdown-number-out-down {
+  0% { transform: translate3d(0, 0, 0); opacity: 1; filter: blur(0); }
+  42% { opacity: 0.88; }
+  100% { transform: translate3d(0, 118%, 0); opacity: 0; filter: blur(1.4px); }
+}
+
 @keyframes home-countdown-hot {
   0%, 100% { box-shadow: 0 18px 42px rgba(223, 186, 51, 0.18), inset 0 0 0 1px rgba(255, 242, 173, 0.14); }
   50% { box-shadow: 0 24px 60px rgba(223, 186, 51, 0.42), inset 0 0 0 1px rgba(255, 242, 173, 0.32); }
@@ -1236,19 +1248,57 @@ nav a.active::after {
 }
 
 .home-countdown strong {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 2.05ch;
+  height: 0.98em;
   color: #ffffff;
   font-size: clamp(48px, 5.2vw, 76px);
-  line-height: 0.9;
+  line-height: 0.98;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   text-shadow: 0 12px 24px rgba(0, 0, 0, 0.42);
   transform-origin: center;
-  animation: home-countdown-tick 420ms cubic-bezier(0.19, 1, 0.22, 1) both;
 }
 
-.home-countdown span {
+.countdown-digit {
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  width: 0.63em;
+  height: 1em;
+  flex: 0 0 auto;
+}
+
+.countdown-digit-current,
+.countdown-digit-previous {
+  grid-area: 1 / 1;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: 0;
+  text-shadow: inherit;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+}
+
+.countdown-digit.is-changing .countdown-digit-current {
+  animation: countdown-number-in-down 680ms cubic-bezier(0.17, 0.9, 0.2, 1) both;
+}
+
+.countdown-digit-previous {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  animation: countdown-number-out-down 680ms cubic-bezier(0.22, 0.72, 0.16, 1) both;
+}
+
+.home-countdown div > span {
   display: block;
   margin-top: 0;
   color: #ffe794;
@@ -1274,9 +1324,23 @@ nav a.active::after {
 }
 
 .home-countdown .highlight strong,
-.home-countdown .highlight span {
+.home-countdown .highlight > span {
   color: #061936;
   text-shadow: none;
+}
+
+.home-countdown .highlight .countdown-number,
+.home-countdown .highlight .countdown-digit-current,
+.home-countdown .highlight .countdown-digit-previous {
+  color: #061936;
+  text-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-digit.is-changing .countdown-digit-current,
+  .countdown-digit-previous {
+    animation: none;
+  }
 }
 
 .home-popup-modal {
@@ -8812,6 +8876,36 @@ body.scan-result-modal-open .step-rail {
 
 .admin-login-card button {
   width: 100%;
+}
+
+.admin-login-resume {
+  width: min(760px, calc(100% - 40px));
+}
+
+.admin-session-card {
+  margin-top: 24px;
+  border-color: rgba(91, 220, 196, 0.42);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(91, 220, 196, 0.14), transparent 36%),
+    rgba(2, 11, 27, 0.72);
+}
+
+.admin-session-card > p {
+  color: #c4cede;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.admin-session-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.72fr);
+  gap: 12px;
+}
+
+.admin-session-actions .primary,
+.admin-session-actions .secondary {
+  min-height: 48px;
 }
 
 .admin-password-card {

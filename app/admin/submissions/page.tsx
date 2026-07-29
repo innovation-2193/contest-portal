@@ -6,9 +6,10 @@ import { ArrowLeft, Eye, Hash, Mail, Printer, Search, Settings, Trophy, UserChec
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
-import { assignSubmissionReviewer, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
+import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
+import { sendSubmissionAssignmentEmail } from "../../../lib/submission-assignment-mail";
 
 export const dynamic = "force-dynamic";
 
@@ -100,14 +101,19 @@ async function assignSubmissionAction(formData: FormData) {
   const requestHeaders = await headers();
   const submissionCode = String(formData.get("submissionCode") ?? "").trim();
   const adminEmail = String(formData.get("adminEmail") ?? "").trim().toLowerCase() || null;
+  const submission = await getSubmissionDetail(submissionCode);
+  const previousAdminEmail = submission?.review_assigned_admin_email?.trim().toLowerCase() || null;
   await assignSubmissionReviewer(submissionCode, adminEmail);
+  const assignmentMail = adminEmail && adminEmail !== previousAdminEmail
+    ? await sendSubmissionAssignmentEmail(submission, adminEmail)
+    : { status: "skipped" as const };
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "submission.review.assigned",
     entityType: "submission",
     entityId: submissionCode,
     summary: adminEmail ? `assign ใบสมัคร ${submissionCode} ให้ ${adminEmail}` : `ยกเลิก assign ใบสมัคร ${submissionCode}`,
-    payload: { adminEmail },
+    payload: { adminEmail, assignmentMailStatus: assignmentMail.status },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/submissions");

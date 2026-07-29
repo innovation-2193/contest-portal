@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -60,6 +60,7 @@ import {
 		} from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
+import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
 
-  if (session && params.login) redirect("/admin");
+  if (session && params.login) {
+    return <AdminShell><LoginPanel message="" activeSession={session}/></AdminShell>;
+  }
 
   if (!session) {
     const autoFillOtp = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "login" });
@@ -410,7 +413,19 @@ function ReviewQueuePanel({
   </section>;
 }
 
-function LoginPanel({ message, autoFillOtp = "" }: { message: string; autoFillOtp?: string }) {
+function LoginPanel({ message, autoFillOtp = "", activeSession }: { message: string; autoFillOtp?: string; activeSession?: AdminSession }) {
+  if (activeSession) {
+    return <section className="admin-login admin-login-resume"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>Session ของคุณยังใช้งานได้ เปิดระบบหลังบ้านได้ทันทีโดยไม่ต้องขอ OTP ใหม่</p>
+      <article className="admin-login-card admin-session-card">
+        <h2><ShieldCheck/>{activeSession.role === "super_admin" ? "Super Admin" : "Admin"} ยังเข้าสู่ระบบอยู่</h2>
+        <p>{activeSession.email}</p>
+        <div className="admin-session-actions">
+          <Link className="primary" href="/admin"><LogIn/>เข้าสู่ระบบ</Link>
+          <form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form>
+        </div>
+      </article>
+    </section>;
+  }
   return <section className="admin-login"><span className="eyebrow">Admin Console</span><h1>เข้าสู่ระบบหลังบ้าน</h1><p>Super Admin ใช้รหัส OTP ทางอีเมล ส่วน Admin ใช้อีเมลและรหัสผ่านที่ได้รับจากลิงก์เชิญ</p>{message && <div className="admin-login-alert">{message}</div>}
     <div className="admin-login-grid">
       <form action={requestOtpAction} className="admin-login-card">
@@ -1117,14 +1132,19 @@ async function assignSubmissionAction(formData: FormData) {
   const requestHeaders = await headers();
   const submissionCode = String(formData.get("submissionCode") ?? "").trim();
   const adminEmail = String(formData.get("adminEmail") ?? "").trim().toLowerCase() || null;
+  const submission = await getSubmissionDetail(submissionCode);
+  const previousAdminEmail = submission?.review_assigned_admin_email?.trim().toLowerCase() || null;
   await assignSubmissionReviewer(submissionCode, adminEmail);
+  const assignmentMail = adminEmail && adminEmail !== previousAdminEmail
+    ? await sendSubmissionAssignmentEmail(submission, adminEmail)
+    : { status: "skipped" as const };
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "submission.review.assigned",
     entityType: "submission",
     entityId: submissionCode,
     summary: adminEmail ? `assign ใบสมัคร ${submissionCode} ให้ ${adminEmail}` : `ยกเลิก assign ใบสมัคร ${submissionCode}`,
-    payload: { adminEmail },
+    payload: { adminEmail, assignmentMailStatus: assignmentMail.status },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
