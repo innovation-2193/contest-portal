@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     depends_on:
       mysql:
-        condition: service_healthy
+        condition: service_started
     environment:
       NODE_ENV: production
       PORT: 3003
@@ -65,7 +65,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3003/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3003/api/health?liveness=1').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
         ]
       interval: 15s
       timeout: 5s

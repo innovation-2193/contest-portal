@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "../../../lib/db";
 export const runtime = "nodejs";
-export async function GET() {
+export async function GET(request: Request) {
   const started = Date.now();
+  const url = new URL(request.url);
+  if (url.searchParams.get("liveness") === "1") {
+    return NextResponse.json({ status: "alive", checks: { server: true }, latencyMs: Date.now() - started, timestamp: new Date().toISOString() });
+  }
   try {
     const [rows] = await db.query("SELECT COUNT(*) AS tables_count FROM information_schema.tables WHERE table_schema=DATABASE()");
     return NextResponse.json({ status: "ready", database: "mysql", checks: { database: true, schema: Number((rows as Array<{tables_count:number}>)[0].tables_count) >= 7 }, latencyMs: Date.now()-started, timestamp: new Date().toISOString() });
