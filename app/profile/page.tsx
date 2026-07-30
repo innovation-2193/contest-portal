@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, QrCode, ShieldCheck, UserRound } from "lucide-react";
+import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, Printer, QrCode, ShieldCheck, UserRound } from "lucide-react";
 import { PageHero } from "../../components/SiteChrome";
 import { findEvaluationByRegistrationCode } from "../../lib/evaluation-store";
 import { findRegistrationsByEmail } from "../../lib/registration-lookup";
@@ -80,7 +80,10 @@ export default async function ParticipantProfilePage() {
               {item.title_en && <p>{item.title_en}</p>}
               <div><b>{item.submission_code}</b><em className={`status-pill ${item.status}`}>{submissionStatusLabel(item.status)}</em></div>
             </div>
-            <a className="secondary" href={`/submit/success?code=${encodeURIComponent(item.submission_code)}`}><FolderOpen/>ดูรายละเอียด</a>
+            <div className="participant-submission-actions">
+              <a className="secondary" href={`/submit/success?code=${encodeURIComponent(item.submission_code)}`}><FolderOpen/>ดูรายละเอียด</a>
+              <a className="primary" href={`/api/profile/submissions/${encodeURIComponent(item.submission_code)}/print`} download={`${item.submission_code}-application.pdf`}><Printer/>พิมพ์ข้อมูลสมัคร</a>
+            </div>
           </article>)}
         </div>
       </section>}

@@ -4103,6 +4103,19 @@ body.consent-modal-open .step-rail {
   font-size: 13px;
 }
 
+.participant-submission-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.participant-submission-actions :is(a, button) {
+  width: 100%;
+  min-height: 44px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
 .participant-back-link {
   margin-top: 20px;
 }
@@ -12720,6 +12733,8 @@ body:has(.report-page) .brand b {
     grid-template-columns: 1fr;
   }
   .submission-login-entry .secondary,
+  .participant-submission-actions,
+  .participant-submission-actions :is(a, button),
   .participant-submission-list article > .secondary {
     width: 100%;
   }
