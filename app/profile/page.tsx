@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, Printer, QrCode, ShieldCheck, UserRound } from "lucide-react";
+import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, QrCode, ShieldCheck, UserRound } from "lucide-react";
 import { PageHero } from "../../components/SiteChrome";
 import { findEvaluationByRegistrationCode } from "../../lib/evaluation-store";
 import { findRegistrationsByEmail } from "../../lib/registration-lookup";
@@ -19,6 +19,10 @@ export default async function ParticipantProfilePage() {
   ]);
   if (!registrations.length && !submissions.length) redirect("/profile/login?status=otp_expired");
   const evaluations = await Promise.all(registrations.map((item) => findEvaluationByRegistrationCode(item.registration_code)));
+  const registrationCards = preferredRegistrationCards(registrations.map((item, index) => ({
+    item,
+    evaluation: evaluations[index],
+  })));
 
   return <>
     <PageHero
@@ -32,8 +36,7 @@ export default async function ParticipantProfilePage() {
         <form action="/api/participant-auth/logout" method="post"><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form>
       </header>
       <div className="participant-profile-list">
-        {registrations.map((item, index) => {
-          const evaluation = evaluations[index];
+        {registrationCards.map(({ item, evaluation }) => {
           return <article className="success-card participant-profile-card" key={item.registration_code}>
             <header>
               <div><span className="eyebrow">Registration Profile</span><h2>{item.title}{item.first_name} {item.last_name}</h2><p>{item.registration_code}</p></div>
@@ -82,7 +85,7 @@ export default async function ParticipantProfilePage() {
             </div>
             <div className="participant-submission-actions">
               <a className="secondary" href={`/submit/success?code=${encodeURIComponent(item.submission_code)}`}><FolderOpen/>ดูรายละเอียด</a>
-              <a className="primary" href={`/api/profile/submissions/${encodeURIComponent(item.submission_code)}/print`} download={`${item.submission_code}-application.pdf`}><Printer/>พิมพ์ข้อมูลสมัคร</a>
+              <a className="primary" href={`/api/profile/submissions/${encodeURIComponent(item.submission_code)}/print`} download={`${item.submission_code}-application.pdf`}><Download/>ไฟล์ข้อมูลผู้สมัคร</a>
             </div>
           </article>)}
         </div>
@@ -90,6 +93,45 @@ export default async function ParticipantProfilePage() {
       <div className="participant-profile-help"><Mail/><p>ข้อมูลไม่ถูกต้องหรือต้องการความช่วยเหลือ ติดต่อ <a href="mailto:innocontest@police.go.th">innocontest@police.go.th</a></p></div>
     </section>
   </>;
+}
+
+function preferredRegistrationCards<T extends {
+  item: Awaited<ReturnType<typeof findRegistrationsByEmail>>[number];
+  evaluation: Awaited<ReturnType<typeof findEvaluationByRegistrationCode>>;
+}>(cards: T[]) {
+  const bestByOwner = new Map<string, T>();
+  for (const card of cards) {
+    const key = registrationOwnerKey(card.item);
+    const existing = bestByOwner.get(key);
+    if (!existing || registrationCardScore(card) > registrationCardScore(existing)) {
+      bestByOwner.set(key, card);
+    }
+  }
+  return [...bestByOwner.values()].sort((left, right) => {
+    const leftTime = new Date(left.item.checked_in_at || left.item.registered_at).getTime();
+    const rightTime = new Date(right.item.checked_in_at || right.item.registered_at).getTime();
+    return rightTime - leftTime;
+  });
+}
+
+function registrationOwnerKey(item: Awaited<ReturnType<typeof findRegistrationsByEmail>>[number]) {
+  const citizenId = item.citizen_id.trim();
+  if (citizenId) return `citizen:${citizenId}`;
+  return [
+    "profile",
+    item.email.trim().toLowerCase(),
+    item.phone.trim(),
+    `${item.title}${item.first_name}${item.last_name}`.trim().toLowerCase(),
+  ].join(":");
+}
+
+function registrationCardScore(card: {
+  item: Awaited<ReturnType<typeof findRegistrationsByEmail>>[number];
+  evaluation: Awaited<ReturnType<typeof findEvaluationByRegistrationCode>>;
+}) {
+  const statusScore = card.evaluation ? 300 : card.item.status === "attended" ? 200 : card.item.status === "registered" ? 100 : 0;
+  const timeScore = new Date(card.item.checked_in_at || card.item.registered_at).getTime() / 100000000000;
+  return statusScore + timeScore;
 }
 
 function roleLabel(role?: string | null) {

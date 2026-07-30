@@ -28,8 +28,12 @@ const detailPageHeight = 841.89;
 const detailContentTop = 132;
 const detailContentBottom = 782;
 
-export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail) {
-  const detailPdf = await submissionDetailPdf(submission);
+export type SubmissionPrintPacketOptions = {
+  reviewerLabel?: string | null;
+};
+
+export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions = {}) {
+  const detailPdf = await submissionDetailPdf(submission, options);
   const merged = await PdfLibDocument.create();
   const missingAttachments: string[] = [];
   await appendPdf(merged, detailPdf);
@@ -65,7 +69,7 @@ async function appendPdf(target: PdfLibDocument, sourceBytes: Uint8Array | Buffe
   pages.forEach((page) => target.addPage(page));
 }
 
-async function submissionDetailPdf(submission: AdminSubmissionDetail) {
+async function submissionDetailPdf(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
   const doc = new PDFKitDocument({ size: "A4", margin: 0 });
   const pdf = collectPdf(doc);
   const width = detailPageWidth;
@@ -99,7 +103,7 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail) {
   startPage();
   let y = detailContentTop;
   y = drawSectionTitle(doc, "ข้อมูลผลงาน", y);
-  y = drawInfoGrid(doc, [
+  const workInfoRows: Array<[string, string]> = [
     ["ชื่อผลงานภาษาไทย", submission.title_th],
     ["Innovation Title", submission.title_en || "-"],
     ["ประเภทการส่ง", submission.submission_type === "team" ? `ส่งแบบกลุ่ม${submission.team_name ? ` (${submission.team_name})` : ""}` : "ส่งเดี่ยว"],
@@ -107,8 +111,10 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail) {
     ["บัญชีอีเมล", submission.email],
     ["Link Video", submission.video_url || "-"],
     ["Hashtag", submission.hashtags.map((tag) => `#${tag}`).join(" ") || "-"],
+    ...(options.reviewerLabel ? [["แอดมินผู้ตรวจ", options.reviewerLabel] as [string, string]] : []),
     ["คำอธิบายย่อ", submission.summary],
-  ], y, nextPage);
+  ];
+  y = drawInfoGrid(doc, workInfoRows, y, nextPage);
 
   y += 6;
   y = ensureRoom(y, 34);

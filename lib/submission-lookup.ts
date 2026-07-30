@@ -4,7 +4,7 @@ import type { RegistrationRecord } from "./local-registrations";
 import { findLocalSubmissionByCode, listLocalSubmissions, type LocalSubmissionRecord } from "./local-submissions";
 
 const submissionSelect =
-  "SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.status,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.citizen_id,m.phone,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1";
+  "SELECT DISTINCT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.status,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.citizen_id,m.phone,m.position,m.division,m.bureau FROM submissions s JOIN users u ON u.id=s.user_id JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1";
 
 export async function findSubmissionByCode(code: string) {
   try {
@@ -30,7 +30,7 @@ export async function findSubmissionsByEmail(emailInput: string) {
       ) ORDER BY s.submitted_at DESC`,
       [email, email],
     );
-    const databaseRows = rows as LocalSubmissionRecord[];
+    const databaseRows = uniqueSubmissionsByCode(rows as LocalSubmissionRecord[]);
     return databaseRows.length ? databaseRows : findLocalSubmissionsByEmail(email);
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
@@ -67,5 +67,20 @@ async function findLocalSubmissionsByEmail(email: string) {
   return submissions
     .filter((item) => item.email.trim().toLowerCase() === email
       || item.members?.some((member) => member.email?.trim().toLowerCase() === email))
+    .filter(uniqueSubmissionFilter())
     .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+}
+
+function uniqueSubmissionsByCode(submissions: LocalSubmissionRecord[]) {
+  return submissions.filter(uniqueSubmissionFilter());
+}
+
+function uniqueSubmissionFilter() {
+  const seen = new Set<string>();
+  return (submission: LocalSubmissionRecord) => {
+    const key = submission.submission_code.trim().toUpperCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
 }

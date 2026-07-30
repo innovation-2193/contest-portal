@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
-import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
+import { cookieName, getAdminSession, superAdminEmails } from "../../../../../../lib/admin-auth";
 import { adminUnauthorizedResponse } from "../../../../../../lib/admin-api-response";
 import { getSubmissionDetail } from "../../../../../../lib/admin-store";
+import { findAdminAccountByEmail } from "../../../../../../lib/admin-users";
 import { submissionPrintPacketPdf } from "../../../../../../lib/submission-print-packet";
 
 export const runtime = "nodejs";
@@ -30,7 +31,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       entityId: submission.submission_code,
       summary: `เปิดชุดพิมพ์ใบสมัครประกวด ${submission.submission_code}`,
     }, request.headers);
-    const packet = await submissionPrintPacketPdf(submission);
+    const reviewerLabel = await getReviewerLabel({
+      assignedEmail: submission.review_assigned_admin_email,
+      scoredEmail: submission.review_scored_by_email,
+    });
+    const packet = await submissionPrintPacketPdf(submission, { reviewerLabel });
     return new NextResponse(new Uint8Array(packet), {
       headers: {
         "Content-Type": "application/pdf",
@@ -44,4 +49,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       { status: 500 },
     );
   }
+}
+
+async function getReviewerLabel(input: { assignedEmail: string | null; scoredEmail: string | null }) {
+  const scoredEmail = input.scoredEmail?.trim().toLowerCase() || "";
+  const assignedEmail = input.assignedEmail?.trim().toLowerCase() || "";
+  const email = scoredEmail || assignedEmail;
+  if (!email) return "ยังไม่ได้ระบุผู้ตรวจ";
+
+  const accountLabel = await getAdminDisplayName(email);
+  const roleLabel = scoredEmail ? "ผู้ส่งผลตรวจ" : "ผู้รับมอบหมายตรวจ";
+  return `${accountLabel} • ${roleLabel}`;
+}
+
+async function getAdminDisplayName(email: string) {
+  if (superAdminEmails.some((item) => item === email)) return `Super Admin (${email})`;
+  const account = await findAdminAccountByEmail(email);
+  if (account?.name) return `${account.name} (${account.email})`;
+  return email;
 }
