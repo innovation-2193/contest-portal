@@ -21,6 +21,7 @@ const reportFonts: PdfFontSet = {
   regular: pdfFontRegular,
   bold: pdfFontBold,
 };
+const rowsPerPage = 10;
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();
@@ -51,7 +52,6 @@ async function submissionApplicantsPdf(applicants: SubmissionApplicantExportRow[
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
-  const rowsPerPage = 10;
   const totalPages = Math.max(1, Math.ceil(applicants.length / rowsPerPage));
   doc.info.Title = "Police Innovation Contest 2026 submission applicants";
   doc.info.Subject = "รายชื่อผู้สมัครประกวดนวัตกรรมทั้งหมด";
@@ -60,7 +60,7 @@ async function submissionApplicantsPdf(applicants: SubmissionApplicantExportRow[
   for (let page = 0; page < totalPages; page += 1) {
     if (page > 0) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
     const rows = applicants.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-    drawPage(doc, rows, applicants.length, generatedAt, page + 1, totalPages, reportFonts);
+    drawPage(doc, rows, applicants.length, generatedAt, page * rowsPerPage, page + 1, totalPages, reportFonts);
   }
 
   doc.end();
@@ -72,21 +72,21 @@ function drawPage(
   rows: SubmissionApplicantExportRow[],
   totalApplicants: number,
   generatedAt: Date,
+  startIndex: number,
   pageNumber: number,
   totalPages: number,
   fonts: PdfFontSet,
 ) {
   const columns = [
+    ["ลำดับ", 34],
     ["รหัสผลงาน", 70],
-    ["ผลงาน", 110],
-    ["ประเภท", 36],
-    ["ลำดับ", 42],
-    ["คำนำหน้า", 44],
-    ["ชื่อ", 64],
-    ["นามสกุล", 64],
-    ["เลขบัตร", 72],
-    ["สังกัด / หน่วยงาน", 120],
-    ["อีเมล", 94],
+    ["ผลงาน", 120],
+    ["คำนำหน้า", 48],
+    ["ชื่อ", 70],
+    ["นามสกุล", 70],
+    ["เลขบัตร", 76],
+    ["สังกัด / หน่วยงาน", 138],
+    ["อีเมล", 112],
     ["โทร", 54],
   ] as const;
   const tableX = 22;
@@ -116,7 +116,7 @@ function drawPage(
   }
 
   rows.forEach((item, index) => {
-    drawApplicantRow(doc, tableX, headerY + 29 + index * rowHeight, rowHeight, columns, item, index, fonts);
+    drawApplicantRow(doc, tableX, headerY + 29 + index * rowHeight, rowHeight, columns, item, startIndex + index + 1, index, fonts);
   });
 
   drawDocumentFooter(doc, pageNumber, totalPages, `${totalApplicants.toLocaleString("th-TH")} คน`, fonts);
@@ -167,6 +167,7 @@ function drawApplicantRow(
   rowHeight: number,
   columns: readonly (readonly [string, number])[],
   item: SubmissionApplicantExportRow,
+  runningNumber: number,
   index: number,
   fonts: PdfFontSet,
 ) {
@@ -175,10 +176,9 @@ function drawApplicantRow(
   doc.moveTo(x, y + rowHeight).lineTo(x + totalWidth, y + rowHeight).lineWidth(0.45).stroke(PDF_THEME.line);
 
   const values = [
+    String(runningNumber),
     item.submission_code,
     item.title_th,
-    item.submission_type === "team" ? clean(item.team_name ?? "ทีม") : "เดี่ยว",
-    item.member_order === 1 ? "หลัก" : `สมาชิก ${item.member_order}`,
     item.title,
     item.first_name,
     item.last_name,
@@ -193,17 +193,17 @@ function drawApplicantRow(
     if (valueIndex > 0) {
       doc.moveTo(cursor, y + 5).lineTo(cursor, y + rowHeight - 5).lineWidth(0.25).stroke("#e3e9f2");
     }
-    const isPrimary = valueIndex === 0 || valueIndex === 5 || valueIndex === 6;
+    const isPrimary = valueIndex === 0 || valueIndex === 1 || valueIndex === 4 || valueIndex === 5;
     drawCellText(
       doc,
       clean(value),
       cursor + 5,
       y + 6,
       columns[valueIndex][1] - 10,
-      valueIndex === 0 || valueIndex === 9 ? 6.9 : 7.4,
+      valueIndex === 1 || valueIndex === 8 ? 6.9 : 7.4,
       isPrimary ? fonts.bold : fonts.regular,
       isPrimary ? PDF_THEME.navy : PDF_THEME.text,
-      valueIndex === 1 || valueIndex === 8 || valueIndex === 9 ? 2 : 1,
+      valueIndex === 2 || valueIndex === 7 || valueIndex === 8 ? 2 : 1,
     );
     cursor += columns[valueIndex][1];
   });
