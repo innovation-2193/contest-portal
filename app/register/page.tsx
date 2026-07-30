@@ -7,6 +7,7 @@ import { getActiveSession } from "../../lib/active-session";
 import { getAdminSettings, isEventRegistrationOpen } from "../../lib/admin-store";
 import { getParticipantSession, participantSessionCookie } from "../../lib/participant-session";
 import { findRegistrationByCode } from "../../lib/registration-lookup";
+import { findSubmissionsByEmail } from "../../lib/submission-lookup";
 
 export default async function Register() {
   const cookieStore = await cookies();
@@ -18,7 +19,8 @@ export default async function Register() {
   if (registration && registration.status !== "cancelled") {
     redirect(`/register/success?code=${encodeURIComponent(registration.registration_code)}`);
   }
-  if (session && !registration) redirect("/profile");
+  const submissions = session && !registration ? await findSubmissionsByEmail(session.email) : [];
+  if (session && !registration && submissions.length === 0) redirect("/profile");
   const settings = await getAdminSettings();
   const registrationOpen = isEventRegistrationOpen(settings);
   return <>

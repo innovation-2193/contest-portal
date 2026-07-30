@@ -4012,6 +4012,17 @@ body.consent-modal-open .step-rail {
   gap: 13px;
 }
 
+.participant-submissions > header > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.participant-submissions > header > a {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .participant-submissions > header > svg {
   box-sizing: content-box;
   flex: 0 0 auto;
@@ -12740,6 +12751,12 @@ body:has(.report-page) .brand b {
   }
   .participant-submissions {
     padding: 18px;
+  }
+  .participant-submissions > header {
+    flex-wrap: wrap;
+  }
+  .participant-submissions > header > a {
+    width: 100%;
   }
   .participant-submission-icon {
     width: 40px;

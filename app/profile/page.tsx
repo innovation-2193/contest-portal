@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, QrCode, ShieldCheck, UserRound } from "lucide-react";
+import { ClipboardCheck, Download, FileCheck2, FolderOpen, Gift, LogOut, Mail, QrCode, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 import { PageHero } from "../../components/SiteChrome";
 import { findEvaluationByRegistrationCode } from "../../lib/evaluation-store";
 import { findRegistrationsByEmail } from "../../lib/registration-lookup";
@@ -23,6 +23,7 @@ export default async function ParticipantProfilePage() {
     item,
     evaluation: evaluations[index],
   })));
+  const hasActiveRegistration = registrations.some((item) => item.status !== "cancelled");
 
   return <>
     <PageHero
@@ -73,7 +74,11 @@ export default async function ParticipantProfilePage() {
         })}
       </div>
       {submissions.length > 0 && <section className="participant-submissions">
-        <header><FolderOpen/><div><span className="eyebrow">MY SUBMISSIONS</span><h2>ผลงานประกวดของฉัน</h2><p>รายการผลงานที่เชื่อมกับอีเมลบัญชีนี้</p></div></header>
+        <header>
+          <FolderOpen/>
+          <div><span className="eyebrow">MY SUBMISSIONS</span><h2>ผลงานประกวดของฉัน</h2><p>รายการผลงานที่เชื่อมกับอีเมลบัญชีนี้</p></div>
+          {!hasActiveRegistration && <a className="primary" href="/register/form?from=submission"><UserPlus/>ลงทะเบียนเข้าร่วมงาน</a>}
+        </header>
         <div className="participant-submission-list">
           {submissions.map((item) => <article key={item.submission_code}>
             <div className="participant-submission-icon"><FileCheck2/></div>
@@ -85,6 +90,7 @@ export default async function ParticipantProfilePage() {
             </div>
             <div className="participant-submission-actions">
               <a className="secondary" href={`/submit/success?code=${encodeURIComponent(item.submission_code)}`}><FolderOpen/>ดูรายละเอียด</a>
+              {!hasActiveRegistration && <a className="secondary" href="/register/form?from=submission"><UserPlus/>ลงทะเบียนเข้าร่วมงาน</a>}
               <a className="primary" href={`/api/profile/submissions/${encodeURIComponent(item.submission_code)}/print`} download={`${item.submission_code}-application.pdf`}><Download/>ไฟล์ข้อมูลผู้สมัคร</a>
             </div>
           </article>)}

@@ -21,7 +21,20 @@ function isThaiMobilePhone(value: string) {
   return /^0[689]\d{8}$/.test(value);
 }
 
-export function RegistrationForm() {
+export type RegistrationPrefill = {
+  email: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  citizen_id: string;
+  phone: string;
+  position: string;
+  division: string;
+  bureau: string;
+  sourceSubmissionCode?: string;
+};
+
+export function RegistrationForm({ prefill }: { prefill?: RegistrationPrefill | null }) {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState("");
@@ -92,17 +105,22 @@ export function RegistrationForm() {
         <h2>กรอกข้อมูลลงทะเบียน</h2>
         <p>หลังบันทึก ระบบจะสร้าง QR Code ส่งไปยังอีเมลของผู้สมัคร และมี PDF สำหรับดาวน์โหลดเพื่อแสดงหน้างาน</p>
       </div>
+      {prefill?.sourceSubmissionCode && (
+        <p className="police-only-note">
+          ระบบดึงข้อมูลจากผลงานประกวดเลขที่ {prefill.sourceSubmissionCode} มาเติมให้แล้ว กรุณาตรวจสอบและกรอกข้อมูลที่ยังขาดก่อนยืนยันการลงทะเบียน
+        </p>
+      )}
 
       <div className="form-grid">
-        <label className="span-2">อีเมล<RequiredMark /><input type="email" name="email" required placeholder="name@example.com" /></label>
-        <label>คำนำหน้า<RequiredMark /><input name="title" required maxLength={32} placeholder="เช่น นาย, นางสาว, พ.ต.อ." /></label>
-        <label>ชื่อ<RequiredMark /><input name="firstName" required placeholder="ชื่อจริง" /></label>
-        <label>นามสกุล<RequiredMark /><input name="lastName" required placeholder="นามสกุล" /></label>
-        <label>หมายเลขบัตรประชาชน<RequiredMark /><input name="citizenId" inputMode="numeric" pattern="[0-9]{13}" maxLength={13} required placeholder="13 หลัก" onInput={digitsOnly} title="กรอกเลขบัตรประชาชน 13 หลักที่ถูกต้อง" /></label>
-        <label>เบอร์ติดต่อ<RequiredMark /><input name="phone" inputMode="tel" pattern={mobilePattern} maxLength={10} required placeholder="0812345678" onInput={digitsOnly} title="กรอกเบอร์มือถือ 10 หลักที่ขึ้นต้นด้วย 06, 08 หรือ 09" /></label>
-        <label>ตำแหน่ง<RequiredMark /><input name="position" required placeholder="ตำแหน่งงาน" /></label>
-        <label>สังกัด<RequiredMark /><input name="division" required placeholder="เช่น กลุ่มงาน / ฝ่าย / หน่วยงานต้นสังกัด" /></label>
-        <label>หน่วยงาน<RequiredMark /><input name="bureau" required placeholder="ชื่อหน่วยงาน" /></label>
+        <label className="span-2">อีเมล<RequiredMark />{prefill?.email ? <><input type="email" value={prefill.email} disabled readOnly /><input type="hidden" name="email" value={prefill.email} /></> : <input type="email" name="email" required placeholder="name@example.com" />}</label>
+        <label>คำนำหน้า<RequiredMark /><input name="title" required maxLength={32} defaultValue={prefill?.title ?? ""} placeholder="เช่น นาย, นางสาว, พ.ต.อ." /></label>
+        <label>ชื่อ<RequiredMark /><input name="firstName" required defaultValue={prefill?.first_name ?? ""} placeholder="ชื่อจริง" /></label>
+        <label>นามสกุล<RequiredMark /><input name="lastName" required defaultValue={prefill?.last_name ?? ""} placeholder="นามสกุล" /></label>
+        <label>หมายเลขบัตรประชาชน<RequiredMark /><input name="citizenId" inputMode="numeric" pattern="[0-9]{13}" maxLength={13} required defaultValue={prefill?.citizen_id ?? ""} placeholder="13 หลัก" onInput={digitsOnly} title="กรอกเลขบัตรประชาชน 13 หลักที่ถูกต้อง" /></label>
+        <label>เบอร์ติดต่อ<RequiredMark /><input name="phone" inputMode="tel" pattern={mobilePattern} maxLength={10} required defaultValue={prefill?.phone ?? ""} placeholder="0812345678" onInput={digitsOnly} title="กรอกเบอร์มือถือ 10 หลักที่ขึ้นต้นด้วย 06, 08 หรือ 09" /></label>
+        <label>ตำแหน่ง<RequiredMark /><input name="position" required defaultValue={prefill?.position ?? ""} placeholder="ตำแหน่งงาน" /></label>
+        <label>สังกัด<RequiredMark /><input name="division" required defaultValue={prefill?.division ?? ""} placeholder="เช่น กลุ่มงาน / ฝ่าย / หน่วยงานต้นสังกัด" /></label>
+        <label>หน่วยงาน<RequiredMark /><input name="bureau" required defaultValue={prefill?.bureau ?? ""} placeholder="ชื่อหน่วยงาน" /></label>
       </div>
 
       <div className="delivery-callout">

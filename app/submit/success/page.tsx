@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { FileCheck2, FolderOpen } from "lucide-react";
+import { FileCheck2, FolderOpen, UserPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { PageHero, SideNotes } from "../../../components/SiteChrome";
 import { getParticipantSession, participantSessionCookie } from "../../../lib/participant-session";
+import { findRegistrationsByEmail } from "../../../lib/registration-lookup";
 import { findSubmissionsByEmail } from "../../../lib/submission-lookup";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,11 @@ export default async function SubmissionSuccess({
   const session = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
   if (!session) redirect("/profile/login");
 
-  const submissions = await findSubmissionsByEmail(session.email);
+  const [registrations, submissions] = await Promise.all([
+    findRegistrationsByEmail(session.email),
+    findSubmissionsByEmail(session.email),
+  ]);
+  const hasActiveRegistration = registrations.some((registration) => registration.status !== "cancelled");
   const item = code
     ? submissions.find((submission) => submission.submission_code === code)
     : submissions[0];
@@ -49,6 +54,7 @@ export default async function SubmissionSuccess({
                 <div><dt>กองบังคับการ / กองบัญชาการ</dt><dd>{item.division} / {item.bureau}</dd></div>
                 <div><dt>สถานะ</dt><dd>{submissionStatusLabel(item.status)}</dd></div>
               </dl>
+              {!hasActiveRegistration && <Link className="primary participant-back-link" href="/register/form?from=submission"><UserPlus/>ลงทะเบียนเข้าร่วมงาน</Link>}
               <Link className="secondary participant-back-link" href="/profile"><FolderOpen/>ดูผลงานทั้งหมดในโปรไฟล์</Link>
             </article>
           : <article className="success-card">
