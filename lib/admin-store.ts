@@ -138,6 +138,24 @@ export type SubmissionListItem = {
   bureau: string;
 };
 
+export type SubmissionApplicantExportRow = {
+  submission_code: string;
+  title_th: string;
+  submission_type: string;
+  team_name: string | null;
+  member_order: number;
+  title: string;
+  first_name: string;
+  last_name: string;
+  citizen_id: string;
+  position: string;
+  division: string;
+  bureau: string;
+  email: string;
+  phone: string;
+  submitted_at: string;
+};
+
 export type SubmissionMemberDetail = {
   member_order: number;
   title: string;
@@ -843,6 +861,25 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
+  }
+}
+
+export async function listSubmissionApplicantsForExport(): Promise<SubmissionApplicantExportRow[]> {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT s.submission_code,s.title_th,s.submission_type,s.team_name,s.submitted_at,
+        m.member_order,m.title,m.first_name,m.last_name,m.citizen_id,m.position,m.division,m.bureau,m.email,m.phone
+       FROM submissions s
+       JOIN submission_members m ON m.submission_id=s.id
+       ORDER BY s.submitted_at DESC,m.member_order ASC
+       LIMIT 3000`,
+    );
+    return rows as SubmissionApplicantExportRow[];
+  } catch (error) {
+    if (isDatabaseSchemaFallback(error)) return listSubmissionApplicantsForExportCompat();
+    if (!isDatabaseUnavailable(error)) throw error;
+    return listLocalSubmissionApplicantsForExport();
   }
 }
 
@@ -1559,6 +1596,61 @@ async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | n
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
   }
+}
+
+async function listSubmissionApplicantsForExportCompat(): Promise<SubmissionApplicantExportRow[]> {
+  try {
+    const [rows] = await db.execute(
+      `SELECT s.submission_code,s.title_th,s.submission_type,s.team_name,s.submitted_at,
+        m.member_order,m.title,m.first_name,m.last_name,m.citizen_id,'' AS position,'' AS division,'' AS bureau,m.email,m.phone
+       FROM submissions s
+       JOIN submission_members m ON m.submission_id=s.id
+       ORDER BY s.submitted_at DESC,m.member_order ASC
+       LIMIT 3000`,
+    );
+    return rows as SubmissionApplicantExportRow[];
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    return listLocalSubmissionApplicantsForExport();
+  }
+}
+
+async function listLocalSubmissionApplicantsForExport(): Promise<SubmissionApplicantExportRow[]> {
+  const submissions = await listLocalSubmissions();
+  return submissions.flatMap((submission) => {
+    const fallbackMembers = submission.members?.length ? submission.members : [{
+      title: submission.title,
+      first_name: submission.first_name,
+      last_name: submission.last_name,
+      citizen_id: submission.citizen_id,
+      phone: submission.phone,
+      email: submission.email,
+      position: submission.position,
+      division: submission.division,
+      bureau: submission.bureau,
+    }];
+    return fallbackMembers.map((member, index) => ({
+      submission_code: submission.submission_code,
+      title_th: submission.title_th,
+      submission_type: submission.submission_type,
+      team_name: submission.team_name,
+      member_order: index + 1,
+      title: member.title,
+      first_name: member.first_name,
+      last_name: member.last_name,
+      citizen_id: member.citizen_id,
+      position: member.position,
+      division: member.division,
+      bureau: member.bureau,
+      email: member.email,
+      phone: member.phone,
+      submitted_at: submission.submitted_at,
+    }));
+  }).sort((left, right) => (
+    right.submitted_at.localeCompare(left.submitted_at)
+    || left.submission_code.localeCompare(right.submission_code)
+    || left.member_order - right.member_order
+  ));
 }
 
 function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionListItem {

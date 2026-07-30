@@ -24,10 +24,22 @@ export async function findSubmissionsByEmail(emailInput: string) {
   if (!email) return [];
   try {
     const [rows] = await db.execute(
-      `${submissionSelect} WHERE LOWER(u.email)=? OR EXISTS (
-        SELECT 1 FROM submission_members member_email
-        WHERE member_email.submission_id=s.id AND LOWER(member_email.email)=?
-      ) ORDER BY s.submitted_at DESC`,
+      `SELECT DISTINCT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.status,s.submitted_at,
+        COALESCE(matched.email,u.email) AS email,
+        COALESCE(matched.title,primary_member.title) AS title,
+        COALESCE(matched.first_name,primary_member.first_name) AS first_name,
+        COALESCE(matched.last_name,primary_member.last_name) AS last_name,
+        COALESCE(matched.citizen_id,primary_member.citizen_id) AS citizen_id,
+        COALESCE(matched.phone,primary_member.phone) AS phone,
+        COALESCE(matched.position,primary_member.position) AS position,
+        COALESCE(matched.division,primary_member.division) AS division,
+        COALESCE(matched.bureau,primary_member.bureau) AS bureau
+       FROM submissions s
+       JOIN users u ON u.id=s.user_id
+       JOIN submission_members primary_member ON primary_member.submission_id=s.id AND primary_member.member_order=1
+       LEFT JOIN submission_members matched ON matched.submission_id=s.id AND LOWER(matched.email)=?
+       WHERE LOWER(u.email)=? OR matched.member_order IS NOT NULL
+       ORDER BY s.submitted_at DESC`,
       [email, email],
     );
     const databaseRows = uniqueSubmissionsByCode(rows as LocalSubmissionRecord[]);
@@ -67,8 +79,26 @@ async function findLocalSubmissionsByEmail(email: string) {
   return submissions
     .filter((item) => item.email.trim().toLowerCase() === email
       || item.members?.some((member) => member.email?.trim().toLowerCase() === email))
+    .map((item) => localSubmissionForViewer(item, email))
     .filter(uniqueSubmissionFilter())
     .sort((a, b) => b.submitted_at.localeCompare(a.submitted_at));
+}
+
+function localSubmissionForViewer(submission: LocalSubmissionRecord, email: string): LocalSubmissionRecord {
+  const matchedMember = submission.members?.find((member) => member.email?.trim().toLowerCase() === email);
+  if (!matchedMember) return submission;
+  return {
+    ...submission,
+    email: matchedMember.email.trim().toLowerCase(),
+    title: matchedMember.title,
+    first_name: matchedMember.first_name,
+    last_name: matchedMember.last_name,
+    citizen_id: matchedMember.citizen_id,
+    phone: matchedMember.phone,
+    position: matchedMember.position,
+    division: matchedMember.division,
+    bureau: matchedMember.bureau,
+  };
 }
 
 function uniqueSubmissionsByCode(submissions: LocalSubmissionRecord[]) {
