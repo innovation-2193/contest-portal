@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, FileSpreadsheet, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { ArrowLeft, Eye, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
@@ -52,7 +52,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       <div className="admin-topline">
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจ และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
         <div className="admin-actions">
-          {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export/xlsx"><FileSpreadsheet/>Export รายชื่อผู้สมัคร</a>}
+          {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export"><FileText/>Export PDF รายชื่อผู้สมัคร</a>}
           <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
         </div>
       </div>

@@ -70,7 +70,7 @@ const allowedAuditActions = new Set([
   "submission.delete_otp_requested",
   "submission.file_opened",
   "submission.print_packet",
-  "submission.applicants_export_xlsx",
+  "submission.applicants_export_pdf",
   "submission.review.assigned",
   "submission.score.submitted",
   "submission.scoreboard_pdf",
