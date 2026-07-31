@@ -14,8 +14,10 @@ import { sendSubmissionAssignmentEmail } from "../../../lib/submission-assignmen
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
+type SubmissionSort = "oldest" | "newest";
+type ReviewFilter = "all" | "unassigned" | "assigned" | "pending" | "scored";
 
-export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string }> }) {
+export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; sort?: string; review?: string; reviewer?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -23,26 +25,38 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
   const isSuperAdmin = session.role === "super_admin";
   const params = await searchParams;
   const q = (params.q ?? "").trim();
+  const sort: SubmissionSort = params.sort === "newest" ? "newest" : "oldest";
+  const review = normalizeReviewFilter(params.review);
+  const reviewer = isSuperAdmin ? (params.reviewer ?? "").trim().toLowerCase() : "";
   const page = Math.max(1, Number(params.page ?? "1") || 1);
   const [submissions, admins] = await Promise.all([
     listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }),
     isSuperAdmin ? listAdminAccounts() : Promise.resolve([]),
   ]);
   const activeAdmins = admins.filter((admin) => !admin.disabled);
-  const all = filterRecords(submissions, q, (item) => [
-    item.submission_code,
-    item.email,
-    item.title_th,
-    item.team_name,
-    item.first_name,
-    item.last_name,
-    item.position,
-    item.division,
-    item.bureau,
-    item.hashtags.join(" "),
-    item.status,
-    item.review_assigned_admin_email,
-  ]);
+  const all = sortSubmissions(
+    filterByReviewer(
+      filterByReviewStatus(
+        filterRecords(submissions, q, (item) => [
+          item.submission_code,
+          item.email,
+          item.title_th,
+          item.team_name,
+          item.first_name,
+          item.last_name,
+          item.position,
+          item.division,
+          item.bureau,
+          item.hashtags.join(" "),
+          item.status,
+          item.review_assigned_admin_email,
+        ]),
+        review,
+      ),
+      reviewer,
+    ),
+    sort,
+  );
   const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const items = all.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -61,6 +75,22 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อผลงาน ผู้สมัคร อีเมล รหัส SUB หรือผู้ตรวจ"/></div></label>
+          <label>สถานะตรวจ<select name="review" defaultValue={review}>
+            <option value="all">ทั้งหมด</option>
+            <option value="unassigned">ยังไม่ assign</option>
+            <option value="assigned">assign แล้ว</option>
+            <option value="pending">รอตรวจ</option>
+            <option value="scored">ส่งคะแนนแล้ว</option>
+          </select></label>
+          {isSuperAdmin && <label>ผู้ตรวจ<select name="reviewer" defaultValue={reviewer}>
+            <option value="">ผู้ตรวจทั้งหมด</option>
+            <option value="__unassigned">ยังไม่ assign</option>
+            {activeAdmins.map((admin) => <option key={admin.id} value={admin.email.toLowerCase()}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
+          </select></label>}
+          <label>เรียงลำดับ<select name="sort" defaultValue={sort}>
+            <option value="oldest">เก่าไปใหม่</option>
+            <option value="newest">ใหม่ไปเก่า</option>
+          </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
         <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr key={item.submission_code}>
@@ -80,7 +110,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
             <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a>
           </div></td>
         </tr>) : <tr><td colSpan={8}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
-        <Pagination basePath="/admin/submissions" q={q} page={currentPage} totalPages={totalPages}/>
+        <Pagination basePath="/admin/submissions" q={q} sort={sort} review={review} reviewer={reviewer} page={currentPage} totalPages={totalPages}/>
       </section>
     </div>
   </div>;
@@ -153,8 +183,14 @@ async function registerSubmissionParticipantAction(formData: FormData) {
   redirect(adminNoticePath("/admin/submissions", "competitor_registered"));
 }
 
-function Pagination({ basePath, q, page, totalPages }: { basePath: string; q: string; page: number; totalPages: number }) {
-  const href = (target: number) => `${basePath}?${new URLSearchParams({ ...(q ? { q } : {}), page: String(target) })}`;
+function Pagination({ basePath, q, sort, review, reviewer, page, totalPages }: { basePath: string; q: string; sort: SubmissionSort; review: ReviewFilter; reviewer: string; page: number; totalPages: number }) {
+  const href = (target: number) => `${basePath}?${new URLSearchParams({
+    ...(q ? { q } : {}),
+    ...(review !== "all" ? { review } : {}),
+    ...(reviewer ? { reviewer } : {}),
+    ...(sort !== "oldest" ? { sort } : {}),
+    page: String(target),
+  })}`;
   return <nav className="audit-pagination" aria-label="pagination">
     {page <= 1 ? <span className="disabled-action" aria-disabled="true">ก่อนหน้า</span> : <Link className="secondary" href={href(page - 1)}>ก่อนหน้า</Link>}
     <span>หน้า {page.toLocaleString("th-TH")} / {totalPages.toLocaleString("th-TH")}</span>
@@ -166,6 +202,32 @@ function filterRecords<T>(records: T[], query: string, pickFields: (record: T) =
   const needle = query.toLowerCase().replace(/\s+/g, " ").trim();
   if (!needle) return records;
   return records.filter((record) => pickFields(record).some((value) => String(value ?? "").toLowerCase().includes(needle)));
+}
+
+function normalizeReviewFilter(value?: string): ReviewFilter {
+  if (value === "unassigned" || value === "assigned" || value === "pending" || value === "scored") return value;
+  return "all";
+}
+
+function filterByReviewStatus<T extends Awaited<ReturnType<typeof listSubmissions>>[number]>(records: T[], review: ReviewFilter) {
+  if (review === "unassigned") return records.filter((item) => !item.review_assigned_admin_email);
+  if (review === "assigned") return records.filter((item) => Boolean(item.review_assigned_admin_email));
+  if (review === "pending") return records.filter((item) => Boolean(item.review_assigned_admin_email) && !item.review_submitted_at);
+  if (review === "scored") return records.filter((item) => Boolean(item.review_submitted_at));
+  return records;
+}
+
+function filterByReviewer<T extends Awaited<ReturnType<typeof listSubmissions>>[number]>(records: T[], reviewer: string) {
+  if (!reviewer) return records;
+  if (reviewer === "__unassigned") return records.filter((item) => !item.review_assigned_admin_email);
+  return records.filter((item) => item.review_assigned_admin_email?.toLowerCase() === reviewer);
+}
+
+function sortSubmissions<T extends Awaited<ReturnType<typeof listSubmissions>>[number]>(records: T[], sort: SubmissionSort) {
+  return [...records].sort((a, b) => {
+    const diff = new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
+    return sort === "newest" ? -diff : diff;
+  });
 }
 
 function reviewStatus(item: Awaited<ReturnType<typeof listSubmissions>>[number]) {

@@ -6007,7 +6007,7 @@ body:has(.prelander-page)::before {
 
 .participant-filter-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 190px;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(150px, 190px));
   gap: 12px;
   align-items: end;
 }

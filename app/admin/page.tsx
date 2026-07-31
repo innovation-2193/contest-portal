@@ -65,9 +65,11 @@ import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-m
 export const dynamic = "force-dynamic";
 
 type ParticipantSort = "newest" | "oldest";
+type SubmissionSort = "newest" | "oldest";
+type ReviewFilter = "all" | "unassigned" | "assigned" | "pending" | "scored";
 const dashboardLimit = 10;
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; adminSearch?: string; parkingAll?: string; parkingEdit?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; submissionReview?: string; submissionSort?: string; adminSearch?: string; parkingAll?: string; parkingEdit?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
@@ -87,6 +89,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const participantSearch = (params.participantSearch ?? "").trim();
   const participantSort: ParticipantSort = params.participantSort === "oldest" ? "oldest" : "newest";
   const submissionSearch = (params.submissionSearch ?? "").trim();
+  const submissionReview = normalizeReviewFilter(params.submissionReview);
+  const submissionSort: SubmissionSort = params.submissionSort === "newest" ? "newest" : "oldest";
   const adminSearch = (params.adminSearch ?? "").trim();
   const searchedParticipants = filterRecords(participants, participantSearch, (item) => [
     item.registration_code,
@@ -109,18 +113,24 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     participantSort,
   );
   const participantRoleCounts = buildParticipantRoleCounts(participants);
-  const filteredSubmissionsAll = filterRecords(submissions, submissionSearch, (item) => [
-    item.submission_code,
-    item.email,
-    item.title_th,
-    item.team_name ?? "",
-    item.first_name,
-    item.last_name,
-    item.position,
-    item.division,
-    item.bureau,
-    item.status,
-  ]);
+  const filteredSubmissionsAll = sortSubmissions(
+    filterByReviewStatus(
+      filterRecords(submissions, submissionSearch, (item) => [
+        item.submission_code,
+        item.email,
+        item.title_th,
+        item.team_name ?? "",
+        item.first_name,
+        item.last_name,
+        item.position,
+        item.division,
+        item.bureau,
+        item.status,
+      ]),
+      submissionReview,
+    ),
+    submissionSort,
+  );
   const filteredAdminAccounts = sortAdminAccounts(filterRecords(adminAccounts, adminSearch, (item) => [
     item.email,
     item.name,
@@ -160,7 +170,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
-    <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} isSuperAdmin={isSuperAdmin}/>
+    <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
     {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>}
@@ -366,12 +376,16 @@ function ReviewQueuePanel({
   total,
   allSubmissions,
   search,
+  review,
+  sort,
   isSuperAdmin,
 }: {
   submissions: Awaited<ReturnType<typeof listSubmissions>>;
   total: number;
   allSubmissions: Awaited<ReturnType<typeof listSubmissions>>;
   search: string;
+  review: ReviewFilter;
+  sort: SubmissionSort;
   isSuperAdmin: boolean;
 }) {
   const pendingReview = allSubmissions.filter((item) => !item.review_submitted_at).length;
@@ -394,9 +408,9 @@ function ReviewQueuePanel({
       <div className="stat-panel review-stat"><UserCheck/><b>{assignedCount.toLocaleString("th-TH")}</b><span>{assignmentLabel}</span></div>
       <div className="stat-panel review-stat"><Settings/><b>{allSubmissions.length.toLocaleString("th-TH")}</b><span>ใบสมัครในคิวนี้</span></div>
     </div>
-    <SearchBox name="submissionSearch" value={search} label="ค้นหาใบสมัครประกวด" placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/>
+    <SubmissionQueueFilterBar search={search} review={review} sort={sort}/>
     <ReviewQueueTable submissions={submissions}/>
-    <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
+    <CardMore total={total} shown={submissions.length} href={submissionListHref(search, review, sort)}/>
   </section>;
 }
 
@@ -619,6 +633,23 @@ function AdminTable({ headers, rows }: { headers: string[]; rows: string[][] }) 
 function SearchBox({ name, value, label, placeholder }: { name: string; value: string; label: string; placeholder: string }) {
   return <form className="admin-search" action="/admin">
     <label>{label}<div><Search/><input name={name} defaultValue={value} placeholder={placeholder}/><button className="secondary" type="submit">ค้นหา</button>{value && <Link className="ghost-action" href="/admin">ล้าง</Link>}</div></label>
+  </form>;
+}
+
+function SubmissionQueueFilterBar({ search, review, sort }: { search: string; review: ReviewFilter; sort: SubmissionSort }) {
+  return <form className="admin-search participant-filter-bar" action="/admin">
+    <label>ค้นหาใบสมัครประกวด<div><Search/><input name="submissionSearch" defaultValue={search} placeholder="ชื่อผลงาน ชื่อผู้สมัคร ทีม อีเมล หรือรหัส SUB"/><button className="secondary" type="submit">ค้นหา</button>{(search || review !== "all" || sort !== "oldest") && <Link className="ghost-action" href="/admin">ล้าง</Link>}</div></label>
+    <label>สถานะตรวจ<select name="submissionReview" defaultValue={review}>
+      <option value="all">ทั้งหมด</option>
+      <option value="unassigned">ยังไม่ assign</option>
+      <option value="assigned">assign แล้ว</option>
+      <option value="pending">รอตรวจ</option>
+      <option value="scored">ส่งคะแนนแล้ว</option>
+    </select></label>
+    <label>เรียงลำดับ<select name="submissionSort" defaultValue={sort}>
+      <option value="oldest">เก่าไปใหม่</option>
+      <option value="newest">ใหม่ไปเก่า</option>
+    </select></label>
   </form>;
 }
 
@@ -1187,11 +1218,41 @@ function sortParticipants<T extends { registered_at: string }>(records: T[], sor
   });
 }
 
+function normalizeReviewFilter(value?: string): ReviewFilter {
+  if (value === "unassigned" || value === "assigned" || value === "pending" || value === "scored") return value;
+  return "all";
+}
+
+function filterByReviewStatus<T extends Awaited<ReturnType<typeof listSubmissions>>[number]>(records: T[], review: ReviewFilter) {
+  if (review === "unassigned") return records.filter((item) => !item.review_assigned_admin_email);
+  if (review === "assigned") return records.filter((item) => Boolean(item.review_assigned_admin_email));
+  if (review === "pending") return records.filter((item) => Boolean(item.review_assigned_admin_email) && !item.review_submitted_at);
+  if (review === "scored") return records.filter((item) => Boolean(item.review_submitted_at));
+  return records;
+}
+
+function sortSubmissions<T extends Awaited<ReturnType<typeof listSubmissions>>[number]>(records: T[], sort: SubmissionSort) {
+  return [...records].sort((a, b) => {
+    const diff = new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
+    return sort === "newest" ? -diff : diff;
+  });
+}
+
 function sortAdminAccounts<T extends { updatedAt: string; createdAt: string; email: string }>(records: T[]) {
   return [...records].sort((a, b) => {
     const diff = new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     return diff || a.email.localeCompare(b.email);
   });
+}
+
+function submissionListHref(search: string, review: ReviewFilter, sort: SubmissionSort) {
+  const params = new URLSearchParams({
+    ...(search ? { q: search } : {}),
+    ...(review !== "all" ? { review } : {}),
+    ...(sort !== "oldest" ? { sort } : {}),
+  });
+  const query = params.toString();
+  return query ? `/admin/submissions?${query}` : "/admin/submissions";
 }
 
 function toInputDate(value: string) {
