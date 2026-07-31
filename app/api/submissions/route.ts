@@ -22,6 +22,7 @@ import { findSubmissionsByEmail } from "../../../lib/submission-lookup";
 import { isThaiCitizenId } from "../../../lib/validation";
 import { recordAuditEvent } from "../../../lib/audit-log";
 import { generateSubmissionHashtags, serializeSubmissionHashtags } from "../../../lib/submission-hashtags";
+import { buildSubmissionHashtagContext } from "../../../lib/submission-file-text";
 export const runtime = "nodejs";
 
 const fields = z.object({
@@ -43,10 +44,11 @@ export async function POST(request:Request){
     const files=fileTypes.map(type=>({type,file:form.get(type)}));
     for(const item of files) if(!(item.file instanceof File)||item.file.type!=="application/pdf"||item.file.size<1||item.file.size>10*1024*1024) throw new Error(`กรุณาแนบ ${item.type} เป็น PDF ขนาดไม่เกิน 10 MB`);
     const submissionId=randomUUID(),submissionCode=code("SUB"),uploadRoot=path.join(process.cwd(),"storage","uploads",submissionId);
-    const hashtags = serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary }));
     await mkdir(uploadRoot,{recursive:true});
     const stored=[] as Array<{id:string;type:string;original:string;stored:string;mime:string;size:number;hash:string;bytes:Uint8Array}>;
     for(const {type,file} of files){const pdf=file as File,bytes=new Uint8Array(await pdf.arrayBuffer()),storedName=`${type}-${randomUUID()}.pdf`;if(Buffer.from(bytes.subarray(0,5)).toString("ascii")!=="%PDF-")throw new Error(`${pdf.name} ไม่ใช่ไฟล์ PDF ที่ถูกต้อง`);stored.push({id:randomUUID(),type,original:pdf.name.slice(0,255),stored:storedName,mime:pdf.type,size:pdf.size,hash:createHash("sha256").update(bytes).digest("hex"),bytes});}
+    const documentText = await buildSubmissionHashtagContext(stored.map((item) => ({ documentType: item.type, originalName: item.original, bytes: item.bytes })));
+    const hashtags = serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText }));
     for(const item of stored)await writeFile(path.join(uploadRoot,item.stored),item.bytes);
     await ensureDatabaseSchema();
     try{await transaction(async connection=>{
@@ -59,7 +61,7 @@ export async function POST(request:Request){
       for(const [index,member] of teamMembers.entries())await connection.execute("INSERT INTO submission_members(id,submission_id,member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",[randomUUID(),submissionId,index+2,member.title,member.firstName,member.lastName,member.citizenId,member.phone,member.email,member.position,member.division,member.bureau]);
       for(const item of stored)await connection.execute("INSERT INTO submission_files(id,submission_id,document_type,original_name,stored_name,mime_type,byte_size,sha256) VALUES(?,?,?,?,?,?,?,?)",[item.id,submissionId,item.type,item.original,item.stored,item.mime,item.size,item.hash]);
       await connection.execute("INSERT INTO audit_logs(actor_user_id,action,entity_type,entity_id,payload) VALUES(?,?,?,?,?)",[userId,"submission.created","submission",submissionId,JSON.stringify({submissionCode,type:data.submissionType})]);
-    });}catch(error){if(isDatabaseUnavailable(error)){await createLocalSubmission({submissionId,submissionCode,data,teamMembers,files:stored});}else{await rm(uploadRoot,{recursive:true,force:true});throw error;}}
+    });}catch(error){if(isDatabaseUnavailable(error)){await createLocalSubmission({submissionId,submissionCode,data:{...data,hashtagContext:documentText},teamMembers,files:stored});}else{await rm(uploadRoot,{recursive:true,force:true});throw error;}}
     const email=await sendSubmissionConfirmation({submission_code:submissionCode,submission_type:data.submissionType,team_name:data.teamName||null,title_th:data.titleTh,title_en:data.titleEn||null,email:data.email,title:data.title,first_name:data.firstName,last_name:data.lastName,phone:data.phone,position:data.position,division:data.division,bureau:data.bureau});
     await recordAuditEvent({
       actor:{type:"public",email:data.email},

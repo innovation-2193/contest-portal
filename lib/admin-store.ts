@@ -34,6 +34,7 @@ import {
   parseSubmissionHashtags,
   serializeSubmissionHashtags,
 } from "./submission-hashtags";
+import { buildSubmissionHashtagContext } from "./submission-file-text";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -1060,6 +1061,19 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
 
       const primary = input.members[0];
       if (!primary) throw new Error("primary member is required");
+      const [fileRows] = await connection.execute(
+        "SELECT document_type,original_name,stored_name FROM submission_files WHERE submission_id=?",
+        [submission.id],
+      );
+      const documentText = await buildSubmissionHashtagContext((fileRows as Array<{
+        document_type: string;
+        original_name: string;
+        stored_name: string;
+      }>).map((file) => ({
+        documentType: file.document_type,
+        originalName: file.original_name,
+        filePath: path.join(storageDir, "uploads", submission.id, file.stored_name),
+      })));
       await connection.execute(
         "UPDATE users SET email=?,display_name=?,updated_at=CURRENT_TIMESTAMP(3) WHERE id=?",
         [input.email.trim().toLowerCase(), `${primary.first_name} ${primary.last_name}`, submission.user_id],
@@ -1072,7 +1086,7 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
           input.titleTh,
           input.titleEn || null,
           input.summary.slice(0, 500),
-          serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary })),
+          serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
           input.videoUrl || null,
           input.status,
           submission.id,

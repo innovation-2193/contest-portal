@@ -2,6 +2,7 @@ type HashtagSource = {
   titleTh?: string | null;
   titleEn?: string | null;
   summary?: string | null;
+  documentText?: string | null;
 };
 
 const meaningTags: Array<{ tag: string; pattern: RegExp; weight: number }> = [
@@ -45,10 +46,14 @@ const stopWords = new Set([
 ]);
 
 export function generateSubmissionHashtags(source: HashtagSource) {
-  const text = [source.titleTh, source.titleEn, source.summary].filter(Boolean).join(" ");
+  const titleText = [source.titleTh, source.titleEn].filter(Boolean).join(" ");
+  const summaryText = source.summary ?? "";
+  const documentText = source.documentText ?? "";
+  const text = [titleText, summaryText, documentText].filter(Boolean).join(" ");
   const scored = meaningTags
-    .filter((item) => item.pattern.test(text))
-    .sort((a, b) => b.weight - a.weight)
+    .map((item) => ({ tag: item.tag, score: scoreMeaningTag(item, titleText, summaryText, documentText) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
     .map((item) => item.tag);
   const tags = uniqueTags(scored).slice(0, 3);
 
@@ -66,12 +71,13 @@ export function generateSubmissionHashtags(source: HashtagSource) {
 }
 
 export function parseSubmissionHashtags(value?: string | null, fallback?: HashtagSource) {
-  if (fallback) return generateSubmissionHashtags(fallback);
   const tags = String(value ?? "")
     .split(/[,\n]/)
     .map((tag) => normalizeTag(tag))
     .filter(Boolean);
   const unique = uniqueTags(tags).slice(0, 3);
+  if (unique.length) return unique;
+  if (fallback) return generateSubmissionHashtags(fallback);
   return unique;
 }
 
@@ -89,6 +95,22 @@ function extractTokens(text: string) {
   return [...english, ...thai]
     .map((token) => normalizeTag(token))
     .filter((token) => token && !stopWords.has(token.toLowerCase()) && !stopWords.has(token));
+}
+
+function scoreMeaningTag(item: { pattern: RegExp; weight: number }, titleText: string, summaryText: string, documentText: string) {
+  let score = 0;
+  if (item.pattern.test(titleText)) score += item.weight * 5;
+  if (item.pattern.test(summaryText)) score += item.weight * 3;
+  const documentMatches = countPatternMatches(documentText, item.pattern);
+  if (documentMatches) score += item.weight + Math.min(documentMatches, 8) * 8;
+  return score;
+}
+
+function countPatternMatches(text: string, pattern: RegExp) {
+  if (!text) return 0;
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const globalPattern = new RegExp(pattern.source, flags);
+  return [...text.matchAll(globalPattern)].length;
 }
 
 function normalizeTag(value: string) {

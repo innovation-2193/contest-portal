@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { generateSubmissionHashtags, serializeSubmissionHashtags } from "./submission-hashtags";
+import { buildSubmissionHashtagContext } from "./submission-file-text";
 
 export type LocalSubmissionMember = {
   title: string;
@@ -101,6 +102,7 @@ type LocalSubmissionInput = {
     titleTh: string;
     titleEn?: string;
     summary: string;
+    hashtagContext?: string;
     videoUrl?: string;
   };
   teamMembers: Array<{
@@ -170,7 +172,7 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       title_th: data.titleTh,
       title_en: data.titleEn ?? "",
       summary: data.summary.slice(0, 500),
-      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary })),
+      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText: data.hashtagContext })),
       video_url: data.videoUrl ?? "",
       status: "submitted",
       review_assigned_admin_email: null,
@@ -239,6 +241,11 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
     const current = store.submissions[index];
     const primary = input.members[0];
     if (!primary) throw new Error("primary member is required");
+    const documentText = await buildSubmissionHashtagContext(current.files.map((file) => ({
+      documentType: file.document_type,
+      originalName: file.original_name,
+      filePath: path.join(storageDir, "uploads", current.upload_id ?? "", file.stored_name),
+    })));
     const record: LocalSubmissionRecord = {
       ...current,
       submission_type: input.submissionType,
@@ -246,7 +253,7 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
       title_th: input.titleTh,
       title_en: input.titleEn,
       summary: input.summary.slice(0, 500),
-      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary })),
+      hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
       video_url: input.videoUrl,
       status: input.status,
       email: input.email.trim().toLowerCase(),
