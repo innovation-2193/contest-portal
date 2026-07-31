@@ -196,12 +196,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการที่ผ่านเข้าสู่ 10 ทีมสุดท้าย ระบบจะแสดงเป็นรายชื่อเดียว และรอบถัดไปเริ่มนับคะแนนใหม่</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
-        <label>เลือกผลงาน<select name="submissionCode" required>
+        <label className="winner-select-field">เลือกผลงาน<select name="submissionCode" required>
           <option value="">{availableWinnerSubmissions.length ? "เลือกจากใบสมัครประกวดที่ยังไม่เคยประกาศผล" : "ไม่มีผลงานที่เหลือให้ประกาศผล"}</option>
           {availableWinnerSubmissions.map((submission)=><option key={submission.submission_code} value={submission.submission_code}>{submission.submission_code} • {submission.title_th} • {submission.first_name} {submission.last_name}{submission.review_total_score !== null && submission.review_total_score !== undefined ? ` • ${submission.review_total_score}/100` : ""}</option>)}
         </select></label>
-        <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่</label>
-        <button className="primary" type="submit" disabled={!availableWinnerSubmissions.length}>เพิ่มรายชื่อ</button>
+        <label className="inline-check winner-publish-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่และส่งอีเมล</label>
+        <button className="primary winner-submit" type="submit" disabled={!availableWinnerSubmissions.length}><UserPlus/>เพิ่มรายชื่อ</button>
       </form>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>ลำดับ</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map((winner, index)=><tr key={winner.id}><td data-label="ลำดับ"><b>{(index + 1).toLocaleString("th-TH")}</b></td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
@@ -601,7 +601,7 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
         <div className="scoreboard-actions">
           <form action={registerSubmissionParticipantAction}>
             <input type="hidden" name="submissionCode" value={submission.submission_code}/>
-            <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>
+            <button className="primary small-action" type="submit"><Mail/>ลงทะเบียนร่วมงาน+ส่ง QR</button>
           </form>
           <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(submission.submission_code)}`}><Eye/>ดูคะแนน</Link>
           <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(submission.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ใบสมัคร</a>

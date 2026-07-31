@@ -3,9 +3,11 @@ import PDFKitDocument from "pdfkit";
 import {
   listParticipants,
   listSubmissions,
+  listWinners,
   type SubmissionListItem,
 } from "../../../../lib/admin-store";
 import type { RegistrationRecord } from "../../../../lib/local-registrations";
+import { buildAnnouncedFinalistSources } from "../../../../lib/announced-finalists";
 import { buildBoothUnitStats } from "../../../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../../../lib/participant-type-breakdown";
 import {
@@ -17,7 +19,6 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
-import { sortScoreboardSubmissions } from "../../../../lib/scoreboard-ranking";
 import { getSiteStats, type SiteDailyStat, type SiteStats } from "../../../../lib/site-analytics";
 
 export const runtime = "nodejs";
@@ -25,12 +26,13 @@ export const runtime = "nodejs";
 const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
 
 export async function GET() {
-  const [participants, submissions, siteStats] = await Promise.all([
+  const [participants, submissions, siteStats, winners] = await Promise.all([
     listParticipants(),
     listSubmissions(),
     getSiteStats(),
+    listWinners(),
   ]);
-  const pdf = await dailyReportPdf(participants, submissions, siteStats);
+  const pdf = await dailyReportPdf(participants, submissions, siteStats, winners);
   const fileDate = bangkokDayKey(new Date());
 
   return new NextResponse(new Uint8Array(pdf), {
@@ -46,6 +48,7 @@ async function dailyReportPdf(
   participants: RegistrationRecord[],
   submissions: SubmissionListItem[],
   siteStats: SiteStats,
+  winners: Awaited<ReturnType<typeof listWinners>>,
 ) {
   const doc = new PDFKitDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: true });
   const pdf = collectPdf(doc);
@@ -59,8 +62,8 @@ async function dailyReportPdf(
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const scoreBoardTopTen = sortScoreboardSubmissions(submissions).slice(0, 10);
-  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
+  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions);
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: announcedFinalists });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);

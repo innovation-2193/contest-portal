@@ -161,7 +161,7 @@ function scoreRowValues(item: SubmissionListItem, index: number) {
     item.submission_code,
     item.title_th,
     `${item.first_name} ${item.last_name}`,
-    item.review_scored_by_email || item.review_assigned_admin_email || "-",
+    item.review_assigned_admin_email || item.review_scored_by_email || "-",
     `${item.review_total_score ?? "-"}`,
     "ส่งแล้ว",
   ];

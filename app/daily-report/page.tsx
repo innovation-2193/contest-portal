@@ -20,13 +20,14 @@ import {
 import {
   listParticipants,
   listSubmissions,
+  listWinners,
   type SubmissionListItem,
 } from "../../lib/admin-store";
 import { VisitTrendChart } from "../../components/VisitTrendChart";
 import type { RegistrationRecord } from "../../lib/local-registrations";
+import { buildAnnouncedFinalistSources } from "../../lib/announced-finalists";
 import { buildBoothUnitStats, type BoothUnitStat } from "../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
-import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
 import { getSiteStats } from "../../lib/site-analytics";
 
 export const dynamic = "force-dynamic";
@@ -125,10 +126,11 @@ const orgCommands: OrgCommand[] = [
 ];
 
 export default async function DailyReportPage() {
-  const [participants, submissions, siteStats] = await Promise.all([
+  const [participants, submissions, siteStats, winners] = await Promise.all([
     listParticipants(),
     listSubmissions(),
     getSiteStats(),
+    listWinners(),
   ]);
 
   const activeParticipants = participants.filter((item) => item.status !== "cancelled");
@@ -138,8 +140,8 @@ export default async function DailyReportPage() {
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const scoreBoardTopTen = sortScoreboardSubmissions(submissions).slice(0, 10);
-  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
+  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions);
+  const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: announcedFinalists });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
@@ -638,7 +640,7 @@ function normalizeText(value: string) {
 }
 
 function participantStatusLabel(status: string) {
-  if (status === "scoreboard") return "อันดับ 1-10 Score Board";
+  if (status === "finalist") return "ประกาศ 10 ทีมสุดท้าย";
   if (status === "attended") return "เช็คอินแล้ว";
   if (status === "cancelled") return "ยกเลิก";
   return "ลงทะเบียนแล้ว";

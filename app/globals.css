@@ -6264,10 +6264,32 @@ body:has(.prelander-page)::before {
 }
 
 .winner-form {
-  grid-template-columns: minmax(150px, 0.58fr) minmax(300px, 1.45fr) minmax(220px, 0.9fr) minmax(110px, auto) minmax(120px, auto);
+  grid-template-columns: minmax(320px, 1fr) max-content minmax(190px, 240px);
   align-items: end;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin: 18px 0 16px;
+  padding: 14px;
+  border: 1px solid rgba(64, 89, 128, 0.46);
+  border-radius: 14px;
+  background: rgba(2, 11, 27, 0.34);
+}
+
+.winner-form .winner-select-field {
+  min-width: 0;
+}
+
+.winner-form .winner-publish-check {
+  min-height: 42px;
+  padding: 0 8px;
+  align-self: end;
+  color: #dfe8f7;
+  white-space: nowrap;
+}
+
+.winner-form .winner-submit {
+  width: 100%;
+  min-height: 44px;
+  justify-self: stretch;
 }
 
 .news-form {

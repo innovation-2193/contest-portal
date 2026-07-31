@@ -54,12 +54,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
 async function getReviewerLabel(input: { assignedEmail: string | null; scoredEmail: string | null }) {
   const scoredEmail = input.scoredEmail?.trim().toLowerCase() || "";
   const assignedEmail = input.assignedEmail?.trim().toLowerCase() || "";
-  const email = scoredEmail || assignedEmail;
+  const email = assignedEmail || scoredEmail;
   if (!email) return "ยังไม่ได้ระบุผู้ตรวจ";
 
   const accountLabel = await getAdminDisplayName(email);
-  const roleLabel = scoredEmail ? "ผู้ส่งผลตรวจ" : "ผู้รับมอบหมายตรวจ";
-  return `${accountLabel} • ${roleLabel}`;
+  return `${accountLabel} • ผู้ตรวจ`;
 }
 
 async function getAdminDisplayName(email: string) {
