@@ -146,11 +146,8 @@ export default async function DailyReportPage() {
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const pendingReview = Math.max(0, submissions.length - scored.length);
-  const qualified = submissions.filter((item) => item.status === "qualified");
-  const rejected = submissions.filter((item) => item.status === "rejected");
   const reviewPercent = submissions.length ? Math.round((scored.length / submissions.length) * 100) : 0;
   const reportSubmissions = submissions;
-  const statusStats = buildStatusStats(submissions);
 
   return <div className="admin-page report-page">
     <div className="wide">
@@ -188,12 +185,23 @@ export default async function DailyReportPage() {
             <span>ผู้เข้าร่วมงาน</span>
             <span>และผลงานประกวด</span>
           </h2>
-          <div className="report-summary-list" aria-label="รายงานสรุปประจำวัน">
-            <p><span>ลงทะเบียนเข้าร่วมงาน</span><strong>{activeParticipants.length.toLocaleString("th-TH")} คน</strong></p>
-            <p><span>ส่งผลงานประกวด</span><strong>{submissions.length.toLocaleString("th-TH")} รายการ</strong></p>
-            <p><span>เช็คอินเข้าร่วมงานแล้ว</span><strong>{attended.length.toLocaleString("th-TH")} คน</strong></p>
-            <p><span>หน่วยจัดบูธที่ลงทะเบียน</span><strong>{boothUnits.length.toLocaleString("th-TH")} หน่วย</strong></p>
-            <p><span>รอตรวจผลงานประกวด</span><strong>{pendingReview.toLocaleString("th-TH")} รายการ</strong></p>
+          <div className="report-hero-groups" aria-label="รายงานสรุปประจำวัน">
+            <article>
+              <header><Users/><span>ลงทะเบียนเข้าร่วมงาน</span></header>
+              <p><span>ลงทะเบียนทั้งหมด</span><strong>{activeParticipants.length.toLocaleString("th-TH")} คน</strong></p>
+              <p><span>เช็คอินแล้ว</span><strong>{attended.length.toLocaleString("th-TH")} คน</strong></p>
+            </article>
+            <article>
+              <header><Building2/><span>จัดบูธ</span></header>
+              <p><span>หน่วยจัดบูธที่ลงทะเบียน</span><strong>{boothUnits.length.toLocaleString("th-TH")} หน่วย</strong></p>
+              <p><span>หน่วยที่เช็คอินแล้ว</span><strong>{attendedBoothUnits.length.toLocaleString("th-TH")} หน่วย</strong></p>
+            </article>
+            <article>
+              <header><FileText/><span>ประกวดนวัตกรรม</span></header>
+              <p><span>ผลงานที่ส่งทั้งหมด</span><strong>{submissions.length.toLocaleString("th-TH")} รายการ</strong></p>
+              <p><span>ตรวจแล้ว</span><strong>{scored.length.toLocaleString("th-TH")} รายการ</strong></p>
+              <p><span>ยังไม่ได้ตรวจ</span><strong>{pendingReview.toLocaleString("th-TH")} รายการ</strong></p>
+            </article>
           </div>
           <p className="report-hero-note">
             <span>สรุปยอดประจำวัน</span>
@@ -240,7 +248,7 @@ export default async function DailyReportPage() {
         </article>
 
         <article className="admin-panel report-panel">
-          <header><CheckCircle2/><div><h2>สถานะผลงาน</h2><p>ดูความคืบหน้าการตรวจและงานที่ควรติดตามต่อ</p></div></header>
+          <header><CheckCircle2/><div><h2>สถานะผลงานประกวด</h2><p>สรุปจำนวนผลงานที่ส่งเข้าระบบและความคืบหน้าการตรวจ</p></div></header>
           <div className="report-status-dashboard">
             <div className="report-status-overview">
               <div className="report-status-dial" style={{ "--progress": `${reviewPercent}%` } as CSSProperties}>
@@ -248,27 +256,19 @@ export default async function DailyReportPage() {
                 <span>ตรวจแล้ว</span>
               </div>
               <div className="report-status-insight">
-                <strong>{pendingReview ? `ยังรอตรวจ ${pendingReview.toLocaleString("th-TH")} รายการ` : "ตรวจครบทุกผลงานแล้ว"}</strong>
-                <p>{submittedToday.length ? `วันนี้มีผลงานใหม่ ${submittedToday.length.toLocaleString("th-TH")} รายการ ควรจัดคิวตรวจต่อ` : "วันนี้ยังไม่มีผลงานใหม่เพิ่มเติม"}</p>
+                <strong>{scored.length.toLocaleString("th-TH")} จาก {submissions.length.toLocaleString("th-TH")} รายการตรวจแล้ว</strong>
+                <p>{pendingReview ? `ยังไม่ได้ตรวจ ${pendingReview.toLocaleString("th-TH")} รายการ${submittedToday.length ? ` โดยวันนี้มีผลงานใหม่ ${submittedToday.length.toLocaleString("th-TH")} รายการ` : ""}` : "ตรวจครบทุกผลงานที่ส่งเข้าระบบแล้ว"}</p>
               </div>
             </div>
             <div className="report-status-kpi-grid">
-              <StatusKpi label="ใหม่วันนี้" value={submittedToday.length} detail="ผลงานส่งเข้าระบบวันนี้"/>
-              <StatusKpi label="รอตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวม"/>
-              <StatusKpi label="ผ่านเกณฑ์" value={qualified.length} detail="แอดมินตรวจแล้วและตั้งสถานะว่าผ่านเงื่อนไขการคัดเลือก"/>
-              <StatusKpi label="ไม่ผ่านเกณฑ์" value={rejected.length} detail="แอดมินตรวจแล้วและตั้งสถานะว่าไม่ผ่านเงื่อนไขการคัดเลือก"/>
+              <StatusKpi label="ผลงานที่ส่งทั้งหมด" value={submissions.length} detail="ใบสมัครประกวดที่ส่งเข้าระบบทั้งหมด"/>
+              <StatusKpi label="ตรวจแล้ว" value={scored.length} detail="มีคะแนนรวมจากผู้ตรวจแล้ว"/>
+              <StatusKpi label="ยังไม่ได้ตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวมในระบบ"/>
             </div>
-            <div className="report-status-explainer">
-              <b>ความหมายของสถานะ</b>
-              <p><strong>ผ่านเกณฑ์</strong> คือผลงานที่ผ่านการตรวจเอกสาร/คะแนนแล้ว และแอดมินตั้งสถานะเป็น qualified ในระบบ</p>
-              <p><strong>ไม่ผ่านเกณฑ์</strong> คือผลงานที่ตรวจแล้วไม่ผ่านเงื่อนไขการคัดเลือก และแอดมินตั้งสถานะเป็น rejected ในระบบ</p>
-            </div>
-            <div className="report-status-list">
-              {statusStats.map((item) => <div key={item.label}>
-                <span>{item.label}<small>{item.percent.toLocaleString("th-TH")}% ของทั้งหมด</small></span>
-                <b>{item.count.toLocaleString("th-TH")}</b>
-                <i><span style={{ width: `${item.percent}%` }}/></i>
-              </div>)}
+            <div className="report-status-progress">
+              <span>ความคืบหน้าการตรวจ</span>
+              <b>{reviewPercent.toLocaleString("th-TH")}%</b>
+              <i aria-hidden="true"><span style={{ width: `${reviewPercent}%` }}/></i>
             </div>
           </div>
         </article>
@@ -340,6 +340,7 @@ function participantTypeIcon(key: ParticipantTypeGroup["key"]) {
   if (key === "competitor") return <Trophy/>;
   if (key === "educationExhibitor") return <GraduationCap/>;
   if (key === "companyExhibitor") return <Building2/>;
+  if (key === "staff") return <UserCheck/>;
   if (key === "policeAttendee") return <ShieldCheck/>;
   return <Users/>;
 }
@@ -567,18 +568,6 @@ function aliasesMatch(text: string, aliases: string[]) {
     const normalizedAlias = normalizeText(alias);
     return text === normalizedAlias || text.includes(normalizedAlias);
   });
-}
-
-function buildStatusStats(submissions: SubmissionListItem[]) {
-  const counts = new Map<string, number>();
-  for (const item of submissions) counts.set(statusLabel(item.status), (counts.get(statusLabel(item.status)) ?? 0) + 1);
-  if (!counts.size) counts.set("ยังไม่มีข้อมูล", 0);
-  const total = Math.max(1, submissions.length);
-  return [...counts.entries()].map(([label, count]) => ({
-    label,
-    count,
-    percent: Math.round((count / total) * 100),
-  }));
 }
 
 function command(label: string, shortLabel: string, section: OrgSection, aliases: string[], bureaus: string[]): OrgCommand {

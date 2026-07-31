@@ -1,7 +1,7 @@
 import type { RegistrationRecord } from "./local-registrations";
 import { participantRoleClass } from "./participant-role-style";
 
-export type ParticipantTypeKey = "vip" | "competitor" | "policeAttendee" | "generalAttendee" | "educationExhibitor" | "companyExhibitor";
+export type ParticipantTypeKey = "vip" | "competitor" | "policeAttendee" | "generalAttendee" | "educationExhibitor" | "companyExhibitor" | "staff";
 
 export type CompetitorSource = {
   submission_code: string;
@@ -67,6 +67,7 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
     { key: "generalAttendee", label: "ผู้เข้าร่วมงาน (ทั่วไป)", detail: "Guest จากหน่วยงานทั่วไปหรือผู้เข้าร่วมภายนอก", people: [] },
     { key: "educationExhibitor", label: "ผู้จัดแสดงผลงาน (ส่วนการศึกษา)", detail: "Exhibitor จากสถาบันหรือหน่วยงานด้านการศึกษา", people: [] },
     { key: "companyExhibitor", label: "ผู้จัดแสดงผลงาน (บริษัท)", detail: "Exhibitor จากบริษัทหรือองค์กรเอกชน", people: [] },
+    { key: "staff", label: "Staff", detail: "ทีมงานและเจ้าหน้าที่สนับสนุนการจัดงาน", people: [] },
   ];
   const byKey = new Map(groups.map((group) => [group.key, group]));
   const competitorCodes = new Set<string>();
@@ -85,7 +86,6 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
   }
 
   for (const participant of participants) {
-    if (participant.participant_role === "Staff") continue;
     const key = participantTypeKey(participant);
     if (key === "competitor") continue;
     byKey.get(key)?.people.push({
@@ -108,6 +108,7 @@ function participantTypeKey(participant: RegistrationRecord): ParticipantTypeKey
       ? "educationExhibitor"
       : "companyExhibitor";
   }
+  if (participant.participant_role === "Staff") return "staff";
   if (participant.participant_role === "VIP") return "vip";
   if (participant.participant_role === "Competitor") return "competitor";
   return isPoliceParticipant(participant) ? "policeAttendee" : "generalAttendee";
