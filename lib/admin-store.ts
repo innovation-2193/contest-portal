@@ -538,6 +538,25 @@ export async function createParticipant(input: RegistrationInput) {
   return { record, emailStatus: email.status };
 }
 
+export async function findExistingUserEmails(emails: string[]) {
+  const uniqueEmails = [...new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+  if (!uniqueEmails.length) return new Set<string>();
+
+  try {
+    await ensureDatabaseSchema();
+    const placeholders = uniqueEmails.map(() => "?").join(",");
+    const [rows] = await db.execute(
+      `SELECT LOWER(email) AS email FROM users WHERE email IS NOT NULL AND LOWER(email) IN (${placeholders})`,
+      uniqueEmails,
+    );
+    return new Set((rows as Array<{ email: string }>).map((row) => row.email));
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const local = await listLocalRegistrations();
+    return new Set(local.map((item) => item.email.trim().toLowerCase()).filter((email) => uniqueEmails.includes(email)));
+  }
+}
+
 async function nextRegistrationCode(hasCollision: (candidate: string) => Promise<boolean>) {
   let registrationCode = code("REG");
   while (await hasCollision(registrationCode)) {

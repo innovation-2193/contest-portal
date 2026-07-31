@@ -7,7 +7,7 @@ import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { createParticipant, deleteParticipants, listParticipants } from "../../../lib/admin-store";
+import { createParticipant, deleteParticipants, findExistingUserEmails, listParticipants } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { participantRoles, type ParticipantRole } from "../../../lib/local-registrations";
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; participantRole?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -54,7 +54,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
         <div><span className="eyebrow">Participants</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า</p></div>
         <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
-      <AdminNotice code={params.notice}/>
+      <AdminNotice code={params.notice} error={params.error}/>
       <section className="admin-panel">
         <header className="admin-section-head"><Users/><div><h2>รายการผู้เข้าร่วมงาน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <details className="admin-edit-disclosure participant-create-disclosure">
@@ -77,7 +77,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
             <div>
               <b><FileSpreadsheet/>Bulk Import Excel</b>
-              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ ทุกช่องไม่บังคับ</small>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมลห้ามซ้ำ</small>
             </div>
             <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
             <div className="participant-bulk-actions">
@@ -121,19 +121,29 @@ async function bulkCreateParticipantsAction(formData: FormData) {
   const requestHeaders = await headers();
   const file = formData.get("file");
   if (!(file instanceof File)) throw new Error("กรุณาแนบไฟล์รายชื่อ");
-  const rows = await parseParticipantBulkFile(file);
+  let rows: Awaited<ReturnType<typeof parseParticipantBulkFile>>;
+  try {
+    rows = await parseParticipantBulkFile(file);
+  } catch (error) {
+    redirect(participantBulkErrorPath(errorMessage(error)));
+  }
+  const emails = rows.map((row) => row.email).filter(Boolean);
+  const existingEmails = await findExistingUserEmails(emails);
+  if (existingEmails.size) {
+    redirect(participantBulkErrorPath(`อีเมลไม่สามารถซ้ำกับในฐานข้อมูลที่เคยสมัครแล้วได้ กรุณาตรวจสอบ: ${[...existingEmails].join(", ")}`));
+  }
   const createdCodes: string[] = [];
 
   for (const row of rows) {
     const result = await createParticipant({
-      email: "",
+      email: row.email,
       provider: "local",
       participantRole: row.participantRole,
       title: row.title,
       firstName: row.firstName,
       lastName: row.lastName,
       citizenId: "",
-      phone: "",
+      phone: row.phone,
       position: row.position,
       division: row.division,
       bureau: row.bureau,
@@ -227,6 +237,14 @@ function Pagination({ basePath, q, role, page, totalPages }: { basePath: string;
 function participantsClearHref(role: string) {
   if (role === "all") return "/admin/participants";
   return `/admin/participants?participantRole=${encodeURIComponent(role)}`;
+}
+
+function participantBulkErrorPath(message: string) {
+  return `/admin/participants?${new URLSearchParams({ error: message })}`;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "ไม่สามารถนำเข้ารายชื่อได้ กรุณาตรวจสอบไฟล์อีกครั้ง";
 }
 
 function filterRecords<T>(records: T[], query: string, pickFields: (record: T) => Array<string | null | undefined>) {
