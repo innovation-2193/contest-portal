@@ -74,8 +74,8 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
                 <label>นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
                 <label>อีเมล<input type="email" name="email" defaultValue={item.email} placeholder="เว้นว่างได้สำหรับลงทะเบียนหลังบ้าน"/></label>
                 <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue={item.participant_role}>{participantRoles.map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
-                <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
-                <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
+                <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} placeholder="เว้นว่างได้ถ้าลงทะเบียนจากไฟล์"/></label>
+                <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} placeholder="เว้นว่างได้ถ้าลงทะเบียนจากไฟล์"/></label>
                 <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
                 <label>สังกัด / กองบังคับการ<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
                 <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ<input name="bureau" defaultValue={item.bureau} placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required/></label>
@@ -118,8 +118,8 @@ async function updateParticipantAction(formData: FormData) {
   const phone = text(formData, "phone");
   const status = text(formData, "status") || "registered";
   const participantRole = text(formData, "participantRole") as ParticipantRole;
-  if (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId)) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
-  if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
+  if (citizenId && (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId))) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
+  if (phone && !/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
   if (!["registered", "attended", "cancelled"].includes(status)) throw new Error("สถานะไม่ถูกต้อง");
   if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
   const registrationCode = text(formData, "registrationCode");

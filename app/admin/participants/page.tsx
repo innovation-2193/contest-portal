@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Download, Eye, FileSpreadsheet, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
@@ -11,6 +11,7 @@ import { createParticipant, deleteParticipants, listParticipants } from "../../.
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { participantRoles, type ParticipantRole } from "../../../lib/local-registrations";
+import { parseParticipantBulkFile } from "../../../lib/participant-bulk-import";
 import { participantRoleClass } from "../../../lib/participant-role-style";
 import { isThaiCitizenId } from "../../../lib/validation";
 
@@ -73,6 +74,17 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
             </div>
             <button className="primary" type="submit"><UserPlus/>บันทึกผู้เข้าร่วมงาน</button>
           </form>
+          <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
+            <div>
+              <b><FileSpreadsheet/>Bulk Import Excel</b>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, ตำแหน่ง ทุกช่องไม่บังคับ กรอกเท่าที่มีได้</small>
+            </div>
+            <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
+            <div className="participant-bulk-actions">
+              <Link className="secondary" href="/api/admin/participants/bulk-template"><Download/>ดาวน์โหลดไฟล์ต้นแบบ</Link>
+              <button className="secondary" type="submit"><FileSpreadsheet/>นำเข้ารายชื่อหลายคน</button>
+            </div>
+          </form>
         </details>
         <ParticipantRoleTabs activeRole={participantRole} basePath="/admin/participants" counts={participantRoleCounts} query={{ q }} />
         <form className="audit-filter-form" method="get">
@@ -87,7 +99,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           </div>
           <div className="admin-table-wrap"><table className="admin-table compact-admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
             <td data-label="รหัส"><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label></td>
-            <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+            <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id || "-"}</small></td>
             <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
             <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
             <td data-label="หน่วยงาน / หน่วยจัดบูธ">{item.position}<small>{participantOrganizationText(item)}</small></td>
@@ -101,6 +113,46 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
   </div>;
 }
 
+async function bulkCreateParticipantsAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  const requestHeaders = await headers();
+  const file = formData.get("file");
+  if (!(file instanceof File)) throw new Error("กรุณาแนบไฟล์รายชื่อ");
+  const rows = await parseParticipantBulkFile(file);
+  const createdCodes: string[] = [];
+
+  for (const row of rows) {
+    const result = await createParticipant({
+      email: "",
+      provider: "local",
+      participantRole: "Guest",
+      title: row.title,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      citizenId: "",
+      phone: "",
+      position: row.position,
+      division: "",
+      bureau: "",
+    });
+    createdCodes.push(result.record.registration_code);
+  }
+
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.bulk_import.by_admin",
+    entityType: "registration",
+    summary: `นำเข้าผู้เข้าร่วมงานจากไฟล์ ${createdCodes.length.toLocaleString("th-TH")} รายการ`,
+    payload: { total: createdCodes.length, registrationCodes: createdCodes },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath("/admin/participants");
+  redirect(adminNoticePath("/admin/participants", "participants_imported"));
+}
+
 async function createParticipantAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
@@ -110,8 +162,8 @@ async function createParticipantAction(formData: FormData) {
   const citizenId = text(formData, "citizenId");
   const phone = text(formData, "phone");
   const participantRole = text(formData, "participantRole") as ParticipantRole;
-  if (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId)) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
-  if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
+  if (citizenId && (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId))) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
+  if (phone && !/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
   if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
   const result = await createParticipant({
     email: text(formData, "email"),

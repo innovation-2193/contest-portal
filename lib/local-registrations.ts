@@ -95,8 +95,9 @@ export async function createLocalRegistration(input: RegistrationInput) {
   const work = async () => {
     const store = await readStore();
     const email = input.email.trim().toLowerCase();
-    const duplicate = store.registrations.some(
-      (item) => item.citizen_id === input.citizenId,
+    const citizenId = input.citizenId.trim();
+    const duplicate = Boolean(citizenId) && store.registrations.some(
+      (item) => item.citizen_id === citizenId,
     );
 
     if (duplicate) {
@@ -116,7 +117,7 @@ export async function createLocalRegistration(input: RegistrationInput) {
       title: input.title,
       first_name: input.firstName,
       last_name: input.lastName,
-      citizen_id: input.citizenId,
+      citizen_id: citizenId,
       phone: input.phone,
       position: input.position,
       division: input.division,
@@ -156,8 +157,9 @@ export async function updateLocalRegistration(input: RegistrationUpdateInput) {
     const index = store.registrations.findIndex((item) => item.registration_code === registrationCode);
     if (index === -1) throw Object.assign(new Error("registration not found"), { code: "NOT_FOUND" });
 
-    const duplicate = store.registrations.some(
-      (item) => item.registration_code !== registrationCode && item.citizen_id === input.citizenId,
+    const citizenId = input.citizenId.trim();
+    const duplicate = Boolean(citizenId) && store.registrations.some(
+      (item) => item.registration_code !== registrationCode && item.citizen_id === citizenId,
     );
     if (duplicate) {
       throw Object.assign(new Error("duplicate registration"), {
@@ -174,7 +176,7 @@ export async function updateLocalRegistration(input: RegistrationUpdateInput) {
       title: input.title,
       first_name: input.firstName,
       last_name: input.lastName,
-      citizen_id: input.citizenId,
+      citizen_id: citizenId,
       phone: input.phone,
       position: input.position,
       division: input.division,

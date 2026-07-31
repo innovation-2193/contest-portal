@@ -678,7 +678,7 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
     </div>
     <div className="admin-table-wrap"><table className="admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>ตำแหน่ง</th><th>กองบังคับการ</th><th>กองบัญชาการ</th><th>สถานะ</th><th></th></tr></thead><tbody>{participants.length ? participants.map(item => <tr key={item.registration_code}>
       <td data-label="รหัส"><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
-      <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
+      <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id || "-"}</small></td>
       <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
       <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
       <td data-label="ตำแหน่ง">{item.position}</td>

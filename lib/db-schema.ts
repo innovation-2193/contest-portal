@@ -40,6 +40,7 @@ async function ensureRegistrationColumns() {
   if (!await tableExists("registrations")) return;
   await db.execute("ALTER TABLE registrations MODIFY status ENUM('registered','attended','cancelled') NOT NULL DEFAULT 'registered'");
   await ensureColumn("registrations", "participant_role", "ALTER TABLE registrations ADD COLUMN participant_role VARCHAR(32) NOT NULL DEFAULT 'Guest' AFTER user_id");
+  await db.execute("ALTER TABLE registrations MODIFY citizen_id CHAR(13) NULL");
   await ensureColumn("registrations", "position", "ALTER TABLE registrations ADD COLUMN position VARCHAR(255) NOT NULL DEFAULT '' AFTER phone");
   await ensureColumn("registrations", "division", "ALTER TABLE registrations ADD COLUMN division VARCHAR(255) NOT NULL DEFAULT '' AFTER position");
   await ensureColumn("registrations", "bureau", "ALTER TABLE registrations ADD COLUMN bureau VARCHAR(255) NOT NULL DEFAULT '' AFTER division");

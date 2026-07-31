@@ -15,6 +15,7 @@ export const adminNoticeMessages = {
   parking_saved: "บันทึกรายการสำรองที่จอดรถเรียบร้อยแล้ว",
   parking_deleted: "ลบรายการสำรองที่จอดรถเรียบร้อยแล้ว",
   participant_created: "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมินเรียบร้อยแล้ว",
+  participants_imported: "นำเข้ารายชื่อผู้เข้าร่วมงานจากไฟล์เรียบร้อยแล้ว",
   participant_saved: "บันทึกข้อมูลผู้เข้าร่วมงานเรียบร้อยแล้ว",
   participant_deleted: "ลบข้อมูลผู้เข้าร่วมงานเรียบร้อยแล้ว",
   participants_deleted: "ลบข้อมูลผู้เข้าร่วมงานที่เลือกเรียบร้อยแล้ว",
