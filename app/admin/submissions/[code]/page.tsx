@@ -249,9 +249,9 @@ async function updateSubmissionAction(formData: FormData) {
   const email = text(formData, "email").toLowerCase();
   const summary = text(formData, "summary").slice(0, 500);
   const includedMembers = new Set(formData.getAll("includeMember").map(String));
-  const members = [1, 2, 3]
-    .filter((order) => order === 1 || submissionType === "team" && includedMembers.has(String(order)))
-    .map((order) => ({
+  const formMembers = [1, 2, 3].map((order) => {
+    const member = {
+      order,
       title: text(formData, `memberTitle_${order}`),
       first_name: text(formData, `memberFirstName_${order}`),
       last_name: text(formData, `memberLastName_${order}`),
@@ -261,7 +261,12 @@ async function updateSubmissionAction(formData: FormData) {
       position: text(formData, `memberPosition_${order}`),
       division: text(formData, `memberDivision_${order}`),
       bureau: text(formData, `memberBureau_${order}`),
-    }));
+    };
+    return { ...member, hasValue: hasMemberValue(member) };
+  });
+  const members = formMembers.filter((member) =>
+    member.order === 1 || submissionType === "team" && (includedMembers.has(String(member.order)) || member.hasValue),
+  );
 
   if (submissionType !== "individual" && submissionType !== "team") throw new Error("ประเภทการส่งไม่ถูกต้อง");
   if (!submissionStatuses.some(([value]) => value === status)) throw new Error("สถานะใบสมัครไม่ถูกต้อง");
@@ -271,11 +276,11 @@ async function updateSubmissionAction(formData: FormData) {
   const videoUrl = text(formData, "videoUrl");
   if (videoUrl) new URL(videoUrl);
 
-  for (const [index, member] of members.entries()) {
-    if (!member.title || !member.first_name || !member.last_name || !member.position || !member.division || !member.bureau) throw new Error(`กรุณากรอกข้อมูลสมาชิกคนที่ ${index + 1} ให้ครบ`);
-    if (!isThaiCitizenId(member.citizen_id)) throw new Error(`เลขบัตรประชาชนสมาชิกคนที่ ${index + 1} ไม่ถูกต้อง`);
-    if (!/^0[689]\d{8}$/.test(member.phone)) throw new Error(`เบอร์ติดต่อสมาชิกคนที่ ${index + 1} ไม่ถูกต้อง`);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email)) throw new Error(`อีเมลสมาชิกคนที่ ${index + 1} ไม่ถูกต้อง`);
+  for (const member of members) {
+    if (!member.title || !member.first_name || !member.last_name || !member.position || !member.division || !member.bureau) throw new Error(`กรุณากรอกข้อมูลสมาชิกคนที่ ${member.order} ให้ครบ`);
+    if (!isThaiCitizenId(member.citizen_id)) throw new Error(`เลขบัตรประชาชนสมาชิกคนที่ ${member.order} ไม่ถูกต้อง`);
+    if (!/^0[689]\d{8}$/.test(member.phone)) throw new Error(`เบอร์ติดต่อสมาชิกคนที่ ${member.order} ไม่ถูกต้อง`);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email)) throw new Error(`อีเมลสมาชิกคนที่ ${member.order} ไม่ถูกต้อง`);
   }
 
   await updateSubmission({
@@ -288,7 +293,7 @@ async function updateSubmissionAction(formData: FormData) {
     summary,
     videoUrl,
     status: status as "draft" | "submitted" | "screening" | "qualified" | "rejected",
-    members,
+    members: members.map(({ order: _order, hasValue: _hasValue, ...member }) => member),
   });
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -301,6 +306,30 @@ async function updateSubmissionAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "submission_saved"));
+}
+
+function hasMemberValue(member: {
+  title: string;
+  first_name: string;
+  last_name: string;
+  citizen_id: string;
+  phone: string;
+  email: string;
+  position: string;
+  division: string;
+  bureau: string;
+}) {
+  return Boolean(
+    member.title
+    || member.first_name
+    || member.last_name
+    || member.citizen_id
+    || member.phone
+    || member.email
+    || member.position
+    || member.division
+    || member.bureau,
+  );
 }
 
 async function saveScoreAction(formData: FormData) {
