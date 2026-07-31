@@ -15,6 +15,7 @@ import {
   participantRoles,
   updateLocalRegistration,
   type ParticipantRole,
+  type RegistrationInput,
   type RegistrationRecord,
   type RegistrationStatus,
   type RegistrationUpdateInput,
@@ -301,7 +302,7 @@ export async function listParticipants() {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
     );
     return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
   } catch (error) {
@@ -316,7 +317,7 @@ export async function listParkingReservations() {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
       `SELECT p.id,p.registration_code,p.car_plate,p.note,p.created_by_email,p.updated_by_email,p.created_at,p.updated_at,
-	      r.participant_role,r.title,r.first_name,r.last_name,r.phone,r.position,r.division,r.bureau,u.email
+	      r.participant_role,r.title,r.first_name,r.last_name,r.phone,r.position,r.division,r.bureau,COALESCE(u.email,'') AS email
 	       FROM parking_reservations p
 	       JOIN registrations r ON r.registration_code=p.registration_code
 	       JOIN users u ON u.id=r.user_id
@@ -448,7 +449,7 @@ export async function searchParticipants(query: string, limit = 12) {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider
+      `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider
        FROM registrations r
        JOIN users u ON u.id=r.user_id
        WHERE LOWER(CONCAT_WS(' ',r.registration_code,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,u.email)) LIKE ?
@@ -468,7 +469,7 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
   try {
     await ensureDatabaseSchema();
     await db.execute(
-      "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=?,u.provider=?,u.display_name=?,r.participant_role=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=?,r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END,r.checked_in_by_email=CASE WHEN ?='attended' THEN r.checked_in_by_email ELSE NULL END WHERE r.registration_code=?",
+      "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=NULLIF(?,''),u.provider=?,u.display_name=?,r.participant_role=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=?,r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END,r.checked_in_by_email=CASE WHEN ?='attended' THEN r.checked_in_by_email ELSE NULL END WHERE r.registration_code=?",
       [
         input.email.trim().toLowerCase(),
         input.provider,
@@ -492,6 +493,54 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
     if (!isDatabaseUnavailable(error)) throw error;
     await updateLocalRegistration(input);
   }
+}
+
+export async function createParticipant(input: RegistrationInput) {
+  let record: RegistrationRecord;
+  try {
+    await ensureDatabaseSchema();
+    const result = await transaction(async (connection) => {
+      const registrationCode = await nextRegistrationCode(async (candidate) => {
+        const [codeRows] = await connection.execute("SELECT registration_code FROM registrations WHERE registration_code=? LIMIT 1", [candidate]);
+        return (codeRows as Array<{ registration_code: string }>).length > 0;
+      });
+      const [existingRows] = await connection.execute("SELECT registration_code FROM registrations WHERE citizen_id=? LIMIT 1", [input.citizenId]);
+      if ((existingRows as Array<{ registration_code: string }>).length > 0) {
+        throw Object.assign(new Error("duplicate registration"), { code: "DUPLICATE_CITIZEN_ID" });
+      }
+
+      const userId = randomUUID();
+      const registrationId = randomUUID();
+      const email = input.email.trim().toLowerCase();
+      await connection.execute(
+        "INSERT INTO users(id,email,provider,display_name) VALUES(?,?,?,?)",
+        [userId, email || null, input.provider, `${input.firstName} ${input.lastName}`],
+      );
+      await connection.execute(
+        "INSERT INTO registrations(id,registration_code,user_id,participant_role,title,first_name,last_name,citizen_id,phone,position,division,bureau,consent_pdpa) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [registrationId, registrationCode, userId, input.participantRole ?? "Guest", input.title, input.firstName, input.lastName, input.citizenId, input.phone, input.position, input.division, input.bureau, true],
+      );
+      return registrationCode;
+    });
+    const found = await findRegisteredParticipantRecord(result);
+    if (!found) throw Object.assign(new Error("registration not found"), { code: "NOT_FOUND" });
+    record = found;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const result = await createLocalRegistration(input);
+    record = result.record;
+  }
+
+  const email = await sendRegistrationConfirmation(record);
+  return { record, emailStatus: email.status };
+}
+
+async function nextRegistrationCode(hasCollision: (candidate: string) => Promise<boolean>) {
+  let registrationCode = code("REG");
+  while (await hasCollision(registrationCode)) {
+    registrationCode = code("REG");
+  }
+  return registrationCode;
 }
 
 export async function registerSubmissionAsParticipant(submissionCode: string) {
@@ -575,7 +624,7 @@ export async function registerSubmissionAsParticipant(submissionCode: string) {
 
 async function findRegisteredParticipantRecord(registrationCode: string) {
   const [rows] = await db.execute(
-    "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
+    "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
     [registrationCode],
   );
   const record = (rows as RegistrationRecord[])[0];
@@ -649,7 +698,7 @@ export async function checkInParticipant(registrationCode: string, checkedInByEm
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
+      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id WHERE r.registration_code=? LIMIT 1",
       [registrationCode.trim()],
     );
     const record = (rows as RegistrationRecord[])[0];
@@ -1397,7 +1446,7 @@ function parkingReservationDbRowToRecord(row: ParkingReservationDbRow): ParkingR
 
 async function findParkingEligibleParticipant(registrationCode: string) {
   const [rows] = await db.execute(
-    `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,u.email,u.provider
+    `SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider
      FROM registrations r
      JOIN users u ON u.id=r.user_id
      WHERE r.registration_code=? AND r.participant_role IN ('VIP','Exhibitor','Staff') AND r.status<>'cancelled'
@@ -1566,7 +1615,7 @@ async function ensureNewsTable() {
 async function listParticipantsCompat() {
   try {
     const [rows] = await db.execute(
-      "SELECT r.registration_code,'Guest' AS participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,'' AS position,'' AS division,'' AS bureau,r.status,NULL AS checked_in_at,r.registered_at,u.email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+      "SELECT r.registration_code,'Guest' AS participant_role,r.title,r.first_name,r.last_name,r.citizen_id,r.phone,'' AS position,'' AS division,'' AS bureau,r.status,NULL AS checked_in_at,NULL AS checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
     );
     return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
   } catch (error) {

@@ -20,6 +20,7 @@ export async function ensureDatabaseSchema() {
 }
 
 async function runSchemaRepair() {
+  await ensureUserColumns();
   await ensureRegistrationColumns();
   await ensureSubmissionColumns();
   await ensureSatisfactionEvaluationsTable();
@@ -28,6 +29,11 @@ async function runSchemaRepair() {
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
   await ensureParkingReservationsTable();
+}
+
+async function ensureUserColumns() {
+  if (!await tableExists("users")) return;
+  await db.execute("ALTER TABLE users MODIFY email VARCHAR(255) NULL");
 }
 
 async function ensureRegistrationColumns() {

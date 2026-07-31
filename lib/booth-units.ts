@@ -23,6 +23,10 @@ function compactBoothUnit(participant: RegistrationRecord) {
   const parts = [participant.division, participant.bureau]
     .map((item) => item.trim().replace(/\s+/g, " "))
     .filter(Boolean);
+  const boothUnit = participant.bureau.trim().replace(/\s+/g, " ");
+  if (participant.participant_role === "Exhibitor" && organizationRootScore(boothUnit) > 1) {
+    return canonicalBoothUnitLabel(boothUnit);
+  }
   const root = pickOrganizationRoot(parts);
   return canonicalBoothUnitLabel(root || parts.join(" / ")) || "ไม่ระบุหน่วยงาน";
 }

@@ -53,8 +53,8 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
               <Detail label="เลขบัตรประชาชน" value={item.citizen_id}/>
               <Detail label="เบอร์ติดต่อ" value={item.phone}/>
               <Detail label="ตำแหน่ง" value={item.position}/>
-              <Detail label="สังกัด" value={item.division}/>
-              <Detail label="หน่วยงาน" value={item.bureau}/>
+              <Detail label={item.participant_role === "Exhibitor" ? "สังกัดผู้ประสานงาน" : "สังกัด"} value={item.division}/>
+              <Detail label={item.participant_role === "Exhibitor" ? "หน่วยจัดบูธ / มากับหน่วย" : "หน่วยงาน"} value={item.bureau}/>
               <Detail label="สถานะ" value={statusLabel(item.status)}/>
               <Detail label="เช็คอิน" value={item.checked_in_at ? formatAdminDate(item.checked_in_at) : "-"}/>
               <Detail label="ผู้สแกน QR Code" value={item.checked_in_by_email || "-"}/>
@@ -72,13 +72,13 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
                 <label>คำนำหน้า<input name="title" defaultValue={item.title} required/></label>
                 <label>ชื่อ<input name="firstName" defaultValue={item.first_name} required/></label>
                 <label>นามสกุล<input name="lastName" defaultValue={item.last_name} required/></label>
-                <label>อีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
+                <label>อีเมล<input type="email" name="email" defaultValue={item.email} placeholder="เว้นว่างได้สำหรับลงทะเบียนหลังบ้าน"/></label>
                 <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue={item.participant_role}>{participantRoles.map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
                 <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
                 <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
                 <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
-                <label>สังกัด / กองบังคับการ<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ" required/></label>
-                <label>กองบัญชาการ / ชื่อหน่วยงาน<input name="bureau" defaultValue={item.bureau} placeholder="สำหรับ Exhibitor ใส่ชื่อหน่วยงานที่ออกบูธ" required/></label>
+                <label>สังกัด / กองบังคับการ<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
+                <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ<input name="bureau" defaultValue={item.bureau} placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required/></label>
                 <label>สถานะ<select name="status" defaultValue={item.status}>{participantStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
               </div>
               <button className="primary" type="submit"><Pencil/>บันทึกข้อมูลผู้เข้าร่วมงาน</button>

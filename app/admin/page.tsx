@@ -680,10 +680,10 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
       <td data-label="รหัส"><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>ลงทะเบียน {formatAdminDate(item.registered_at)}</small>{item.checked_in_at && <small>เช็คอิน {formatAdminDate(item.checked_in_at)}</small>}</span></label></td>
       <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id}</small></td>
       <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
-      <td data-label="ติดต่อ">{item.email}<small>{item.phone}</small></td>
+      <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
       <td data-label="ตำแหน่ง">{item.position}</td>
       <td data-label="กองบังคับการ">{item.division}</td>
-      <td data-label="กองบัญชาการ">{item.bureau}</td>
+      <td data-label="กองบัญชาการ / หน่วยจัดบูธ">{item.participant_role === "Exhibitor" && item.bureau ? `หน่วยจัดบูธ: ${item.bureau}` : item.bureau}</td>
       <td data-label="สถานะ"><span className={`status-pill ${item.status}`}>{statuses.find(([value]) => value === item.status)?.[1] ?? item.status}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
       <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
     </tr>) : <tr><td colSpan={9}>ยังไม่มีข้อมูลผู้เข้าร่วมงาน</td></tr>}</tbody></table></div>

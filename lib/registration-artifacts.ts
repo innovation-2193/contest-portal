@@ -118,6 +118,11 @@ export async function registrationTicketPdf(record: RegistrationRecord) {
 
 export async function sendRegistrationConfirmation(record: RegistrationRecord) {
   try {
+    const email = record.email.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return { status: "skipped" satisfies MailStatus };
+    }
+
     const [qr, pdf] = await Promise.all([
       registrationQrPng(record.registration_code),
       registrationTicketPdf(record),
@@ -148,7 +153,7 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
 
     await transporter.sendMail({
       from,
-      to: record.email,
+      to: email,
       subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`,
       html: confirmationHtml(record),
       text: confirmationText(record),
@@ -205,7 +210,7 @@ async function writeDevOutbox(record: RegistrationRecord, qr: Buffer, pdf: Buffe
   await mkdir(outbox, { recursive: true });
   await writeFile(path.join(outbox, "qr.png"), qr);
   await writeFile(path.join(outbox, "ticket.pdf"), pdf);
-  await writeFile(
+    await writeFile(
     path.join(outbox, "email.json"),
     `${JSON.stringify({ to: record.email, subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`, createdAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
