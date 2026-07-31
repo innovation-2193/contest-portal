@@ -14,6 +14,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
+import { sortScoreboardSubmissions } from "../../../../lib/scoreboard-ranking";
 
 export const runtime = "nodejs";
 
@@ -30,9 +31,7 @@ export async function GET(request: Request) {
   }
 
   const submissions = await listSubmissions({ assignedAdminEmail: session.role === "super_admin" ? null : session.email });
-  const scored = submissions
-    .filter((item) => item.review_total_score !== null && item.review_total_score !== undefined)
-    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at));
+  const scored = sortScoreboardSubmissions(submissions);
 
   await recordAuditEvent({
     actor: actorFromAdminSession(session),

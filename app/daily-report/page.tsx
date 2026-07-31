@@ -26,6 +26,7 @@ import { VisitTrendChart } from "../../components/VisitTrendChart";
 import type { RegistrationRecord } from "../../lib/local-registrations";
 import { buildBoothUnitStats, type BoothUnitStat } from "../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
+import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
 import { getSiteStats } from "../../lib/site-analytics";
 
 export const dynamic = "force-dynamic";
@@ -137,9 +138,7 @@ export default async function DailyReportPage() {
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const scoreBoardTopTen = [...scored]
-    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
-    .slice(0, 10);
+  const scoreBoardTopTen = sortScoreboardSubmissions(submissions).slice(0, 10);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);

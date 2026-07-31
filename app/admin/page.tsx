@@ -61,6 +61,7 @@ import {
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
+import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
 
 export const dynamic = "force-dynamic";
 
@@ -151,9 +152,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
-  const scoreBoard = submissions
-    .filter((item) => item.review_total_score !== null && item.review_total_score !== undefined)
-    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at));
+  const scoreBoard = sortScoreboardSubmissions(submissions);
   const awardedSubmissionKeys = new Set(winners.map((winner) => winner.submissionCode || winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division)));
   const availableWinnerSubmissions = submissions.filter((submission) => {
     const key = winnerFallbackKey(submission.title_th, submissionOwnerName(submission), submissionDivision(submission));

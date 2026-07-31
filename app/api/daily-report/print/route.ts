@@ -17,6 +17,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
+import { sortScoreboardSubmissions } from "../../../../lib/scoreboard-ranking";
 import { getSiteStats, type SiteDailyStat, type SiteStats } from "../../../../lib/site-analytics";
 
 export const runtime = "nodejs";
@@ -58,9 +59,7 @@ async function dailyReportPdf(
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const scoreBoardTopTen = [...scored]
-    .sort((a, b) => Number(b.review_total_score ?? 0) - Number(a.review_total_score ?? 0) || a.submitted_at.localeCompare(b.submitted_at))
-    .slice(0, 10);
+  const scoreBoardTopTen = sortScoreboardSubmissions(submissions).slice(0, 10);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: scoreBoardTopTen });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
