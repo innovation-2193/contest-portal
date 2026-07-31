@@ -63,7 +63,8 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อผลงาน ผู้สมัคร อีเมล รหัส SUB หรือผู้ตรวจ"/></div></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.submission_code}>
+        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr key={item.submission_code}>
+          <td data-label="ลำดับ"><b>{((currentPage - 1) * pageSize + index + 1).toLocaleString("th-TH")}</b></td>
           <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
           <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small><HashtagPills tags={item.hashtags}/></td>
           <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
@@ -78,7 +79,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
             <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link>
             <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a>
           </div></td>
-        </tr>) : <tr><td colSpan={7}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
+        </tr>) : <tr><td colSpan={8}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         <Pagination basePath="/admin/submissions" q={q} page={currentPage} totalPages={totalPages}/>
       </section>
     </div>

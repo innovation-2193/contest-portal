@@ -208,7 +208,7 @@ function buildWinnerSummaryRows(winners: WinnerRecord[], submissions: Submission
   duplicateTitles.forEach((key) => submissionsByUniqueTitle.delete(key));
 
   return winners
-    .filter((winner) => winner.published && winner.rank !== "finalist")
+    .filter((winner) => winner.published)
     .map((winner) => {
       const submission = (winner.submissionCode ? submissionsByCode.get(winner.submissionCode) : undefined) ??
         submissionsByFallback.get(winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division)) ??
