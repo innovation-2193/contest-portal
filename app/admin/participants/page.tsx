@@ -77,7 +77,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
             <div>
               <b><FileSpreadsheet/>Bulk Import Excel</b>
-              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, ตำแหน่ง ทุกช่องไม่บังคับ กรอกเท่าที่มีได้</small>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ ทุกช่องไม่บังคับ</small>
             </div>
             <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
             <div className="participant-bulk-actions">
@@ -128,15 +128,15 @@ async function bulkCreateParticipantsAction(formData: FormData) {
     const result = await createParticipant({
       email: "",
       provider: "local",
-      participantRole: "Guest",
+      participantRole: row.participantRole,
       title: row.title,
       firstName: row.firstName,
       lastName: row.lastName,
       citizenId: "",
       phone: "",
       position: row.position,
-      division: "",
-      bureau: "",
+      division: row.division,
+      bureau: row.bureau,
     });
     createdCodes.push(result.record.registration_code);
   }

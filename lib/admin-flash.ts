@@ -43,3 +43,22 @@ export function adminNoticePath(path: string, code: AdminNoticeCode) {
   const nextQuery = params.toString();
   return nextQuery ? `${base}?${nextQuery}` : base;
 }
+
+export function safeAdminReturnPath(value: FormDataEntryValue | null | undefined, fallback = "/admin") {
+  const raw = String(value ?? "").trim();
+  if (!raw.startsWith("/admin")) return fallback;
+  try {
+    const url = new URL(raw, "https://admin.local");
+    if (!url.pathname.startsWith("/admin")) return fallback;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+export function adminNoticeReturnPath(path: string, code: AdminNoticeCode) {
+  const hashIndex = path.indexOf("#");
+  const basePath = hashIndex >= 0 ? path.slice(0, hashIndex) : path;
+  const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";
+  return `${adminNoticePath(basePath, code)}${hash}`;
+}

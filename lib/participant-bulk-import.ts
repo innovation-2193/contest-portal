@@ -1,10 +1,14 @@
+import { participantRoles, type ParticipantRole } from "./local-registrations";
 import { inflateRawSync } from "zlib";
 
 export type ParticipantBulkRow = {
   title: string;
   firstName: string;
   lastName: string;
+  participantRole: ParticipantRole;
   position: string;
+  division: string;
+  bureau: string;
 };
 
 type ZipEntry = {
@@ -43,16 +47,19 @@ function rowsToParticipants(rows: string[][]) {
 
   const header = detectHeader(cleaned[0]);
   const dataRows = header ? cleaned.slice(1) : cleaned;
-  const indexes = header ?? { title: 0, firstName: 1, lastName: 2, position: 3 };
+  const indexes = header ?? { title: 0, firstName: 1, lastName: 2, participantRole: 3, position: 4, division: 5, bureau: 6 };
   const participants: ParticipantBulkRow[] = [];
 
   dataRows.forEach((row) => {
     const title = cellAt(row, indexes.title);
     const firstName = cellAt(row, indexes.firstName);
     const lastName = cellAt(row, indexes.lastName);
+    const participantRole = normalizeBulkRole(cellAt(row, indexes.participantRole));
     const position = cellAt(row, indexes.position);
-    if (!title && !firstName && !lastName && !position) return;
-    participants.push({ title, firstName, lastName, position });
+    const division = cellAt(row, indexes.division);
+    const bureau = cellAt(row, indexes.bureau);
+    if (!title && !firstName && !lastName && !position && !division && !bureau && !cellAt(row, indexes.participantRole)) return;
+    participants.push({ title, firstName, lastName, participantRole, position, division, bureau });
   });
 
   if (!participants.length) throw new Error("ไม่พบรายชื่อที่นำเข้าได้");
@@ -65,13 +72,40 @@ function detectHeader(row: string[]) {
   const title = findHeaderIndex(normalized, ["คำนำหน้า", "คํานําหน้า", "ยศ", "title", "prefix"]);
   const firstName = findHeaderIndex(normalized, ["ชื่อ", "firstname", "first name", "name"]);
   const lastName = findHeaderIndex(normalized, ["นามสกุล", "lastname", "last name", "surname"]);
+  const participantRole = findHeaderIndex(normalized, ["role ผู้เข้าร่วม", "role", "participant role", "ประเภทผู้เข้าร่วม", "ประเภทผู้เข้าร่วมงาน"]);
   const position = findHeaderIndex(normalized, ["ตำแหน่ง", "ตําแหน่ง", "position", "rank"]);
-  if (title === -1 && firstName === -1 && lastName === -1 && position === -1) return null;
-  return { title, firstName, lastName, position };
+  const division = findHeaderIndex(normalized, ["สังกัด / กองบังคับการ", "สังกัด", "กองบังคับการ", "division"]);
+  const bureau = findHeaderIndex(normalized, ["กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ", "กองบัญชาการ", "ชื่อหน่วยงาน", "หน่วยจัดบูธ", "bureau", "organization", "booth unit"]);
+  if (title === -1 && firstName === -1 && lastName === -1 && participantRole === -1 && position === -1 && division === -1 && bureau === -1) return null;
+  return { title, firstName, lastName, participantRole, position, division, bureau };
 }
 
 function cellAt(row: string[], index: number) {
   return index >= 0 ? row[index] ?? "" : "";
+}
+
+function normalizeBulkRole(value: string) {
+  const role = value.trim();
+  if (!role) return "Guest";
+  const aliases: Record<string, ParticipantRole> = {
+    vip: "VIP",
+    guest: "Guest",
+    exhibitor: "Exhibitor",
+    competitor: "Competitor",
+    staff: "Staff",
+    "ผู้เข้าร่วมงานทั่วไป": "Guest",
+    "ผู้เข้าร่วมทั่วไป": "Guest",
+    "ผู้จัดบูธ": "Exhibitor",
+    "จัดบูธ": "Exhibitor",
+    "ผู้ประกวด": "Competitor",
+    "ผู้ส่งผลงาน": "Competitor",
+    "เจ้าหน้าที่": "Staff",
+    "ทีมงาน": "Staff",
+  };
+  const normalized = aliases[role.toLowerCase()] ?? aliases[role];
+  if (normalized) return normalized;
+  if (participantRoles.includes(role as ParticipantRole)) return role as ParticipantRole;
+  throw new Error(`Role ผู้เข้าร่วมต้องเป็น ${participantRoles.join(", ")} หรือเว้นว่างไว้`);
 }
 
 function findHeaderIndex(headers: string[], candidates: string[]) {

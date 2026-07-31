@@ -6,11 +6,11 @@ import { adminUnauthorizedResponse } from "../../../../../lib/admin-api-response
 export const runtime = "nodejs";
 
 const templateRows = [
-  ["คำนำหน้า", "ชื่อ", "นามสกุล", "ตำแหน่ง"],
-  ["นาย", "สมชาย", "ใจดี", "เจ้าหน้าที่ประสานงาน"],
-  ["นางสาว", "พรทิพย์", "ตั้งใจ", ""],
-  ["", "กรอกเฉพาะชื่อก็ได้", "", ""],
-  ["", "", "", "กรอกเฉพาะตำแหน่งก็ได้"],
+  ["คำนำหน้า", "ชื่อ", "นามสกุล", "Role ผู้เข้าร่วม", "ตำแหน่ง", "สังกัด / กองบังคับการ", "กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ"],
+  ["นาย", "สมชาย", "ใจดี", "Guest", "เจ้าหน้าที่ประสานงาน", "ฝ่ายอำนวยการ", "สำนักงานตำรวจแห่งชาติ"],
+  ["นางสาว", "พรทิพย์", "ตั้งใจ", "Exhibitor", "", "", "สถาบันเทคโนโลยีป้องกันประเทศ"],
+  ["", "กรอกเฉพาะชื่อก็ได้", "", "", "", "", ""],
+  ["", "", "", "Staff", "เจ้าหน้าที่สนับสนุน", "", ""],
 ];
 
 export async function GET(request: Request) {
@@ -56,7 +56,10 @@ function sheetXml(rows: string[][]) {
     <col min="1" max="1" width="14" customWidth="1"/>
     <col min="2" max="2" width="22" customWidth="1"/>
     <col min="3" max="3" width="22" customWidth="1"/>
-    <col min="4" max="4" width="34" customWidth="1"/>
+    <col min="4" max="4" width="20" customWidth="1"/>
+    <col min="5" max="5" width="34" customWidth="1"/>
+    <col min="6" max="6" width="34" customWidth="1"/>
+    <col min="7" max="7" width="46" customWidth="1"/>
   </cols>
   <sheetData>${body}</sheetData>
 </worksheet>`;

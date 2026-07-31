@@ -34,7 +34,7 @@ import {
   verifyAdminAccountPassword,
 } from "../../lib/admin-users";
 import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEventRecord } from "../../lib/audit-log";
-import { adminNoticePath } from "../../lib/admin-flash";
+import { adminNoticePath, adminNoticeReturnPath, safeAdminReturnPath } from "../../lib/admin-flash";
 import { participantRoleClass } from "../../lib/participant-role-style";
 import {
 	  addWinner,
@@ -68,8 +68,9 @@ type ParticipantSort = "newest" | "oldest";
 type SubmissionSort = "newest" | "oldest";
 type ReviewFilter = "all" | "unassigned" | "assigned" | "pending" | "scored";
 const dashboardLimit = 10;
+type AdminPageSearchParams = { login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; submissionReview?: string; submissionSort?: string; adminSearch?: string; parkingAll?: string; parkingEdit?: string };
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ login?: string; notice?: string; participantRole?: string; participantSearch?: string; participantSort?: string; submissionSearch?: string; submissionReview?: string; submissionSort?: string; adminSearch?: string; parkingAll?: string; parkingEdit?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<AdminPageSearchParams> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
@@ -146,6 +147,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const visibleNews = news.slice(0, dashboardLimit);
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
   const showAllParkingReservations = params.parkingAll === "1";
+  const currentAdminPath = adminDashboardHref(params);
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
@@ -190,7 +192,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </form>
       <NewsTable news={visibleNews} total={news.length}/>
     </section>}
-    {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length}/>}
+    {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length} returnPath={currentAdminPath}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการที่ผ่านเข้าสู่ 10 ทีมสุดท้าย ระบบจะแสดงเป็นรายชื่อเดียว และรอบถัดไปเริ่มนับคะแนนใหม่</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
@@ -563,12 +565,13 @@ function EvaluationAdminPanel({ summary, evaluationEnabled }: { summary: Evaluat
   </section>;
 }
 
-function ReviewAssignmentPanel({ submissions, admins, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; admins: Awaited<ReturnType<typeof listAdminAccounts>>; total: number }) {
+function ReviewAssignmentPanel({ submissions, admins, total, returnPath }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; admins: Awaited<ReturnType<typeof listAdminAccounts>>; total: number; returnPath: string }) {
   return <section className="admin-panel">
     <header className="admin-section-head"><UserCheck/><div><h2>แจกงานตรวจรอบแรก</h2><p>Super Admin เลือก Admin ผู้รับผิดชอบตรวจ Paper Screening ในแต่ละใบสมัคร โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
     <div className="assignment-list">
-      {submissions.length ? submissions.map((submission) => <form className="assignment-row" action={assignSubmissionAction} key={submission.submission_code}>
+      {submissions.length ? submissions.map((submission) => <form id={`assignment-${submission.submission_code}`} className="assignment-row" action={assignSubmissionAction} key={submission.submission_code}>
         <input type="hidden" name="submissionCode" value={submission.submission_code}/>
+        <input type="hidden" name="returnTo" value={`${returnPath}#assignment-${submission.submission_code}`}/>
         <div className="assignment-copy">
           <b>{submission.submission_code}</b>
           <span>{submission.title_th}</span>
@@ -662,6 +665,27 @@ function ParticipantFilterBar({ role, search, sort }: { role: string; search: st
       <option value="oldest">เก่าไปใหม่</option>
     </select></label>
   </form>;
+}
+
+function adminDashboardHref(params: AdminPageSearchParams) {
+  const query = new URLSearchParams();
+  const keys: Array<keyof AdminPageSearchParams> = [
+    "participantRole",
+    "participantSearch",
+    "participantSort",
+    "submissionSearch",
+    "submissionReview",
+    "submissionSort",
+    "adminSearch",
+    "parkingAll",
+    "parkingEdit",
+  ];
+  for (const key of keys) {
+    const value = params[key];
+    if (value) query.set(key, value);
+  }
+  const nextQuery = query.toString();
+  return nextQuery ? `/admin?${nextQuery}` : "/admin";
 }
 
 function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<typeof listParticipants>> }) {
@@ -1165,7 +1189,7 @@ async function assignSubmissionAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  redirect(adminNoticePath("/admin", "assignment_saved"));
+  redirect(adminNoticeReturnPath(safeAdminReturnPath(formData.get("returnTo"), "/admin"), "assignment_saved"));
 }
 
 async function addAdminAction(formData: FormData) {

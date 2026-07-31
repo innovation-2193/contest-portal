@@ -264,14 +264,15 @@ async function updateSubmissionAction(formData: FormData) {
     };
     return { ...member, hasValue: hasMemberValue(member) };
   });
-  const members = formMembers.filter((member) =>
-    member.order === 1 || submissionType === "team" && (includedMembers.has(String(member.order)) || member.hasValue),
+  const extraMembers = formMembers.filter((member) =>
+    member.order > 1 && (includedMembers.has(String(member.order)) || member.hasValue),
   );
+  const effectiveSubmissionType = submissionType === "team" || extraMembers.length ? "team" : "individual";
+  const members = formMembers.filter((member) => member.order === 1 || extraMembers.some((extra) => extra.order === member.order));
 
   if (submissionType !== "individual" && submissionType !== "team") throw new Error("ประเภทการส่งไม่ถูกต้อง");
   if (!submissionStatuses.some(([value]) => value === status)) throw new Error("สถานะใบสมัครไม่ถูกต้อง");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("อีเมลบัญชีไม่ถูกต้อง");
-  if (submissionType === "team" && !text(formData, "teamName")) throw new Error("กรุณาระบุชื่อทีม");
   if (summary.length < 20) throw new Error("คำอธิบายย่อต้องมีอย่างน้อย 20 ตัวอักษร");
   const videoUrl = text(formData, "videoUrl");
   if (videoUrl) new URL(videoUrl);
@@ -286,7 +287,7 @@ async function updateSubmissionAction(formData: FormData) {
   await updateSubmission({
     submissionCode,
     email,
-    submissionType,
+    submissionType: effectiveSubmissionType,
     teamName: text(formData, "teamName") || null,
     titleTh: text(formData, "titleTh"),
     titleEn: text(formData, "titleEn"),
@@ -301,7 +302,7 @@ async function updateSubmissionAction(formData: FormData) {
     entityType: "submission",
     entityId: submissionCode,
     summary: `แก้ไขใบสมัครประกวด ${submissionCode}`,
-    payload: { status, submissionType },
+    payload: { status, submissionType: effectiveSubmissionType },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
