@@ -290,7 +290,7 @@ function reviewCommentMeta(submission: AdminSubmissionDetail, options: Submissio
 }
 
 function reviewScoreCardHeight() {
-  return 214;
+  return 228;
 }
 
 function drawReviewScoreCard(
@@ -310,6 +310,7 @@ function drawReviewScoreCard(
   const rowTop = y + 68;
   const rowHeight = 25;
   const barWidth = 138;
+  const noteY = rowTop + progressScoreCriteria.length * rowHeight + 8;
 
   doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.rect(x, y, width, 5).fill(PDF_THEME.gold);
@@ -356,7 +357,7 @@ function drawReviewScoreCard(
   doc.font(pdfFontRegular).fontSize(8).fillColor(PDF_THEME.muted).text(
     "คะแนนรวมคำนวณจากคะแนนรายด้าน 5 เกณฑ์ตามแบบฟอร์ม Paper Screening ที่บันทึกในระบบ",
     x + 16,
-    y + height - 28,
+    noteY,
     { width: width - 32, lineBreak: false },
   );
 
