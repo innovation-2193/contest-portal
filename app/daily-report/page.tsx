@@ -23,6 +23,7 @@ import {
   listWinners,
   type SubmissionListItem,
 } from "../../lib/admin-store";
+import { ReportScoreBreakdown } from "../../components/ReportScoreBreakdown";
 import { VisitTrendChart } from "../../components/VisitTrendChart";
 import type { RegistrationRecord } from "../../lib/local-registrations";
 import { buildAnnouncedFinalistSources } from "../../lib/announced-finalists";
@@ -446,6 +447,7 @@ function SubmissionReportItem({ item }: { item: SubmissionListItem }) {
     <span>{item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว"}</span>
     <p>{item.first_name} {item.last_name}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
     <em>{statusLabel(item.status)}</em>
+    <ReportScoreBreakdown item={item}/>
   </article>;
 }
 

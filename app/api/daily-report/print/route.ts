@@ -19,6 +19,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
+import { progressScoreCriteria } from "../../../../lib/progress-review";
 import { getSiteStats, type SiteDailyStat, type SiteStats } from "../../../../lib/site-analytics";
 
 export const runtime = "nodejs";
@@ -364,12 +365,12 @@ function drawAllSubmissionsTable(
   width: number,
   addPage: () => number,
 ) {
-  const columns = [74, 248, 96, 158, 126, 70];
-  const headers = ["รหัส", "ชื่อผลงาน", "ประเภท", "ผู้สมัคร", "หน่วยงาน", "สถานะ"];
+  const columns = [64, 162, 66, 108, 86, 52, 234];
+  const headers = ["รหัส", "ชื่อผลงาน", "ประเภท", "ผู้สมัคร", "หน่วยงาน", "สถานะ", "คะแนนรวม / รายด้าน"];
   const bottomY = doc.page.height - 54;
   const titleHeight = 28;
   const headerHeight = 28;
-  const rowHeight = 30;
+  const rowHeight = 54;
   const emptyHeight = 48;
 
   const drawHeading = (cursorY: number, continued = false) => {
@@ -412,6 +413,7 @@ function drawAllSubmissionsTable(
       `${item.first_name} ${item.last_name}`,
       compactOrg(item),
       statusLabel(item.status),
+      scoreBreakdownText(item),
     ];
     drawTableRow(doc, values, columns, x, y, rowHeight, false, index % 2 === 1);
     y += rowHeight;
@@ -512,6 +514,26 @@ function statusLabel(status: string) {
 function compactOrg(item: SubmissionListItem) {
   if (item.division && item.bureau) return `${item.division} / ${item.bureau}`;
   return item.division || item.bureau || "-";
+}
+
+function scoreBreakdownText(item: SubmissionListItem) {
+  if (!item.review_submitted_at || item.review_total_score === null || item.review_total_score === undefined) {
+    return "ยังไม่มีคะแนน";
+  }
+  const shortLabels: Record<(typeof progressScoreCriteria)[number]["key"], string> = {
+    review_rules_score: "ตำรวจ",
+    review_problem_score: "ปัญหา",
+    review_innovation_score: "นวัตกรรม",
+    review_evidence_score: "หลักฐาน",
+    review_impact_score: "คุ้มค่า",
+  };
+  const criteria = progressScoreCriteria
+    .map((criterion) => {
+      const score = item[criterion.key];
+      return `${shortLabels[criterion.key]} ${typeof score === "number" ? score : "-"}/${criterion.max}`;
+    })
+    .join(" • ");
+  return `รวม ${item.review_total_score}/100 • ${criteria}`;
 }
 
 function bangkokDayKey(value: string | Date) {

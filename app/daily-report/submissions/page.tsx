@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, FileText, Search, X } from "lucide-react";
+import { ReportScoreBreakdown } from "../../../components/ReportScoreBreakdown";
 import { listSubmissions, type SubmissionListItem } from "../../../lib/admin-store";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,7 @@ function SubmissionReportCard({ item }: { item: SubmissionListItem }) {
     <span>{item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว"}</span>
     <p>{item.first_name} {item.last_name}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
     <em>{statusLabel(item.status)}</em>
+    <ReportScoreBreakdown item={item}/>
   </article>;
 }
 

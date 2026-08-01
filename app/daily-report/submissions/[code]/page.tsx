@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, Users } from "lucide-react";
+import { ArrowLeft, FileText, Trophy, Users } from "lucide-react";
+import { hasReportScore, ReportScoreBreakdown } from "../../../../components/ReportScoreBreakdown";
 import { getSubmissionDetail, type AdminSubmissionDetail } from "../../../../lib/admin-store";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ export default async function DailyReportSubmissionDetailPage({ params }: { para
           <Detail label="คำอธิบายย่อ" value={item.summary} wide/>
         </dl>
       </article>
+
+      {hasReportScore(item) && <section className="admin-panel report-panel">
+        <header><Trophy/><div><h2>คะแนนจากผู้ตรวจ</h2><p>คะแนนรวมและคะแนนรายด้านที่บันทึกในระบบ</p></div></header>
+        <ReportScoreBreakdown item={item}/>
+      </section>}
 
       <section className="admin-panel report-panel">
         <header><Users/><div><h2>ผู้สมัครและสมาชิกทีม</h2><p>ข้อมูลบุคคลตามใบสมัคร</p></div></header>
