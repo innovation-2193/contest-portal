@@ -365,11 +365,16 @@ function drawReviewScoreCard(
 }
 
 function reviewCommentCardHeight(doc: PDFKit.PDFDocument, comment: string, meta: string) {
+  const outerPaddingX = 22;
+  const commentInnerPaddingX = 18;
+  const metaTop = 42;
+  const commentGap = 16;
+  const bottomPadding = 22;
   doc.font(pdfFontRegular).fontSize(8.8);
-  const metaHeight = doc.heightOfString(clean(meta), { width: 495, lineGap: 1 });
+  const metaHeight = doc.heightOfString(clean(meta), { width: 527 - outerPaddingX * 2, lineGap: 1 });
   doc.font(pdfFontRegular).fontSize(10);
-  const commentHeight = doc.heightOfString(clean(comment), { width: 491, lineGap: 2 });
-  return Math.max(94, 34 + metaHeight + 10 + Math.max(38, 24 + commentHeight) + 14);
+  const commentHeight = doc.heightOfString(clean(comment), { width: 527 - outerPaddingX * 2 - commentInnerPaddingX * 2, lineGap: 2 });
+  return Math.max(116, metaTop + metaHeight + commentGap + Math.max(52, commentHeight + 32) + bottomPadding);
 }
 
 function drawReviewCommentCard(
@@ -382,33 +387,40 @@ function drawReviewCommentCard(
   const x = 34;
   const width = 527;
   const height = reviewCommentCardHeight(doc, comment, meta);
+  const outerPaddingX = 22;
+  const commentInnerPaddingX = 18;
+  const metaTop = 42;
+  const commentGap = 16;
   const scoreLabel = typeof submission.review_total_score === "number"
     ? `คะแนนรวม ${submission.review_total_score}/100`
     : "คะแนนรวม -/100";
   doc.font(pdfFontRegular).fontSize(8.8);
-  const metaHeight = doc.heightOfString(clean(meta), { width: width - 32, lineGap: 1 });
+  const metaHeight = doc.heightOfString(clean(meta), { width: width - outerPaddingX * 2, lineGap: 1 });
   doc.font(pdfFontRegular).fontSize(10);
-  const commentHeight = doc.heightOfString(clean(comment), { width: width - 56, lineGap: 2 });
-  const commentBoxY = y + 34 + metaHeight + 10;
-  const commentBoxHeight = Math.max(38, 24 + commentHeight);
+  const commentTextWidth = width - outerPaddingX * 2 - commentInnerPaddingX * 2;
+  const commentHeight = doc.heightOfString(clean(comment), { width: commentTextWidth, lineGap: 2 });
+  const commentBoxX = x + outerPaddingX;
+  const commentBoxWidth = width - outerPaddingX * 2;
+  const commentBoxY = y + metaTop + metaHeight + commentGap;
+  const commentBoxHeight = Math.max(52, 32 + commentHeight);
 
   doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
-  doc.font(pdfFontBold).fontSize(12.5).fillColor(PDF_THEME.navy).text("Comments ของผู้ตรวจ", x + 16, y + 14, {
+  doc.font(pdfFontBold).fontSize(12.5).fillColor(PDF_THEME.navy).text("Comments ของผู้ตรวจ", x + outerPaddingX, y + 18, {
     width: 240,
     lineBreak: false,
   });
-  doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(scoreLabel, x + width - 150, y + 16, {
+  doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(scoreLabel, x + width - outerPaddingX - 134, y + 20, {
     width: 134,
     align: "right",
     lineBreak: false,
   });
-  doc.font(pdfFontRegular).fontSize(8.8).fillColor(PDF_THEME.muted).text(clean(meta), x + 16, y + 34, {
-    width: width - 32,
+  doc.font(pdfFontRegular).fontSize(8.8).fillColor(PDF_THEME.muted).text(clean(meta), x + outerPaddingX, y + metaTop, {
+    width: width - outerPaddingX * 2,
     lineGap: 1,
   });
-  doc.roundedRect(x + 14, commentBoxY, width - 28, commentBoxHeight, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(pdfFontRegular).fontSize(10).fillColor(PDF_THEME.text).text(clean(comment), x + 28, commentBoxY + 12, {
-    width: width - 56,
+  doc.roundedRect(commentBoxX, commentBoxY, commentBoxWidth, commentBoxHeight, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(pdfFontRegular).fontSize(10).fillColor(PDF_THEME.text).text(clean(comment), commentBoxX + commentInnerPaddingX, commentBoxY + 16, {
+    width: commentTextWidth,
     lineGap: 2,
   });
 
