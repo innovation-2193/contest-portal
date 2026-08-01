@@ -11,7 +11,7 @@ import {
   pdfFontBold,
   pdfFontRegular,
 } from "./pdf-theme";
-import { drawPdfLibIpWatermark } from "./pdf-watermark";
+import { drawPdfLibIpWatermark, type PdfExportWatermark } from "./pdf-watermark";
 import { progressScoreCriteria } from "./progress-review";
 import {
   readSubmissionPdfFile,
@@ -32,6 +32,7 @@ const detailContentBottom = 782;
 
 export type SubmissionPrintPacketOptions = {
   reviewerLabel?: string | null;
+  watermark?: PdfExportWatermark | null;
   watermarkIp?: string | null;
 };
 
@@ -62,8 +63,9 @@ export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail
   if (missingAttachments.length > 0) {
     await appendPdf(merged, await missingAttachmentSummaryPdf(submission, missingAttachments));
   }
-  if (options.watermarkIp) {
-    await drawPdfLibIpWatermark(merged, options.watermarkIp);
+  const watermark = options.watermark ?? options.watermarkIp;
+  if (watermark) {
+    await drawPdfLibIpWatermark(merged, watermark);
   }
 
   return Buffer.from(await merged.save());

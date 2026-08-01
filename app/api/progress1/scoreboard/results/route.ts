@@ -11,7 +11,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
-import { clientIpFromRequest, drawPdfKitIpWatermark } from "../../../../../lib/pdf-watermark";
+import { drawPdfKitIpWatermark, exportWatermarkFromRequest, type PdfExportWatermark } from "../../../../../lib/pdf-watermark";
 import { sortScoreboardSubmissions } from "../../../../../lib/scoreboard-ranking";
 
 export const runtime = "nodejs";
@@ -31,14 +31,14 @@ const columns = [
 ] as const;
 
 export async function GET(request: Request) {
-  const exporterIp = clientIpFromRequest(request);
+  const watermark = exportWatermarkFromRequest(request);
   const [submissions, admins] = await Promise.all([
     listSubmissions(),
     listAdminAccounts(),
   ]);
   const reviewerNames = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.name || admin.email]));
   const scoredSubmissions = sortScoreboardSubmissions(submissions);
-  const pdf = await progressResultsPdf(scoredSubmissions, reviewerNames, exporterIp);
+  const pdf = await progressResultsPdf(scoredSubmissions, reviewerNames, watermark);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
@@ -48,7 +48,11 @@ export async function GET(request: Request) {
   });
 }
 
-async function progressResultsPdf(submissions: SubmissionListItem[], reviewerNames: Map<string, string>, exporterIp: string) {
+async function progressResultsPdf(
+  submissions: SubmissionListItem[],
+  reviewerNames: Map<string, string>,
+  watermark: PdfExportWatermark,
+) {
   const pageHeight = Math.max(595.28, 216 + submissions.length * 86 + 72);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
@@ -74,7 +78,7 @@ async function progressResultsPdf(submissions: SubmissionListItem[], reviewerNam
   }
 
   drawDocumentFooter(doc, 1, 1, `${submissions.length} รายการ`, fonts);
-  drawPdfKitIpWatermark(doc, exporterIp);
+  drawPdfKitIpWatermark(doc, watermark);
   doc.info.Title = "Progress1 Review Results";
   doc.info.Subject = "ผลการตรวจคะแนนรอบที่ 1";
   doc.info.Author = "Police Innovation Contest 2026";

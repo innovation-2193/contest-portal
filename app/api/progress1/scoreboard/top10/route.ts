@@ -11,7 +11,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
-import { clientIpFromRequest, drawPdfKitIpWatermark } from "../../../../../lib/pdf-watermark";
+import { drawPdfKitIpWatermark, exportWatermarkFromRequest, type PdfExportWatermark } from "../../../../../lib/pdf-watermark";
 import { sortScoreboardSubmissions } from "../../../../../lib/scoreboard-ranking";
 
 export const runtime = "nodejs";
@@ -31,13 +31,13 @@ const columns = [
 ] as const;
 
 export async function GET(request: Request) {
-  const exporterIp = clientIpFromRequest(request);
+  const watermark = exportWatermarkFromRequest(request);
   const [submissions, admins] = await Promise.all([
     listSubmissions(),
     listAdminAccounts(),
   ]);
   const reviewerNames = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.name || admin.email]));
-  const pdf = await progressTopTenPdf(sortScoreboardSubmissions(submissions).slice(0, 10), reviewerNames, exporterIp);
+  const pdf = await progressTopTenPdf(sortScoreboardSubmissions(submissions).slice(0, 10), reviewerNames, watermark);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
@@ -47,7 +47,11 @@ export async function GET(request: Request) {
   });
 }
 
-async function progressTopTenPdf(submissions: SubmissionListItem[], reviewerNames: Map<string, string>, exporterIp: string) {
+async function progressTopTenPdf(
+  submissions: SubmissionListItem[],
+  reviewerNames: Map<string, string>,
+  watermark: PdfExportWatermark,
+) {
   const pageHeight = Math.max(595.28, 216 + submissions.length * 86 + 72);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
@@ -73,7 +77,7 @@ async function progressTopTenPdf(submissions: SubmissionListItem[], reviewerName
   }
 
   drawDocumentFooter(doc, 1, 1, "Progress1 Top 10 Score Board", fonts);
-  drawPdfKitIpWatermark(doc, exporterIp);
+  drawPdfKitIpWatermark(doc, watermark);
   doc.info.Title = "Progress1 Top 10 Score Board";
   doc.info.Subject = "Score Board คะแนนรอบที่ 1";
   doc.info.Author = "Police Innovation Contest 2026";
