@@ -455,6 +455,13 @@ label,
   touch-action: manipulation;
 }
 
+a[x-apple-data-detectors] {
+  color: inherit !important;
+  font: inherit !important;
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}
+
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 3px solid rgba(113, 215, 212, 0.86);
   outline-offset: 3px;
@@ -7363,6 +7370,55 @@ body:has(.prelander-page)::before {
   border-color: rgba(223, 186, 51, 0.32);
 }
 
+.progress1-scoreboard-panel {
+  border-color: rgba(113, 215, 212, 0.34);
+}
+
+.progress1-scoreboard-panel .admin-section-head {
+  align-items: center;
+}
+
+.progress1-scoreboard-more {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.progress1-scoreboard-total {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(223, 186, 51, 0.34);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(223, 186, 51, 0.16), transparent 44%),
+    rgba(1, 9, 22, 0.52);
+}
+
+.progress1-scoreboard-total > svg {
+  width: 32px;
+  height: 32px;
+  color: var(--gold);
+}
+
+.progress1-scoreboard-total span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.progress1-scoreboard-total b {
+  display: block;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 1;
+}
+
 .progress1-filter-form {
   grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.25fr) auto;
   margin-bottom: 14px;
@@ -7615,6 +7671,27 @@ body:has(.prelander-page)::before {
   font-size: 11px;
 }
 
+.progress1-submission-owner strong {
+  color: #edf3ff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.progress1-submission-owner small {
+  color: #aebbd1;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.progress1-submission-owner small a {
+  color: inherit !important;
+  text-decoration: none !important;
+  border-bottom: 0 !important;
+}
+
 .progress1-score-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
@@ -7822,19 +7899,35 @@ body:has(.prelander-page)::before {
   }
 
   .progress1-summary-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .progress1-summary-card {
-    min-height: 86px;
-    grid-template-columns: 34px minmax(0, 1fr);
+    min-height: 112px;
+    padding: 12px 10px;
+    grid-template-columns: 28px minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 2px 10px;
+    gap: 4px 8px;
+    align-content: center;
     align-items: center;
   }
 
   .progress1-summary-card svg {
     grid-row: span 2;
+    width: 26px;
+    height: 26px;
+  }
+
+  .progress1-summary-card span {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .progress1-summary-card b {
+    font-size: clamp(25px, 8.2vw, 36px);
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .progress1-empty-state {

@@ -101,7 +101,7 @@ function SubmissionExecutiveCard({ item, reviewer }: { item: SubmissionListItem;
     <div className="progress1-submission-owner">
       <span><b>ผู้สมัคร</b>{item.first_name} {item.last_name}</span>
       <span><b>หน่วยงาน</b>{item.division || "-"} • {item.bureau || "-"}</span>
-      <span><b>ผู้ตรวจ</b>{reviewer.name} ({reviewer.email})</span>
+      <span className="progress1-reviewer-owner"><b>ผู้ตรวจ</b><strong>{reviewer.name}</strong><small>{reviewer.email}</small></span>
       <span><b>ส่งคะแนนเมื่อ</b>{formatProgressDate(item.review_submitted_at)}</span>
     </div>
 

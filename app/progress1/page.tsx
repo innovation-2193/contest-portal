@@ -2,8 +2,10 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { ArrowLeft, CheckCircle2, Clock3, Eye, Gauge, RefreshCw, ShieldCheck, Star, Trophy, UserCheck, UsersRound } from "lucide-react";
 import { ProgressAutoRefresh } from "../../components/ProgressAutoRefresh";
+import { ProgressScoreboardPanel } from "../../components/ProgressScoreboard";
 import { listAdminAccounts } from "../../lib/admin-users";
 import { listSubmissions } from "../../lib/admin-store";
+import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
 import {
   average,
   buildReviewerProgress,
@@ -40,6 +42,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
   const pendingSubmissions = assignedSubmissions.filter((item) => !item.review_submitted_at);
   const overallPercent = percent(scoredSubmissions.length, assignedSubmissions.length);
   const averageScore = average(scoredSubmissions.map((item) => item.review_total_score).filter(isNumber));
+  const scoreboardSubmissions = sortScoreboardSubmissions(submissions);
   const topReviewer = [...reviewerProgress].sort((a, b) => percent(b.scored.length, b.assigned.length) - percent(a.scored.length, a.assigned.length))[0] ?? null;
   const generatedAt = new Date().toISOString();
   const hasAssignedWork = assignedSubmissions.length > 0;
@@ -81,6 +84,8 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <span>ข้อมูล ณ {formatProgressDate(generatedAt)}</span>
         </div>
       </section>
+
+      <ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/>
 
       <section className="admin-panel progress1-reviewer-panel">
         <header className="admin-section-head">
