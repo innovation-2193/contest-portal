@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { ArrowLeft, CheckCircle2, Clock3, Eye, Gauge, RefreshCw, ShieldCheck, Star, Trophy, UserCheck, UsersRound } from "lucide-react";
 import { ProgressAutoRefresh } from "../../components/ProgressAutoRefresh";
 import { ProgressScoreboardPanel } from "../../components/ProgressScoreboard";
+import { ProgressTabbedSections } from "../../components/ProgressTabbedSections";
 import { listAdminAccounts } from "../../lib/admin-users";
 import { listSubmissions } from "../../lib/admin-store";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
@@ -50,7 +51,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
   const hasAssignedWork = assignedSubmissions.length > 0;
 
   return <div className="admin-page progress1-page">
-    <ProgressAutoRefresh intervalMs={15000}/>
+    <ProgressAutoRefresh intervalMs={60000}/>
     <div className="wide">
       <div className="admin-topline progress1-topline">
         <div>
@@ -59,7 +60,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <p>ดูรายชื่อผู้ตรวจ ความคืบหน้ารายคน และเปิดเข้าไปตรวจรายการที่ได้รับมอบหมาย</p>
         </div>
         <div className="admin-actions">
-          <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 15 วินาที</span>
+          <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
           <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
         </div>
       </div>
@@ -87,10 +88,11 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <ProgressTabs activeView={activeView} statusFilter={statusFilter} reviewerFilter={reviewerFilter}/>
-
-      {activeView === "scoreboard" ? <ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/> : (
-        <section className="admin-panel progress1-reviewer-panel">
+      <ProgressTabbedSections
+        initialView={activeView}
+        scoreboard={<ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/>}
+        reviewers={(
+          <section className="admin-panel progress1-reviewer-panel">
           <header className="admin-section-head">
             <UsersRound/>
             <div>
@@ -118,17 +120,11 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <div className="progress1-reviewer-list">
             {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
           </div>
-        </section>
-      )}
+          </section>
+        )}
+      />
     </div>
   </div>;
-}
-
-function ProgressTabs({ activeView, statusFilter, reviewerFilter }: { activeView: ProgressView; statusFilter: ProgressStatusFilter; reviewerFilter: string }) {
-  return <nav className="progress1-tab-switcher" aria-label="สลับข้อมูลความคืบหน้า">
-    <Link className={activeView === "scoreboard" ? "active" : ""} href="/progress1?view=scoreboard" aria-current={activeView === "scoreboard" ? "page" : undefined}><Trophy/>Score Board คะแนน Top 10</Link>
-    <Link className={activeView === "reviewers" ? "active" : ""} href={progressViewHref("reviewers", statusFilter, reviewerFilter)} aria-current={activeView === "reviewers" ? "page" : undefined}><UsersRound/>รายชื่อผู้ตรวจ</Link>
-  </nav>;
 }
 
 function ReviewerCard({ reviewer }: { reviewer: ReviewerProgress }) {
@@ -199,11 +195,4 @@ function normalizeStatusFilter(value?: string): ProgressStatusFilter {
 function normalizeProgressView(value: string | undefined, preferReviewers: boolean): ProgressView {
   if (value === "reviewers" || value === "scoreboard") return value;
   return preferReviewers ? "reviewers" : "scoreboard";
-}
-
-function progressViewHref(view: ProgressView, statusFilter: ProgressStatusFilter, reviewerFilter: string) {
-  const params = new URLSearchParams({ view });
-  if (view === "reviewers" && statusFilter !== "all") params.set("status", statusFilter);
-  if (view === "reviewers" && reviewerFilter) params.set("reviewer", reviewerFilter);
-  return `/progress1?${params.toString()}`;
 }

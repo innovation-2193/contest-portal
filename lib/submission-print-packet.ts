@@ -75,6 +75,7 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
   const width = detailPageWidth;
   const height = detailPageHeight;
   let page = 1;
+  const submittedAtLabel = `ยืนยันส่งประกวดเมื่อ ${formatPdfThaiDateTime(submission.submitted_at)}`;
 
   doc.info.Title = `ข้อมูลสมัครประกวด ${submission.submission_code}`;
   doc.info.Subject = "Police Innovation Contest 2026 submission print packet";
@@ -84,7 +85,7 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
     doc.rect(0, 0, width, height).fill(PDF_THEME.paper);
     drawDocumentHeader(doc, {
       title: "ข้อมูลใบสมัครประกวดนวัตกรรม",
-      subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+      subtitle: submittedAtLabel,
       metaLabel: "เลขที่สมัคร",
       metaValue: submission.submission_code,
     });
@@ -157,7 +158,7 @@ async function missingAttachmentSummaryPdf(submission: AdminSubmissionDetail, mi
   doc.rect(0, 0, width, 841.89).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
     title: "สรุปไฟล์แนบที่ไม่พร้อมพิมพ์",
-    subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+    subtitle: `ยืนยันส่งประกวดเมื่อ ${formatPdfThaiDateTime(submission.submitted_at)}`,
     metaLabel: "เลขที่สมัคร",
     metaValue: submission.submission_code,
   });

@@ -41,7 +41,7 @@ export async function GET() {
 }
 
 async function progressTopTenPdf(submissions: SubmissionListItem[]) {
-  const pageHeight = Math.max(595.28, 184 + submissions.length * 86 + 72);
+  const pageHeight = Math.max(595.28, 216 + submissions.length * 86 + 72);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
@@ -82,9 +82,9 @@ function drawPageHeader(doc: PDFKit.PDFDocument, submissions: SubmissionListItem
     showLogo: false,
     fonts,
   });
-  drawSummaryChip(doc, "Top 10", submissions.length, 26, 120, PDF_THEME.goldSoft, "#80620b");
-  drawSummaryChip(doc, "คะแนนเต็ม", 100, 184, 120, PDF_THEME.greenSoft, PDF_THEME.green);
-  return 160;
+  drawSummaryChip(doc, "Top 10", submissions.length, 26, 122, PDF_THEME.goldSoft, "#80620b");
+  drawSummaryChip(doc, "คะแนนเต็ม", 100, 184, 122, PDF_THEME.greenSoft, PDF_THEME.green);
+  return 184;
 }
 
 function drawSummaryChip(doc: PDFKit.PDFDocument, label: string, value: string | number, x: number, y: number, fill: string, color: string) {

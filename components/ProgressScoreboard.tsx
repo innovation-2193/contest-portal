@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { Download, Eye, FileText, Hash, Trophy } from "lucide-react";
+import type { CSSProperties } from "react";
+import { ChevronDown, Download, Eye, FileText, Hash, MessageSquareText, Trophy } from "lucide-react";
 import type { SubmissionListItem } from "../lib/admin-store";
+import { formatProgressDate, percent, progressScoreCriteria } from "../lib/progress-review";
 
 type ProgressScoreboardProps = {
   submissions: SubmissionListItem[];
@@ -29,18 +31,47 @@ export function ProgressScoreboardPanel({ submissions, total, mode = "preview" }
 
 export function ProgressScoreboardList({ submissions }: { submissions: SubmissionListItem[] }) {
   return <div className="scoreboard-list progress1-scoreboard-list">
-    {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row progress1-scoreboard-row" key={submission.submission_code}>
-      <b>#{index + 1}</b>
-      <div>
-        <strong>{submission.title_th}</strong>
-        <small>{submission.submission_code} • {ownerName(submission)} • ผู้ตรวจ {submission.review_assigned_admin_email || submission.review_scored_by_email || "-"}</small>
-        <HashtagPills tags={submission.hashtags}/>
+    {submissions.length ? submissions.map((submission, index) => <details className="scoreboard-row progress1-scoreboard-row progress1-scoreboard-disclosure" key={submission.submission_code}>
+      <summary>
+        <b>#{index + 1}</b>
+        <div>
+          <strong>{submission.title_th}</strong>
+          <small>{submission.submission_code} • {ownerName(submission)} • ผู้ตรวจ {reviewerName(submission)}</small>
+          <HashtagPills tags={submission.hashtags}/>
+        </div>
+        <span>{submission.review_total_score}/100</span>
+        <i><ChevronDown/>รายละเอียดคะแนน</i>
+      </summary>
+      <div className="progress1-scoreboard-detail">
+        <div className="progress1-scoreboard-score-grid">
+          {progressScoreCriteria.map((criterion) => {
+            const score = submission[criterion.key];
+            const value = typeof score === "number" ? score : null;
+            return <div key={criterion.key}>
+              <span>{criterion.label}</span>
+              <b>{value ?? "-"} / {criterion.max}</b>
+              <em><i style={{ "--progress": `${percent(value ?? 0, criterion.max)}%` } as CSSProperties}/></em>
+            </div>;
+          })}
+          <div className="total">
+            <span>คะแนนรวม</span>
+            <b>{submission.review_total_score ?? "-"} / 100</b>
+            <em><i style={{ "--progress": `${percent(submission.review_total_score ?? 0, 100)}%` } as CSSProperties}/></em>
+          </div>
+        </div>
+        <div className="progress1-scoreboard-note">
+          <MessageSquareText/>
+          <div>
+            <b>Comments</b>
+            <p>{submission.review_note?.trim() || "ยังไม่มี comments จากผู้ตรวจ"}</p>
+            <small>ส่งคะแนนเมื่อ {formatProgressDate(submission.review_submitted_at)} • ผู้ตรวจ {reviewerName(submission)}</small>
+          </div>
+        </div>
+        <div className="scoreboard-actions progress1-scoreboard-detail-actions">
+          <a className="secondary small-action" href={`/api/progress1/submissions/${encodeURIComponent(submission.submission_code)}/print`} target="_blank" rel="noreferrer"><FileText/>ดาวน์โหลดใบสมัคร</a>
+        </div>
       </div>
-      <span>{submission.review_total_score}/100</span>
-      <div className="scoreboard-actions">
-        <a className="secondary small-action" href={`/api/progress1/submissions/${encodeURIComponent(submission.submission_code)}/print`} target="_blank" rel="noreferrer"><FileText/>ดาวน์โหลดใบสมัคร</a>
-      </div>
-    </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
+    </details>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
   </div>;
 }
 
@@ -51,4 +82,8 @@ function HashtagPills({ tags }: { tags: string[] }) {
 
 function ownerName(submission: SubmissionListItem) {
   return `${submission.first_name} ${submission.last_name}`.replace(/\s+/g, " ").trim() || "-";
+}
+
+function reviewerName(submission: SubmissionListItem) {
+  return submission.review_assigned_admin_email || submission.review_scored_by_email || "-";
 }

@@ -786,6 +786,10 @@ nav a.active::after {
   transform: scaleX(1);
 }
 
+nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
+  display: none;
+}
+
 .primary,
 .secondary,
 .oauth,
@@ -833,6 +837,16 @@ nav a.active::after {
 .ghost-action:hover,
 .oauth:hover {
   transform: translateY(-1px);
+  text-decoration: none;
+}
+
+.primary,
+.secondary,
+.ghost-action,
+.small-action,
+.danger-btn,
+.disabled-action {
+  text-decoration: none !important;
 }
 
 .disabled-action,
@@ -7001,6 +7015,176 @@ body:has(.prelander-page)::before {
   white-space: nowrap;
 }
 
+.scoreboard-row.progress1-scoreboard-disclosure {
+  display: block;
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.progress1-scoreboard-disclosure > summary {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 92px minmax(150px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px 18px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.progress1-scoreboard-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.progress1-scoreboard-disclosure > summary > b {
+  display: grid;
+  place-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(223, 186, 51, 0.42);
+  border-radius: 10px;
+  color: var(--ink);
+}
+
+.progress1-scoreboard-disclosure > summary > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.progress1-scoreboard-disclosure > summary > span {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.progress1-scoreboard-disclosure > summary > i {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-disclosure > summary > i svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  transition: transform 0.18s ease;
+}
+
+.progress1-scoreboard-disclosure[open] > summary > i svg {
+  transform: rotate(180deg);
+}
+
+.progress1-scoreboard-disclosure > .progress1-scoreboard-detail {
+  display: grid;
+  gap: 10px;
+  padding: 0 18px 16px 84px;
+  border-top: 1px solid rgba(64, 89, 128, 0.38);
+}
+
+.progress1-scoreboard-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.progress1-scoreboard-score-grid > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(64, 89, 128, 0.5);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.5);
+}
+
+.progress1-scoreboard-score-grid span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.progress1-scoreboard-score-grid b {
+  display: block;
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-score-grid em {
+  display: block;
+  height: 8px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(64, 89, 128, 0.5);
+}
+
+.progress1-scoreboard-score-grid em i {
+  display: block;
+  width: var(--progress);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #75d8ff, #f0cf55);
+}
+
+.progress1-scoreboard-score-grid .total {
+  border-color: rgba(223, 186, 51, 0.52);
+  background: rgba(223, 186, 51, 0.1);
+}
+
+.progress1-scoreboard-note {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(113, 215, 212, 0.25);
+  border-radius: 10px;
+  background: rgba(2, 24, 34, 0.42);
+}
+
+.progress1-scoreboard-note > svg {
+  width: 20px;
+  height: 20px;
+  color: #75d8ff;
+}
+
+.progress1-scoreboard-note b {
+  color: #b8fff5;
+}
+
+.progress1-scoreboard-note p {
+  margin: 2px 0 4px;
+  color: #edf3ff;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-note small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-detail-actions {
+  justify-content: flex-start;
+}
+
 .admin-hashtag-list {
   display: flex;
   flex-wrap: wrap;
@@ -7389,7 +7573,7 @@ body:has(.prelander-page)::before {
   background: rgba(1, 9, 22, 0.5);
 }
 
-.progress1-tab-switcher a {
+.progress1-tab-switcher :is(a, button) {
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -7397,21 +7581,43 @@ body:has(.prelander-page)::before {
   min-width: 0;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(64, 89, 128, 0.42);
   border-radius: 9px;
-  color: var(--muted);
+  background: rgba(3, 13, 31, 0.82);
+  color: #aebbd0;
   font-size: 13px;
   font-weight: 900;
+  font-family: inherit;
   line-height: 1.25;
   text-align: center;
   text-decoration: none;
+  box-shadow: inset 0 0 0 1px rgba(113, 215, 212, 0.04);
   overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
-.progress1-tab-switcher a.active {
+.progress1-tab-switcher :is(a, button):hover {
+  border-color: rgba(113, 215, 212, 0.34);
+  background: rgba(6, 24, 52, 0.9);
+  color: #dce7f6;
+  text-decoration: none;
+  transform: none;
+}
+
+.progress1-tab-switcher :is(a, button).active {
   border-color: rgba(223, 186, 51, 0.58);
   background: rgba(223, 186, 51, 0.14);
   color: var(--ink);
+}
+
+.progress1-tab-switcher :is(a, button).active:hover {
+  border-color: rgba(223, 186, 51, 0.68);
+  background: rgba(223, 186, 51, 0.18);
+  color: var(--ink);
+}
+
+.progress1-tab-switcher button {
+  appearance: none;
 }
 
 .progress1-tab-switcher svg {
@@ -7714,17 +7920,21 @@ body:has(.prelander-page)::before {
 }
 
 .progress1-submission-owner strong {
+  display: block;
   color: #edf3ff;
   font-size: 13px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .progress1-submission-owner small {
+  display: block;
   color: #aebbd1;
   font-size: 11px;
   font-weight: 800;
   line-height: 1.35;
   overflow-wrap: anywhere;
+  word-break: break-word;
   text-decoration: none;
 }
 
@@ -7915,6 +8125,39 @@ body:has(.prelander-page)::before {
     width: 100%;
   }
 
+  .progress1-scoreboard-disclosure > summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .progress1-scoreboard-disclosure > summary > b {
+    justify-self: start;
+    min-width: 68px;
+  }
+
+  .progress1-scoreboard-disclosure > summary > span {
+    text-align: left;
+  }
+
+  .progress1-scoreboard-disclosure > summary > i {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .progress1-scoreboard-disclosure > .progress1-scoreboard-detail {
+    padding: 0 13px 13px;
+  }
+
+  .progress1-scoreboard-score-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .progress1-scoreboard-detail-actions,
+  .progress1-scoreboard-detail-actions .small-action {
+    width: 100%;
+  }
+
   .progress1-executive-item {
     padding: 13px;
   }
@@ -7942,40 +8185,49 @@ body:has(.prelander-page)::before {
 
   .progress1-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 7px;
   }
 
   .progress1-summary-card {
-    min-height: 112px;
-    padding: 12px 10px;
-    grid-template-columns: 28px minmax(0, 1fr);
+    min-height: 86px;
+    padding: 9px 8px;
+    grid-template-columns: 24px minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 4px 8px;
+    gap: 2px 7px;
     align-content: center;
     align-items: center;
+    border-radius: 10px;
   }
 
   .progress1-summary-card svg {
     grid-row: span 2;
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 
   .progress1-summary-card span {
-    font-size: 11px;
-    line-height: 1.25;
+    font-size: 10px;
+    line-height: 1.18;
   }
 
   .progress1-summary-card b {
     max-width: 100%;
     min-width: 0;
-    font-size: clamp(20px, 5.6vw, 24px);
+    font-size: clamp(20px, 6vw, 25px);
     line-height: 1;
     white-space: nowrap;
   }
 
   .progress1-summary-card.blue b {
-    font-size: clamp(18px, 5vw, 22px);
+    font-size: clamp(17px, 5vw, 21px);
+  }
+
+  .progress1-scoreboard-score-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-scoreboard-note {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .progress1-tab-switcher {
@@ -7983,7 +8235,7 @@ body:has(.prelander-page)::before {
     padding: 5px;
   }
 
-  .progress1-tab-switcher a {
+  .progress1-tab-switcher :is(a, button) {
     min-height: 42px;
     padding: 8px 7px;
     gap: 5px;
@@ -7997,6 +8249,25 @@ body:has(.prelander-page)::before {
 
   .progress1-empty-state {
     grid-template-columns: 1fr;
+  }
+
+  .progress1-submission-owner {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .progress1-submission-owner span {
+    padding: 9px 10px;
+  }
+
+  .progress1-submission-owner strong {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .progress1-submission-owner small {
+    font-size: 10px;
+    line-height: 1.3;
   }
 
   .progress1-reviewer-card summary,

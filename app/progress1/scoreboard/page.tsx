@@ -14,7 +14,7 @@ export default async function ProgressScoreboardPage() {
   const generatedAt = new Date().toISOString();
 
   return <div className="admin-page progress1-page progress1-scoreboard-page">
-    <ProgressAutoRefresh intervalMs={15000}/>
+    <ProgressAutoRefresh intervalMs={60000}/>
     <div className="wide">
       <div className="admin-topline progress1-topline">
         <div>
@@ -23,7 +23,7 @@ export default async function ProgressScoreboardPage() {
           <p>แสดงอันดับผู้สมัครที่ส่งคะแนนแล้วทั้งหมด อัปเดตล่าสุด {formatProgressDate(generatedAt)}</p>
         </div>
         <div className="admin-actions">
-          <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 15 วินาที</span>
+          <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
           <Link className="secondary" href="/progress1"><ArrowLeft/>กลับหน้าสรุป</Link>
         </div>
       </div>
