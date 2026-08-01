@@ -7161,6 +7161,622 @@ body:has(.prelander-page)::before {
   font-weight: 900;
 }
 
+.progress1-page .wide {
+  width: min(1240px, calc(100% - 40px));
+}
+
+.progress1-topline .admin-actions {
+  align-items: center;
+  min-width: 0;
+}
+
+.progress1-live-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 1px solid rgba(113, 215, 212, 0.42);
+  border-radius: 999px;
+  background: rgba(13, 83, 78, 0.22);
+  color: #b8fff5;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.progress1-live-badge svg {
+  width: 15px;
+  height: 15px;
+  animation: progress1Spin 2.8s linear infinite;
+}
+
+.progress1-hero {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.62fr) minmax(0, 1.38fr);
+  gap: 16px;
+  align-items: start;
+  overflow: hidden;
+  border-color: rgba(113, 215, 212, 0.36);
+  background:
+    linear-gradient(135deg, rgba(20, 117, 156, 0.2), transparent 38%),
+    linear-gradient(180deg, rgba(7, 22, 50, 0.98), rgba(3, 13, 31, 0.95));
+}
+
+.progress1-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 180px;
+  padding: 8px 4px 0;
+}
+
+.progress1-hero-copy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b8fff5;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.progress1-hero-copy svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.progress1-hero-copy h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(54px, 5vw, 68px);
+  line-height: 0.9;
+}
+
+.progress1-hero-copy p {
+  margin: 0;
+  color: #dce7f6;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.progress1-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: minmax(122px, auto);
+  gap: 10px;
+  align-self: start;
+  align-content: start;
+}
+
+.progress1-summary-card {
+  display: grid;
+  grid-template-rows: 34px minmax(34px, auto) auto;
+  gap: 8px;
+  align-content: center;
+  justify-items: start;
+  min-width: 0;
+  min-height: 122px;
+  padding: 15px 14px;
+  border: 1px solid rgba(64, 89, 128, 0.48);
+  border-radius: 12px;
+  background: rgba(1, 9, 22, 0.42);
+}
+
+.progress1-summary-card svg {
+  width: 28px;
+  height: 28px;
+}
+
+.progress1-summary-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.progress1-summary-card b {
+  color: #ffffff;
+  font-size: clamp(24px, 2.1vw, 34px);
+  line-height: 1.1;
+  word-break: keep-all;
+}
+
+.progress1-summary-card.cyan svg { color: #75d8ff; }
+.progress1-summary-card.green svg { color: #69e39d; }
+.progress1-summary-card.gold svg { color: #f0cf55; }
+.progress1-summary-card.red svg { color: #ff8da0; }
+.progress1-summary-card.blue svg { color: #9dbbff; }
+.progress1-summary-card.violet svg { color: #d1b5ff; }
+
+.progress1-status-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(64, 89, 128, 0.44);
+}
+
+.progress1-status-strip span {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(64, 89, 128, 0.42);
+  border-radius: 10px;
+  background: rgba(2, 11, 27, 0.46);
+  color: #dce7f6;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.progress1-bar-wrap {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.progress1-bar-track {
+  position: relative;
+  height: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(113, 215, 212, 0.3);
+  border-radius: 999px;
+  background: rgba(0, 5, 14, 0.72);
+}
+
+.progress1-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--progress);
+  min-width: 8px;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c5b9, #f0cf55 58%, #69e39d);
+  box-shadow: 0 0 22px rgba(113, 215, 212, 0.28);
+  transition: width 600ms ease;
+}
+
+.progress1-bar-fill::after,
+.progress1-score-grid i::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent);
+  animation: progress1BarShine 2.2s ease-in-out infinite;
+}
+
+.progress1-bar-wrap small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.progress1-reviewer-panel {
+  border-color: rgba(223, 186, 51, 0.32);
+}
+
+.progress1-reviewer-list {
+  display: grid;
+  gap: 12px;
+}
+
+.progress1-empty-state {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 116px;
+  padding: 18px;
+  border: 1px dashed rgba(113, 215, 212, 0.34);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(113, 215, 212, 0.12), transparent 42%),
+    rgba(1, 9, 22, 0.38);
+}
+
+.progress1-empty-state > svg {
+  width: 34px;
+  height: 34px;
+  color: #75d8ff;
+}
+
+.progress1-empty-state b {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.progress1-empty-state p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.65;
+}
+
+.progress1-reviewer-card {
+  border: 1px solid rgba(64, 89, 128, 0.52);
+  border-radius: 12px;
+  background: rgba(2, 11, 27, 0.44);
+  overflow: hidden;
+}
+
+.progress1-reviewer-card summary {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(108px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.progress1-reviewer-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.progress1-reviewer-avatar {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(223, 186, 51, 0.42);
+  border-radius: 12px;
+  background: rgba(223, 186, 51, 0.1);
+  color: var(--gold);
+}
+
+.progress1-reviewer-avatar svg {
+  width: 24px;
+  height: 24px;
+}
+
+.progress1-reviewer-main {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.progress1-reviewer-main h3 {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 21px;
+  line-height: 1.28;
+}
+
+.progress1-reviewer-main span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.progress1-reviewer-stats {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 0;
+}
+
+.progress1-reviewer-stats b {
+  color: #ffffff;
+  font-size: 31px;
+  line-height: 1;
+}
+
+.progress1-reviewer-stats span {
+  color: #dce7f6;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.progress1-reviewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.progress1-submission-list {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
+.progress1-submission-item {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(64, 89, 128, 0.46);
+  border-radius: 12px;
+  background: rgba(1, 9, 22, 0.48);
+}
+
+.progress1-submission-item.is-scored {
+  border-color: rgba(79, 220, 132, 0.32);
+}
+
+.progress1-submission-item.is-pending {
+  border-color: rgba(223, 186, 51, 0.34);
+}
+
+.progress1-submission-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.progress1-submission-head > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.progress1-submission-head h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.progress1-submission-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.progress1-submission-owner {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.progress1-submission-owner span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(64, 89, 128, 0.42);
+  border-radius: 10px;
+  background: rgba(2, 11, 27, 0.5);
+  color: #edf3ff;
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.progress1-submission-owner b {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.progress1-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 8px;
+}
+
+.progress1-score-grid > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(64, 89, 128, 0.42);
+  border-radius: 10px;
+  background: rgba(2, 11, 27, 0.48);
+}
+
+.progress1-score-grid > div.total {
+  border-color: rgba(223, 186, 51, 0.5);
+  background: rgba(223, 186, 51, 0.08);
+}
+
+.progress1-score-grid span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.progress1-score-grid b {
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.progress1-score-grid i {
+  position: relative;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(64, 89, 128, 0.44);
+}
+
+.progress1-score-grid i::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--progress);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #75d8ff, #f0cf55);
+}
+
+.progress1-comment {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(113, 215, 212, 0.26);
+  border-radius: 10px;
+  background: rgba(13, 83, 78, 0.12);
+}
+
+.progress1-comment svg {
+  width: 22px;
+  height: 22px;
+  color: #75d8ff;
+}
+
+.progress1-comment b {
+  color: #b8fff5;
+  font-size: 12px;
+}
+
+.progress1-comment p {
+  margin: 2px 0 0;
+  color: #edf3ff;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+@keyframes progress1Spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes progress1BarShine {
+  0% { transform: translateX(-100%); opacity: 0; }
+  32% { opacity: 0.9; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+@media (max-width: 1180px) {
+  .progress1-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-hero-copy {
+    min-height: 0;
+  }
+
+  .progress1-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .progress1-topline {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-topline .admin-actions {
+    justify-content: start;
+  }
+
+  .progress1-reviewer-card summary,
+  .progress1-submission-head {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-reviewer-avatar,
+  .progress1-reviewer-stats {
+    justify-self: start;
+  }
+
+  .progress1-reviewer-stats {
+    justify-items: start;
+  }
+
+  .progress1-reviewer-stats span {
+    white-space: normal;
+  }
+
+  .progress1-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .progress1-hero {
+    gap: 14px;
+  }
+
+  .progress1-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .progress1-summary-card {
+    min-height: 106px;
+  }
+
+  .progress1-reviewer-meta .status-pill {
+    width: 100%;
+  }
+
+  .progress1-submission-head .small-action {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .progress1-page .wide {
+    width: calc(100% - 20px);
+  }
+
+  .progress1-hero-copy h2 {
+    font-size: 52px;
+  }
+
+  .progress1-topline .admin-actions,
+  .progress1-topline .admin-actions :is(a, span) {
+    width: 100%;
+  }
+
+  .progress1-live-badge {
+    min-height: 46px;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .progress1-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-summary-card {
+    min-height: 86px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 2px 10px;
+    align-items: center;
+  }
+
+  .progress1-summary-card svg {
+    grid-row: span 2;
+  }
+
+  .progress1-empty-state {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-reviewer-card summary,
+  .progress1-submission-list,
+  .progress1-reviewer-meta {
+    padding-inline: 12px;
+  }
+
+  .progress1-submission-item {
+    padding: 12px;
+  }
+
+  .progress1-comment {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-score-confirm-modal {
   position: fixed;
   inset: 0;
