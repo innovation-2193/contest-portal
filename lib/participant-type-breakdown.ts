@@ -35,13 +35,84 @@ const policeKeywords = [
   "ตำรวจ",
   "ตร.",
   "บช.",
+  "บช",
   "บก.",
+  "บก",
   "ภ.",
+  "ภจว.",
   "สภ.",
   "กก.",
+  "สทส.",
+  "ศทก.",
+  "รพ.ตร.",
+  "รร.นรต.",
+  "สพฐ.ตร.",
+  "ศพฐ.",
+  "ตชด.",
+  "สตม.",
   "กองบัญชาการ",
   "กองบังคับการ",
   "สำนักงานตำรวจแห่งชาติ",
+  "โรงพยาบาลตำรวจ",
+  "โรงเรียนนายร้อยตำรวจ",
+];
+
+const policeCompactKeywords = [
+  "กมค",
+  "กองบินตำรวจ",
+  "จต",
+  "ตชด",
+  "บก",
+  "บกอก",
+  "บช",
+  "บชก",
+  "บชน",
+  "บชปส",
+  "บชศ",
+  "บชส",
+  "บชสอท",
+  "บชตชด",
+  "บชทท",
+  "บตร",
+  "ภจว",
+  "รพตร",
+  "รรนรต",
+  "สงกตร",
+  "สงกตช",
+  "สตม",
+  "สทส",
+  "สพฐ",
+  "สพฐตร",
+  "สภ",
+  "สยศ",
+  "สยศตร",
+  "สลกตร",
+  "สส",
+  "ศทก",
+  "ศพฐ",
+];
+
+const civilianOrAcademicTitles = [
+  "นาย",
+  "นาง",
+  "นางสาว",
+  "นส",
+  "ดร",
+  "ดอกเตอร์",
+  "อ",
+  "อาจารย์",
+  "ผศ",
+  "ผศดร",
+  "ผู้ช่วยศาสตราจารย์",
+  "ผู้ช่วยศาสตราจารย์ดร",
+  "รศ",
+  "รศดร",
+  "รองศาสตราจารย์",
+  "รองศาสตราจารย์ดร",
+  "ศ",
+  "ศดร",
+  "ศาสตราจารย์",
+  "ศาสตราจารย์ดร",
 ];
 
 const educationKeywords = [
@@ -123,6 +194,18 @@ function compactOrg(division: string, bureau: string) {
 }
 
 function isPoliceParticipant(participant: RegistrationRecord) {
+  const title = normalizeCompact(participant.title);
+  if (title && !civilianOrAcademicTitles.includes(title)) return true;
+
   const text = `${participant.position} ${participant.division} ${participant.bureau}`.toLowerCase();
-  return policeKeywords.some((keyword) => text.includes(keyword.toLowerCase()));
+  const compactText = normalizeCompact(text);
+  return policeKeywords.some((keyword) => text.includes(keyword.toLowerCase()))
+    || policeCompactKeywords.some((keyword) => compactText.includes(keyword));
+}
+
+function normalizeCompact(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[.\s/()\-]+/g, "")
+    .trim();
 }
