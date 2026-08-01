@@ -77,7 +77,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
             <div>
               <b><FileSpreadsheet/>Bulk Import Excel</b>
-              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมลห้ามซ้ำ</small>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมล และชื่อ+นามสกุลห้ามซ้ำกับข้อมูลในระบบ</small>
             </div>
             <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
             <div className="participant-bulk-actions">
@@ -128,9 +128,29 @@ async function bulkCreateParticipantsAction(formData: FormData) {
     redirect(participantBulkErrorPath(errorMessage(error)));
   }
   const emails = rows.map((row) => row.email).filter(Boolean);
-  const existingEmails = await findExistingUserEmails(emails);
+  const [existingEmails, existingParticipants] = await Promise.all([
+    findExistingUserEmails(emails),
+    listParticipants(),
+  ]);
   if (existingEmails.size) {
     redirect(participantBulkErrorPath(`อีเมลไม่สามารถซ้ำกับในฐานข้อมูลที่เคยสมัครแล้วได้ กรุณาตรวจสอบ: ${[...existingEmails].join(", ")}`));
+  }
+
+  const duplicateNamesInFile = findDuplicateParticipantNames(rows);
+  if (duplicateNamesInFile.length) {
+    redirect(participantBulkErrorPath(formatDuplicateParticipantNames("ชื่อและนามสกุลซ้ำกันในไฟล์เดียวกัน กรุณาตรวจสอบ", duplicateNamesInFile)));
+  }
+
+  const existingNameKeys = new Map<string, string>();
+  existingParticipants.forEach((participant) => {
+    const key = participantNameKey(participant.first_name, participant.last_name);
+    if (key) existingNameKeys.set(key, participantNameText(participant.first_name, participant.last_name));
+  });
+  const existingDuplicateNames = uniqueValues(rows
+    .filter((row) => existingNameKeys.has(participantNameKey(row.firstName, row.lastName)))
+    .map((row) => participantNameText(row.firstName, row.lastName)));
+  if (existingDuplicateNames.length) {
+    redirect(participantBulkErrorPath(formatDuplicateParticipantNames("ชื่อและนามสกุลตรงกับข้อมูลที่มีในระบบแล้ว ไม่สามารถนำเข้า bulk file ได้ กรุณาตรวจสอบ", existingDuplicateNames)));
   }
   const createdCodes: string[] = [];
 
@@ -245,6 +265,45 @@ function participantBulkErrorPath(message: string) {
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถนำเข้ารายชื่อได้ กรุณาตรวจสอบไฟล์อีกครั้ง";
+}
+
+function findDuplicateParticipantNames(rows: Array<{ firstName: string; lastName: string }>) {
+  const seen = new Map<string, string>();
+  const duplicates = new Set<string>();
+  rows.forEach((row) => {
+    const key = participantNameKey(row.firstName, row.lastName);
+    if (!key) return;
+    const name = participantNameText(row.firstName, row.lastName);
+    if (seen.has(key)) duplicates.add(name);
+    seen.set(key, name);
+  });
+  return [...duplicates];
+}
+
+function participantNameKey(firstName: string, lastName: string) {
+  const first = normalizeParticipantNamePart(firstName);
+  const last = normalizeParticipantNamePart(lastName);
+  if (!first || !last) return "";
+  return `${first}|${last}`;
+}
+
+function normalizeParticipantNamePart(value: string) {
+  return value.replace(/\s+/g, " ").trim().toLocaleLowerCase("th-TH");
+}
+
+function participantNameText(firstName: string, lastName: string) {
+  return `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function formatDuplicateParticipantNames(prefix: string, names: string[]) {
+  const visibleNames = names.slice(0, 10);
+  const remaining = names.length - visibleNames.length;
+  const suffix = remaining > 0 ? ` และอีก ${remaining.toLocaleString("th-TH")} รายชื่อ` : "";
+  return `${prefix}: ${visibleNames.join(", ")}${suffix}`;
 }
 
 function filterRecords<T>(records: T[], query: string, pickFields: (record: T) => Array<string | null | undefined>) {
