@@ -117,8 +117,16 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
   ];
   y = drawInfoGrid(doc, workInfoRows, y, nextPage);
 
+  const reviewerComment = reviewCommentText(submission);
+  if (reviewerComment) {
+    const commentMeta = reviewCommentMeta(submission, options);
+    y += 4;
+    y = ensureRoom(y, reviewCommentCardHeight(doc, reviewerComment, commentMeta));
+    y = drawReviewCommentCard(doc, submission, reviewerComment, commentMeta, y);
+  }
+
   y += 6;
-  y = ensureRoom(y, 34);
+  y = ensureRoom(y, 34 + (submission.members[0] ? memberCardHeight(doc, submission.members[0]) : 0));
   y = drawSectionTitle(doc, "ข้อมูลผู้สมัครและสมาชิกทีม", y);
   for (const member of submission.members) {
     y = ensureRoom(y, memberCardHeight(doc, member));
@@ -250,6 +258,75 @@ function drawInfoCell(doc: PDFKit.PDFDocument, label: string, value: string, x: 
     width: width - 22,
     lineGap: 1,
   });
+}
+
+function reviewCommentText(submission: AdminSubmissionDetail) {
+  const note = submission.review_note?.trim();
+  if (!submission.review_submitted_at || !note) return null;
+  return note;
+}
+
+function reviewerLabelForComment(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
+  return options.reviewerLabel
+    || submission.review_scored_by_email
+    || submission.review_assigned_admin_email
+    || "-";
+}
+
+function reviewCommentMeta(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
+  const submittedAt = submission.review_submitted_at ? formatPdfThaiDateTime(submission.review_submitted_at) : "-";
+  return `ผู้ตรวจ ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
+}
+
+function reviewCommentCardHeight(doc: PDFKit.PDFDocument, comment: string, meta: string) {
+  doc.font(pdfFontRegular).fontSize(8.8);
+  const metaHeight = doc.heightOfString(clean(meta), { width: 495, lineGap: 1 });
+  doc.font(pdfFontRegular).fontSize(10);
+  const commentHeight = doc.heightOfString(clean(comment), { width: 491, lineGap: 2 });
+  return Math.max(94, 34 + metaHeight + 10 + Math.max(38, 24 + commentHeight) + 14);
+}
+
+function drawReviewCommentCard(
+  doc: PDFKit.PDFDocument,
+  submission: AdminSubmissionDetail,
+  comment: string,
+  meta: string,
+  y: number,
+) {
+  const x = 34;
+  const width = 527;
+  const height = reviewCommentCardHeight(doc, comment, meta);
+  const scoreLabel = typeof submission.review_total_score === "number"
+    ? `คะแนนรวม ${submission.review_total_score}/100`
+    : "คะแนนรวม -/100";
+  doc.font(pdfFontRegular).fontSize(8.8);
+  const metaHeight = doc.heightOfString(clean(meta), { width: width - 32, lineGap: 1 });
+  doc.font(pdfFontRegular).fontSize(10);
+  const commentHeight = doc.heightOfString(clean(comment), { width: width - 56, lineGap: 2 });
+  const commentBoxY = y + 34 + metaHeight + 10;
+  const commentBoxHeight = Math.max(38, 24 + commentHeight);
+
+  doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
+  doc.font(pdfFontBold).fontSize(12.5).fillColor(PDF_THEME.navy).text("Comments ของผู้ตรวจ", x + 16, y + 14, {
+    width: 240,
+    lineBreak: false,
+  });
+  doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(scoreLabel, x + width - 150, y + 16, {
+    width: 134,
+    align: "right",
+    lineBreak: false,
+  });
+  doc.font(pdfFontRegular).fontSize(8.8).fillColor(PDF_THEME.muted).text(clean(meta), x + 16, y + 34, {
+    width: width - 32,
+    lineGap: 1,
+  });
+  doc.roundedRect(x + 14, commentBoxY, width - 28, commentBoxHeight, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(pdfFontRegular).fontSize(10).fillColor(PDF_THEME.text).text(clean(comment), x + 28, commentBoxY + 12, {
+    width: width - 56,
+    lineGap: 2,
+  });
+
+  return y + height + 10;
 }
 
 function memberCardHeight(doc: PDFKit.PDFDocument, member: AdminSubmissionDetail["members"][number]) {
