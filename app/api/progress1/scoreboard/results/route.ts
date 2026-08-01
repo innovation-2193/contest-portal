@@ -37,17 +37,18 @@ export async function GET(request: Request) {
     listAdminAccounts(),
   ]);
   const reviewerNames = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.name || admin.email]));
-  const pdf = await progressTopTenPdf(sortScoreboardSubmissions(submissions).slice(0, 10), reviewerNames, exporterIp);
+  const scoredSubmissions = sortScoreboardSubmissions(submissions);
+  const pdf = await progressResultsPdf(scoredSubmissions, reviewerNames, exporterIp);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="progress1-scoreboard-top-10-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      "Content-Disposition": `attachment; filename="progress1-review-results-${new Date().toISOString().slice(0, 10)}.pdf"`,
       "Cache-Control": "no-store",
     },
   });
 }
 
-async function progressTopTenPdf(submissions: SubmissionListItem[], reviewerNames: Map<string, string>, exporterIp: string) {
+async function progressResultsPdf(submissions: SubmissionListItem[], reviewerNames: Map<string, string>, exporterIp: string) {
   const pageHeight = Math.max(595.28, 216 + submissions.length * 86 + 72);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
@@ -72,10 +73,10 @@ async function progressTopTenPdf(submissions: SubmissionListItem[], reviewerName
     });
   }
 
-  drawDocumentFooter(doc, 1, 1, "Progress1 Top 10 Score Board", fonts);
+  drawDocumentFooter(doc, 1, 1, `${submissions.length} รายการ`, fonts);
   drawPdfKitIpWatermark(doc, exporterIp);
-  doc.info.Title = "Progress1 Top 10 Score Board";
-  doc.info.Subject = "Score Board คะแนนรอบที่ 1";
+  doc.info.Title = "Progress1 Review Results";
+  doc.info.Subject = "ผลการตรวจคะแนนรอบที่ 1";
   doc.info.Author = "Police Innovation Contest 2026";
   doc.end();
   return pdf;
@@ -84,10 +85,10 @@ async function progressTopTenPdf(submissions: SubmissionListItem[], reviewerName
 function drawPageHeader(doc: PDFKit.PDFDocument, submissions: SubmissionListItem[], generatedAt: Date) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
-    title: "Score Board Top 10 รอบที่ 1",
+    title: "ผลการตรวจรอบที่ 1",
     subtitle: `Paper Screening • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    metaLabel: "คะแนนสูงสุด",
-    metaValue: `${submissions[0]?.review_total_score ?? "-"}/100`,
+    metaLabel: "รายการมีคะแนน",
+    metaValue: submissions.length.toLocaleString("th-TH"),
     fonts,
   });
   return 126;

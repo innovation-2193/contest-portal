@@ -7626,6 +7626,15 @@ body:has(.prelander-page)::before {
   align-items: center;
 }
 
+.progress1-scoreboard-actions {
+  align-items: stretch;
+}
+
+.progress1-scoreboard-actions :is(a, button) {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
 .progress1-search-form {
   grid-template-columns: minmax(260px, 1fr) auto;
   margin: 0 0 12px;
@@ -8240,6 +8249,16 @@ body:has(.prelander-page)::before {
   .progress1-scoreboard-disclosure > .progress1-scoreboard-detail.progress1-scoreboard-pending {
     margin: 12px 13px 13px;
     padding: 12px;
+  }
+
+  .progress1-scoreboard-actions,
+  .progress1-scoreboard-actions :is(a, button) {
+    width: 100%;
+  }
+
+  .progress1-scoreboard-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .progress1-scoreboard-score-grid {

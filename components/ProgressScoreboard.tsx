@@ -22,8 +22,9 @@ export function ProgressScoreboardPanel({ submissions, total, mode = "preview", 
         <h2>{isSearching ? "ผลการค้นหา Score Board" : isPreview ? "Score Board คะแนน Top 10" : "Score Board คะแนนทั้งหมด"}</h2>
         <p>{isSearching ? "ค้นจากชื่อโครงการ ชื่อผู้สมัคร รหัสใบสมัคร และข้อมูลผู้ตรวจ โดยแสดงรายการรอตรวจเป็นการ์ด disabled" : isPreview ? "จัดอันดับผู้สมัครจากคะแนน Paper Screening สูงสุด 10 ลำดับแรก" : "แสดงผู้สมัครที่ส่งคะแนนแล้วทั้งหมด เรียงจากคะแนนสูงสุด"}</p>
       </div>
-      <div className="admin-actions">
+      <div className="admin-actions progress1-scoreboard-actions">
         <a className="secondary" href="/api/progress1/scoreboard/top10" target="_blank" rel="noreferrer"><Download/>Export Top 10 PDF</a>
+        <a className="secondary" href="/api/progress1/scoreboard/results" target="_blank" rel="noreferrer"><Download/>ผลการตรวจ PDF</a>
         {isPreview ? <Link className="primary" href="/progress1/scoreboard"><Eye/>ดูทั้งหมด</Link> : <Link className="secondary" href="/progress1"><Eye/>กลับหน้าสรุป</Link>}
       </div>
     </header>

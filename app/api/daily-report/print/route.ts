@@ -19,20 +19,22 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
+import { clientIpFromRequest, drawPdfKitIpWatermark } from "../../../../lib/pdf-watermark";
 import { getSiteStats, type SiteDailyStat, type SiteStats } from "../../../../lib/site-analytics";
 
 export const runtime = "nodejs";
 
 const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
 
-export async function GET() {
+export async function GET(request: Request) {
+  const exporterIp = clientIpFromRequest(request);
   const [participants, submissions, siteStats, winners] = await Promise.all([
     listParticipants(),
     listSubmissions(),
     getSiteStats(),
     listWinners(),
   ]);
-  const pdf = await dailyReportPdf(participants, submissions, siteStats, winners);
+  const pdf = await dailyReportPdf(participants, submissions, siteStats, winners, exporterIp);
   const fileDate = bangkokDayKey(new Date());
 
   return new NextResponse(new Uint8Array(pdf), {
@@ -49,6 +51,7 @@ async function dailyReportPdf(
   submissions: SubmissionListItem[],
   siteStats: SiteStats,
   winners: Awaited<ReturnType<typeof listWinners>>,
+  exporterIp: string,
 ) {
   const doc = new PDFKitDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: true });
   const pdf = collectPdf(doc);
@@ -138,6 +141,7 @@ async function dailyReportPdf(
   for (let index = pageRange.start; index < pageRange.start + pageRange.count; index += 1) {
     doc.switchToPage(index);
     drawDocumentFooter(doc, index + 1, pageRange.count, "Daily Report", fonts);
+    drawPdfKitIpWatermark(doc, exporterIp);
   }
 
   doc.end();

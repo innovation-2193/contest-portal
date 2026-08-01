@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSubmissionDetail } from "../../../../../../lib/admin-store";
+import { clientIpFromRequest } from "../../../../../../lib/pdf-watermark";
 import { reviewerLabel } from "../../../../../../lib/progress-review";
 import { submissionPrintPacketPdf } from "../../../../../../lib/submission-print-packet";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
+  const exporterIp = clientIpFromRequest(request);
   const { code } = await params;
   const submission = await getSubmissionDetail(decodeURIComponent(code));
   if (!submission) return NextResponse.json({ error: "submission not found" }, { status: 404 });
@@ -16,6 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
         assignedEmail: submission.review_assigned_admin_email,
         scoredEmail: submission.review_scored_by_email,
       }),
+      watermarkIp: exporterIp,
     });
     return new NextResponse(new Uint8Array(packet), {
       headers: {
