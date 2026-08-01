@@ -7113,7 +7113,7 @@ body:has(.prelander-page)::before {
 .progress1-scoreboard-disclosure > .progress1-scoreboard-detail {
   display: grid;
   gap: 10px;
-  padding: 0 18px 16px 84px;
+  padding: 14px 18px 16px 84px;
   border-top: 1px solid rgba(64, 89, 128, 0.38);
 }
 
@@ -7121,7 +7121,7 @@ body:has(.prelander-page)::before {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
-  padding-top: 12px;
+  padding-top: 0;
 }
 
 .progress1-scoreboard-score-grid > div {
@@ -7209,6 +7209,11 @@ body:has(.prelander-page)::before {
 .progress1-scoreboard-pending {
   grid-template-columns: 26px minmax(0, 1fr);
   align-items: start;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 1px solid rgba(126, 139, 163, 0.28);
+  border-radius: 10px;
+  background: rgba(4, 14, 30, 0.56);
   color: var(--muted);
 }
 
@@ -7221,6 +7226,7 @@ body:has(.prelander-page)::before {
 .progress1-scoreboard-pending b {
   color: #d1d9e6;
   font-size: 14px;
+  line-height: 1.35;
 }
 
 .progress1-scoreboard-pending p {
@@ -7228,6 +7234,15 @@ body:has(.prelander-page)::before {
   font-size: 12px;
   font-weight: 800;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-disclosure > .progress1-scoreboard-detail.progress1-scoreboard-pending {
+  margin: 14px 18px 16px 84px;
+  padding: 14px 16px;
+  border: 1px solid rgba(126, 139, 163, 0.28);
+  border-radius: 10px;
+  background: rgba(4, 14, 30, 0.56);
 }
 
 .progress1-scoreboard-detail-actions {
@@ -8219,7 +8234,12 @@ body:has(.prelander-page)::before {
   }
 
   .progress1-scoreboard-disclosure > .progress1-scoreboard-detail {
-    padding: 0 13px 13px;
+    padding: 12px 13px 13px;
+  }
+
+  .progress1-scoreboard-disclosure > .progress1-scoreboard-detail.progress1-scoreboard-pending {
+    margin: 12px 13px 13px;
+    padding: 12px;
   }
 
   .progress1-scoreboard-score-grid {
