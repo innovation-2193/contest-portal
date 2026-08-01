@@ -4,13 +4,25 @@ import { ProgressAutoRefresh } from "../../../components/ProgressAutoRefresh";
 import { ProgressScoreboardPanel } from "../../../components/ProgressScoreboard";
 import { listSubmissions } from "../../../lib/admin-store";
 import { sortScoreboardSubmissions } from "../../../lib/scoreboard-ranking";
-import { formatProgressDate } from "../../../lib/progress-review";
+import {
+  formatProgressDate,
+  normalizeProgressSearchQuery,
+  sortProgressSearchSubmissions,
+  submissionMatchesProgressSearch,
+} from "../../../lib/progress-review";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function ProgressScoreboardPage() {
-  const submissions = sortScoreboardSubmissions(await listSubmissions());
+export default async function ProgressScoreboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const params = await searchParams;
+  const searchQuery = normalizeProgressSearchQuery(params.q);
+  const allSubmissions = await listSubmissions();
+  const assignedSubmissions = allSubmissions.filter((item) => Boolean(item.review_assigned_admin_email));
+  const rankedSubmissions = sortScoreboardSubmissions(allSubmissions);
+  const submissions = searchQuery
+    ? sortProgressSearchSubmissions(assignedSubmissions.filter((item) => submissionMatchesProgressSearch(item, searchQuery)))
+    : rankedSubmissions;
   const generatedAt = new Date().toISOString();
 
   return <div className="admin-page progress1-page progress1-scoreboard-page">
@@ -31,12 +43,12 @@ export default async function ProgressScoreboardPage() {
       <div className="progress1-scoreboard-total">
         <Trophy/>
         <div>
-          <span>จำนวนรายการที่มีคะแนน</span>
+          <span>{searchQuery ? "จำนวนผลการค้นหา" : "จำนวนรายการที่มีคะแนน"}</span>
           <b>{submissions.length.toLocaleString("th-TH")}</b>
         </div>
       </div>
 
-      <ProgressScoreboardPanel submissions={submissions} total={submissions.length} mode="full"/>
+      <ProgressScoreboardPanel submissions={submissions} total={submissions.length} mode="full" searchQuery={searchQuery}/>
     </div>
   </div>;
 }

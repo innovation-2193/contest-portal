@@ -13,8 +13,11 @@ import {
   formatProgressDate,
   isNumber,
   latestDate,
+  normalizeProgressSearchQuery,
   percent,
   reviewerStatus,
+  sortProgressSearchSubmissions,
+  submissionMatchesProgressSearch,
   type ReviewerProgress,
 } from "../../lib/progress-review";
 
@@ -24,10 +27,11 @@ export const revalidate = 0;
 type ProgressStatusFilter = "all" | "completed" | "in_progress" | "pending";
 type ProgressView = "scoreboard" | "reviewers";
 
-export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string; view?: string }> }) {
+export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string; view?: string; q?: string }> }) {
   const params = await searchParams;
   const statusFilter = normalizeStatusFilter(params.status);
   const reviewerFilter = (params.reviewer ?? "").trim().toLowerCase();
+  const searchQuery = normalizeProgressSearchQuery(params.q);
   const activeView = normalizeProgressView(params.view, Boolean(params.status || reviewerFilter));
   const [submissions, adminAccounts] = await Promise.all([
     listSubmissions(),
@@ -38,7 +42,8 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
   const filteredReviewers = reviewerProgress.filter((reviewer) => {
     const statusOk = statusFilter === "all" || reviewerStatus(reviewer) === statusFilter;
     const reviewerOk = !reviewerFilter || reviewer.email === reviewerFilter;
-    return statusOk && reviewerOk;
+    const searchOk = !searchQuery || reviewer.assigned.some((item) => submissionMatchesProgressSearch(item, searchQuery));
+    return statusOk && reviewerOk && searchOk;
   });
   const assignedSubmissions = submissions.filter((item) => Boolean(item.review_assigned_admin_email));
   const scoredSubmissions = assignedSubmissions.filter((item) => Boolean(item.review_submitted_at));
@@ -46,6 +51,10 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
   const overallPercent = percent(scoredSubmissions.length, assignedSubmissions.length);
   const averageScore = average(scoredSubmissions.map((item) => item.review_total_score).filter(isNumber));
   const scoreboardSubmissions = sortScoreboardSubmissions(submissions);
+  const searchedSubmissions = searchQuery
+    ? sortProgressSearchSubmissions(assignedSubmissions.filter((item) => submissionMatchesProgressSearch(item, searchQuery)))
+    : [];
+  const visibleScoreboardSubmissions = searchQuery ? searchedSubmissions : scoreboardSubmissions.slice(0, 10);
   const topReviewer = [...reviewerProgress].sort((a, b) => percent(b.scored.length, b.assigned.length) - percent(a.scored.length, a.assigned.length))[0] ?? null;
   const generatedAt = new Date().toISOString();
   const hasAssignedWork = assignedSubmissions.length > 0;
@@ -90,7 +99,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
 
       <ProgressTabbedSections
         initialView={activeView}
-        scoreboard={<ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/>}
+        scoreboard={<ProgressScoreboardPanel submissions={visibleScoreboardSubmissions} total={searchQuery ? searchedSubmissions.length : scoreboardSubmissions.length} searchQuery={searchQuery}/>}
         reviewers={(
           <section className="admin-panel progress1-reviewer-panel">
           <header className="admin-section-head">
@@ -102,6 +111,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           </header>
           <form className="audit-filter-form progress1-filter-form" method="get">
             <input type="hidden" name="view" value="reviewers"/>
+            <label className="audit-filter-search">ค้นหาโครงการ/ผู้สมัคร<input name="q" defaultValue={searchQuery} placeholder="ชื่อโครงการ ชื่อผู้สมัคร หรือรหัสใบสมัคร"/></label>
             <label>สถานะการตรวจ<select name="status" defaultValue={statusFilter}>
               <option value="all">ทั้งหมด</option>
               <option value="completed">ตรวจเสร็จแล้ว</option>
@@ -117,6 +127,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
               <Link className="ghost-action" href="/progress1?view=reviewers">ล้างตัวกรอง</Link>
             </div>
           </form>
+          {searchQuery && <p className="progress1-search-result-note">ผลค้นหา “{searchQuery}” จะแสดงผู้ตรวจที่มีใบสมัครตรงกับชื่อโครงการหรือชื่อผู้สมัคร</p>}
           <div className="progress1-reviewer-list">
             {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
           </div>

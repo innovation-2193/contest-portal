@@ -7085,6 +7085,31 @@ body:has(.prelander-page)::before {
   transform: rotate(180deg);
 }
 
+.progress1-scoreboard-disclosure.is-disabled {
+  border-style: dashed;
+  border-color: rgba(126, 139, 163, 0.38);
+  background:
+    linear-gradient(135deg, rgba(126, 139, 163, 0.08), transparent 42%),
+    rgba(1, 9, 22, 0.36);
+  box-shadow: none;
+}
+
+.progress1-scoreboard-disclosure.is-disabled > summary {
+  cursor: default;
+}
+
+.progress1-scoreboard-disclosure.is-disabled > summary > b,
+.progress1-scoreboard-disclosure.is-disabled > summary > span,
+.progress1-scoreboard-disclosure.is-disabled > summary strong {
+  color: #95a2b8;
+}
+
+.progress1-scoreboard-disclosure.is-disabled .admin-hashtag-list em {
+  border-color: rgba(126, 139, 163, 0.38);
+  background: rgba(126, 139, 163, 0.1);
+  color: #aebbd0;
+}
+
 .progress1-scoreboard-disclosure > .progress1-scoreboard-detail {
   display: grid;
   gap: 10px;
@@ -7179,6 +7204,30 @@ body:has(.prelander-page)::before {
   font-weight: 800;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+.progress1-scoreboard-pending {
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: start;
+  color: var(--muted);
+}
+
+.progress1-scoreboard-pending > svg {
+  width: 22px;
+  height: 22px;
+  color: #95a2b8;
+}
+
+.progress1-scoreboard-pending b {
+  color: #d1d9e6;
+  font-size: 14px;
+}
+
+.progress1-scoreboard-pending p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.55;
 }
 
 .progress1-scoreboard-detail-actions {
@@ -7562,6 +7611,23 @@ body:has(.prelander-page)::before {
   align-items: center;
 }
 
+.progress1-search-form {
+  grid-template-columns: minmax(260px, 1fr) auto;
+  margin: 0 0 12px;
+}
+
+.progress1-search-form .audit-filter-actions {
+  align-self: end;
+}
+
+.progress1-search-result-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
 .progress1-tab-switcher {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7668,7 +7734,7 @@ body:has(.prelander-page)::before {
 }
 
 .progress1-filter-form {
-  grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.25fr) auto;
+  grid-template-columns: minmax(240px, 1.2fr) minmax(180px, 0.7fr) minmax(260px, 1.25fr) auto;
   margin-bottom: 14px;
 }
 
@@ -8102,6 +8168,10 @@ body:has(.prelander-page)::before {
   }
 
   .progress1-filter-form {
+    grid-template-columns: 1fr;
+  }
+
+  .progress1-search-form {
     grid-template-columns: 1fr;
   }
 }

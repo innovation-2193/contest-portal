@@ -73,6 +73,45 @@ export function sortByPendingThenDate(a: SubmissionListItem, b: SubmissionListIt
     - new Date(b.review_assigned_at || b.submitted_at).getTime();
 }
 
+export function normalizeProgressSearchQuery(value?: string | null) {
+  return (value ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+export function submissionMatchesProgressSearch(item: SubmissionListItem, query: string) {
+  const terms = normalizeProgressSearchQuery(query).split(" ").filter(Boolean);
+  if (!terms.length) return true;
+  const haystack = normalizeProgressSearchQuery([
+    item.submission_code,
+    item.title_th,
+    item.team_name,
+    item.first_name,
+    item.last_name,
+    `${item.first_name} ${item.last_name}`,
+    item.email,
+    item.division,
+    item.bureau,
+    item.review_assigned_admin_email,
+    item.review_scored_by_email,
+    ...item.hashtags,
+  ].filter(Boolean).join(" "));
+  return terms.every((term) => haystack.includes(term));
+}
+
+export function sortProgressSearchSubmissions<T extends SubmissionListItem>(submissions: T[]) {
+  return [...submissions].sort((a, b) => {
+    const scoredDiff = Number(Boolean(b.review_submitted_at)) - Number(Boolean(a.review_submitted_at));
+    if (scoredDiff !== 0) return scoredDiff;
+
+    const scoreDiff = Number(b.review_total_score ?? Number.NEGATIVE_INFINITY) - Number(a.review_total_score ?? Number.NEGATIVE_INFINITY);
+    if (scoreDiff !== 0) return scoreDiff;
+
+    const submittedDiff = progressSubmissionTime(a.submitted_at) - progressSubmissionTime(b.submitted_at);
+    if (submittedDiff !== 0) return submittedDiff;
+
+    return a.submission_code.localeCompare(b.submission_code);
+  });
+}
+
 export function reviewerStatus(reviewer: ReviewerProgress): "completed" | "in_progress" | "pending" {
   if (reviewer.pending.length === 0) return "completed";
   if (reviewer.scored.length > 0) return "in_progress";
@@ -138,5 +177,11 @@ function clamp(value: number, min: number, max: number) {
 function reviewerTimestamp(value: string | null) {
   if (!value) return Number.MAX_SAFE_INTEGER;
   const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
+}
+
+function progressSubmissionTime(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  const time = date.getTime();
   return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 }
