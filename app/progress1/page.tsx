@@ -11,19 +11,30 @@ import {
   isNumber,
   latestDate,
   percent,
+  reviewerStatus,
   type ReviewerProgress,
 } from "../../lib/progress-review";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function Progress1Page() {
+type ProgressStatusFilter = "all" | "completed" | "in_progress" | "pending";
+
+export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string }> }) {
+  const params = await searchParams;
+  const statusFilter = normalizeStatusFilter(params.status);
+  const reviewerFilter = (params.reviewer ?? "").trim().toLowerCase();
   const [submissions, adminAccounts] = await Promise.all([
     listSubmissions(),
     listAdminAccounts(),
   ]);
   const activeAdmins = adminAccounts.filter((admin) => !admin.disabled);
   const reviewerProgress = buildReviewerProgress(submissions, activeAdmins);
+  const filteredReviewers = reviewerProgress.filter((reviewer) => {
+    const statusOk = statusFilter === "all" || reviewerStatus(reviewer) === statusFilter;
+    const reviewerOk = !reviewerFilter || reviewer.email === reviewerFilter;
+    return statusOk && reviewerOk;
+  });
   const assignedSubmissions = submissions.filter((item) => Boolean(item.review_assigned_admin_email));
   const scoredSubmissions = assignedSubmissions.filter((item) => Boolean(item.review_submitted_at));
   const pendingSubmissions = assignedSubmissions.filter((item) => !item.review_submitted_at);
@@ -76,11 +87,27 @@ export default async function Progress1Page() {
           <UsersRound/>
           <div>
             <h2>รายชื่อผู้ตรวจ</h2>
-            <p>กด “ดูรายการตรวจ” เพื่อเปิดรายการใบสมัครที่ผู้ตรวจคนนั้นรับผิดชอบ</p>
+            <p>เรียงผู้ตรวจที่ตรวจครบแล้วขึ้นก่อน และเรียงตามเวลาที่ส่งคะแนนก่อน</p>
           </div>
         </header>
+        <form className="audit-filter-form progress1-filter-form" method="get">
+          <label>สถานะการตรวจ<select name="status" defaultValue={statusFilter}>
+            <option value="all">ทั้งหมด</option>
+            <option value="completed">ตรวจเสร็จแล้ว</option>
+            <option value="in_progress">กำลังตรวจ</option>
+            <option value="pending">รอตรวจ</option>
+          </select></label>
+          <label>รายชื่อผู้ตรวจ<select name="reviewer" defaultValue={reviewerFilter}>
+            <option value="">ผู้ตรวจทั้งหมด</option>
+            {reviewerProgress.map((reviewer) => <option key={reviewer.email} value={reviewer.email}>{reviewer.name} • {reviewer.email}</option>)}
+          </select></label>
+          <div className="audit-filter-actions">
+            <button className="secondary" type="submit">กรองข้อมูล</button>
+            <Link className="ghost-action" href="/progress1">ล้างตัวกรอง</Link>
+          </div>
+        </form>
         <div className="progress1-reviewer-list">
-          {reviewerProgress.length ? reviewerProgress.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState/>}
+          {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
         </div>
       </section>
     </div>
@@ -114,12 +141,12 @@ function ReviewerCard({ reviewer }: { reviewer: ReviewerProgress }) {
   </article>;
 }
 
-function ProgressEmptyState() {
+function ProgressEmptyState({ filtered = false }: { filtered?: boolean }) {
   return <div className="progress1-empty-state">
     <UserCheck/>
     <div>
-      <b>ยังไม่มีงานที่ assign ให้ผู้ตรวจ</b>
-      <p>เมื่อ Super Admin assign ใบสมัครให้ผู้ตรวจแล้ว ความคืบหน้าและรายละเอียดคะแนนจะแสดงในหน้านี้อัตโนมัติ</p>
+      <b>{filtered ? "ไม่พบผู้ตรวจตามตัวกรอง" : "ยังไม่มีงานที่ assign ให้ผู้ตรวจ"}</b>
+      <p>{filtered ? "ลองเปลี่ยนสถานะการตรวจหรือเลือกผู้ตรวจทั้งหมดอีกครั้ง" : "เมื่อ Super Admin assign ใบสมัครให้ผู้ตรวจแล้ว ความคืบหน้าและรายละเอียดคะแนนจะแสดงในหน้านี้อัตโนมัติ"}</p>
     </div>
   </div>;
 }
@@ -145,4 +172,9 @@ function ProgressBar({ value, label }: { value: number; label: string }) {
     </div>
     <small>{label}</small>
   </div>;
+}
+
+function normalizeStatusFilter(value?: string): ProgressStatusFilter {
+  if (value === "completed" || value === "in_progress" || value === "pending") return value;
+  return "all";
 }

@@ -18,6 +18,8 @@ export type ReviewerProgress = {
   pending: SubmissionListItem[];
   averageScore: number | null;
   latestActivity: string | null;
+  completedAt: string | null;
+  firstScoredAt: string | null;
 };
 
 export function buildReviewerProgress(submissions: SubmissionListItem[], admins: Awaited<ReturnType<typeof listAdminAccounts>>): ReviewerProgress[] {
@@ -42,10 +44,12 @@ export function buildReviewerProgress(submissions: SubmissionListItem[], admins:
         pending,
         averageScore: average(scored.map((item) => item.review_total_score).filter(isNumber)),
         latestActivity: latestDate(assigned.map((item) => item.review_submitted_at || item.review_assigned_at)),
+        completedAt: pending.length === 0 ? latestDate(scored.map((item) => item.review_submitted_at)) : null,
+        firstScoredAt: firstDate(scored.map((item) => item.review_submitted_at)),
       };
     })
     .filter((reviewer) => reviewer.assigned.length > 0)
-    .sort((a, b) => b.pending.length - a.pending.length || b.assigned.length - a.assigned.length || a.email.localeCompare(b.email));
+    .sort(sortReviewers);
 }
 
 export async function reviewerLabel(input: { assignedEmail: string | null; scoredEmail: string | null }) {
@@ -60,10 +64,30 @@ export async function reviewerLabel(input: { assignedEmail: string | null; score
 }
 
 export function sortByPendingThenDate(a: SubmissionListItem, b: SubmissionListItem) {
-  const pendingDiff = Number(Boolean(a.review_submitted_at)) - Number(Boolean(b.review_submitted_at));
-  if (pendingDiff !== 0) return pendingDiff;
-  return new Date(b.review_submitted_at || b.review_assigned_at || b.submitted_at).getTime()
-    - new Date(a.review_submitted_at || a.review_assigned_at || a.submitted_at).getTime();
+  const scoredDiff = Number(Boolean(b.review_submitted_at)) - Number(Boolean(a.review_submitted_at));
+  if (scoredDiff !== 0) return scoredDiff;
+  if (a.review_submitted_at && b.review_submitted_at) {
+    return new Date(a.review_submitted_at).getTime() - new Date(b.review_submitted_at).getTime();
+  }
+  return new Date(a.review_assigned_at || a.submitted_at).getTime()
+    - new Date(b.review_assigned_at || b.submitted_at).getTime();
+}
+
+export function reviewerStatus(reviewer: ReviewerProgress): "completed" | "in_progress" | "pending" {
+  if (reviewer.pending.length === 0) return "completed";
+  if (reviewer.scored.length > 0) return "in_progress";
+  return "pending";
+}
+
+function sortReviewers(a: ReviewerProgress, b: ReviewerProgress) {
+  const statusOrder = { completed: 0, in_progress: 1, pending: 2 };
+  const statusDiff = statusOrder[reviewerStatus(a)] - statusOrder[reviewerStatus(b)];
+  if (statusDiff !== 0) return statusDiff;
+
+  const aDoneTime = reviewerTimestamp(a.completedAt || a.firstScoredAt || a.latestActivity);
+  const bDoneTime = reviewerTimestamp(b.completedAt || b.firstScoredAt || b.latestActivity);
+  if (aDoneTime !== bDoneTime) return aDoneTime - bDoneTime;
+  return a.name.localeCompare(b.name, "th") || a.email.localeCompare(b.email);
 }
 
 export function percent(value: number, total: number) {
@@ -88,6 +112,14 @@ export function latestDate(values: Array<string | Date | null | undefined>) {
   return dates[0]?.toISOString() ?? null;
 }
 
+export function firstDate(values: Array<string | Date | null | undefined>) {
+  const dates = values
+    .map((value) => value ? new Date(value) : null)
+    .filter((value): value is Date => value instanceof Date && !Number.isNaN(value.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime());
+  return dates[0]?.toISOString() ?? null;
+}
+
 export function formatProgressDate(value?: string | Date | null) {
   if (!value) return "-";
   const date = new Date(value);
@@ -101,4 +133,10 @@ export function formatProgressDate(value?: string | Date | null) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0));
+}
+
+function reviewerTimestamp(value: string | null) {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;
 }

@@ -7363,6 +7363,15 @@ body:has(.prelander-page)::before {
   border-color: rgba(223, 186, 51, 0.32);
 }
 
+.progress1-filter-form {
+  grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.25fr) auto;
+  margin-bottom: 14px;
+}
+
+.progress1-filter-form .audit-filter-actions {
+  align-self: end;
+}
+
 .progress1-reviewer-list {
   display: grid;
   gap: 12px;
@@ -7759,6 +7768,10 @@ body:has(.prelander-page)::before {
 
   .progress1-summary-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .progress1-filter-form {
+    grid-template-columns: 1fr;
   }
 }
 
