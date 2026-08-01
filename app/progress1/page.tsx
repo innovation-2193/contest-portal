@@ -21,11 +21,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ProgressStatusFilter = "all" | "completed" | "in_progress" | "pending";
+type ProgressView = "scoreboard" | "reviewers";
 
-export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string }> }) {
+export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string; view?: string }> }) {
   const params = await searchParams;
   const statusFilter = normalizeStatusFilter(params.status);
   const reviewerFilter = (params.reviewer ?? "").trim().toLowerCase();
+  const activeView = normalizeProgressView(params.view, Boolean(params.status || reviewerFilter));
   const [submissions, adminAccounts] = await Promise.all([
     listSubmissions(),
     listAdminAccounts(),
@@ -85,38 +87,48 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
         </div>
       </section>
 
-      <ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/>
+      <ProgressTabs activeView={activeView} statusFilter={statusFilter} reviewerFilter={reviewerFilter}/>
 
-      <section className="admin-panel progress1-reviewer-panel">
-        <header className="admin-section-head">
-          <UsersRound/>
-          <div>
-            <h2>รายชื่อผู้ตรวจ</h2>
-            <p>เรียงผู้ตรวจที่ตรวจครบแล้วขึ้นก่อน และเรียงตามเวลาที่ส่งคะแนนก่อน</p>
+      {activeView === "scoreboard" ? <ProgressScoreboardPanel submissions={scoreboardSubmissions.slice(0, 10)} total={scoreboardSubmissions.length}/> : (
+        <section className="admin-panel progress1-reviewer-panel">
+          <header className="admin-section-head">
+            <UsersRound/>
+            <div>
+              <h2>รายชื่อผู้ตรวจ</h2>
+              <p>เรียงผู้ตรวจที่ตรวจครบแล้วขึ้นก่อน และเรียงตามเวลาที่ส่งคะแนนก่อน</p>
+            </div>
+          </header>
+          <form className="audit-filter-form progress1-filter-form" method="get">
+            <input type="hidden" name="view" value="reviewers"/>
+            <label>สถานะการตรวจ<select name="status" defaultValue={statusFilter}>
+              <option value="all">ทั้งหมด</option>
+              <option value="completed">ตรวจเสร็จแล้ว</option>
+              <option value="in_progress">กำลังตรวจ</option>
+              <option value="pending">รอตรวจ</option>
+            </select></label>
+            <label>รายชื่อผู้ตรวจ<select name="reviewer" defaultValue={reviewerFilter}>
+              <option value="">ผู้ตรวจทั้งหมด</option>
+              {reviewerProgress.map((reviewer) => <option key={reviewer.email} value={reviewer.email}>{reviewer.name} • {reviewer.email}</option>)}
+            </select></label>
+            <div className="audit-filter-actions">
+              <button className="secondary" type="submit">กรองข้อมูล</button>
+              <Link className="ghost-action" href="/progress1?view=reviewers">ล้างตัวกรอง</Link>
+            </div>
+          </form>
+          <div className="progress1-reviewer-list">
+            {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
           </div>
-        </header>
-        <form className="audit-filter-form progress1-filter-form" method="get">
-          <label>สถานะการตรวจ<select name="status" defaultValue={statusFilter}>
-            <option value="all">ทั้งหมด</option>
-            <option value="completed">ตรวจเสร็จแล้ว</option>
-            <option value="in_progress">กำลังตรวจ</option>
-            <option value="pending">รอตรวจ</option>
-          </select></label>
-          <label>รายชื่อผู้ตรวจ<select name="reviewer" defaultValue={reviewerFilter}>
-            <option value="">ผู้ตรวจทั้งหมด</option>
-            {reviewerProgress.map((reviewer) => <option key={reviewer.email} value={reviewer.email}>{reviewer.name} • {reviewer.email}</option>)}
-          </select></label>
-          <div className="audit-filter-actions">
-            <button className="secondary" type="submit">กรองข้อมูล</button>
-            <Link className="ghost-action" href="/progress1">ล้างตัวกรอง</Link>
-          </div>
-        </form>
-        <div className="progress1-reviewer-list">
-          {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   </div>;
+}
+
+function ProgressTabs({ activeView, statusFilter, reviewerFilter }: { activeView: ProgressView; statusFilter: ProgressStatusFilter; reviewerFilter: string }) {
+  return <nav className="progress1-tab-switcher" aria-label="สลับข้อมูลความคืบหน้า">
+    <Link className={activeView === "scoreboard" ? "active" : ""} href="/progress1?view=scoreboard" aria-current={activeView === "scoreboard" ? "page" : undefined}><Trophy/>Score Board คะแนน Top 10</Link>
+    <Link className={activeView === "reviewers" ? "active" : ""} href={progressViewHref("reviewers", statusFilter, reviewerFilter)} aria-current={activeView === "reviewers" ? "page" : undefined}><UsersRound/>รายชื่อผู้ตรวจ</Link>
+  </nav>;
 }
 
 function ReviewerCard({ reviewer }: { reviewer: ReviewerProgress }) {
@@ -182,4 +194,16 @@ function ProgressBar({ value, label }: { value: number; label: string }) {
 function normalizeStatusFilter(value?: string): ProgressStatusFilter {
   if (value === "completed" || value === "in_progress" || value === "pending") return value;
   return "all";
+}
+
+function normalizeProgressView(value: string | undefined, preferReviewers: boolean): ProgressView {
+  if (value === "reviewers" || value === "scoreboard") return value;
+  return preferReviewers ? "reviewers" : "scoreboard";
+}
+
+function progressViewHref(view: ProgressView, statusFilter: ProgressStatusFilter, reviewerFilter: string) {
+  const params = new URLSearchParams({ view });
+  if (view === "reviewers" && statusFilter !== "all") params.set("status", statusFilter);
+  if (view === "reviewers" && reviewerFilter) params.set("reviewer", reviewerFilter);
+  return `/progress1?${params.toString()}`;
 }

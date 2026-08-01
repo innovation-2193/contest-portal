@@ -7378,6 +7378,48 @@ body:has(.prelander-page)::before {
   align-items: center;
 }
 
+.progress1-tab-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+  padding: 6px;
+  border: 1px solid rgba(64, 89, 128, 0.46);
+  border-radius: 12px;
+  background: rgba(1, 9, 22, 0.5);
+}
+
+.progress1-tab-switcher a {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.progress1-tab-switcher a.active {
+  border-color: rgba(223, 186, 51, 0.58);
+  background: rgba(223, 186, 51, 0.14);
+  color: var(--ink);
+}
+
+.progress1-tab-switcher svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
 .progress1-scoreboard-more {
   margin: 12px 0 0;
   color: var(--muted);
@@ -7925,9 +7967,32 @@ body:has(.prelander-page)::before {
   }
 
   .progress1-summary-card b {
-    font-size: clamp(25px, 8.2vw, 36px);
+    max-width: 100%;
+    min-width: 0;
+    font-size: clamp(20px, 5.6vw, 24px);
     line-height: 1;
     white-space: nowrap;
+  }
+
+  .progress1-summary-card.blue b {
+    font-size: clamp(18px, 5vw, 22px);
+  }
+
+  .progress1-tab-switcher {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .progress1-tab-switcher a {
+    min-height: 42px;
+    padding: 8px 7px;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .progress1-tab-switcher svg {
+    width: 15px;
+    height: 15px;
   }
 
   .progress1-empty-state {

@@ -7,8 +7,8 @@ type SubmissionContextFile = {
   filePath?: string;
 };
 
-const maxTextPerFile = 3500;
-const maxContextText = 12000;
+const maxTextPerFile = 30000;
+const maxContextText = 120000;
 
 export async function buildSubmissionHashtagContext(files: SubmissionContextFile[]) {
   const parts: string[] = [];
@@ -19,7 +19,6 @@ export async function buildSubmissionHashtagContext(files: SubmissionContextFile
     const text = bytes ? await extractPdfText(bytes).catch(() => "") : "";
     const section = [label, text].filter(Boolean).join(" ");
     if (section.trim()) parts.push(section.trim());
-    if (parts.join(" ").length >= maxContextText) break;
   }
 
   return normalizeWhitespace(parts.join(" ")).slice(0, maxContextText);
@@ -38,16 +37,21 @@ async function extractPdfText(input: Uint8Array) {
   const pages: string[] = [];
 
   try {
-    const maxPages = Math.min(pdf.numPages, 8);
-    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+    let collectedLength = 0;
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent({ includeMarkedContent: false });
       const pageText = content.items
         .map((item) => ("str" in item ? item.str : ""))
         .filter(Boolean)
         .join(" ");
-      if (pageText.trim()) pages.push(pageText);
-      if (pages.join(" ").length >= maxTextPerFile) break;
+      const normalizedPageText = normalizeWhitespace(pageText);
+      if (normalizedPageText && collectedLength < maxTextPerFile) {
+        const remaining = maxTextPerFile - collectedLength;
+        const clippedPageText = normalizedPageText.slice(0, remaining);
+        pages.push(`หน้า ${pageNumber} ${clippedPageText}`);
+        collectedLength += clippedPageText.length;
+      }
     }
   } finally {
     await pdf.destroy();

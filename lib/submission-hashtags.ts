@@ -5,24 +5,33 @@ type HashtagSource = {
   documentText?: string | null;
 };
 
-const meaningTags: Array<{ tag: string; pattern: RegExp; weight: number }> = [
+type MeaningTag = {
+  tag: string;
+  pattern: RegExp;
+  weight: number;
+};
+
+const strictVisualPattern = /กล้อง|กล้องวงจรปิด|ใบหน้า|ป้ายทะเบียน|cctv|camera|computer vision|machine vision|image processing|วิเคราะห์ภาพ|ประมวลผลภาพ|ภาพถ่าย|รูปภาพ|วิดีโอ|video/i;
+
+const meaningTags: MeaningTag[] = [
+  { tag: "จัดการภารกิจ", pattern: /ภารกิจ|จำแนกภารกิจ|จัดลำดับงาน|กำหนดเจ้าภาพ|มอบหมายงาน|เจ้าภาพงาน|ภาระงาน|task|assignment|case routing/i, weight: 126 },
+  { tag: "งานอำนวยการ", pattern: /อำนวยการ|อํานวยการ|สารบรรณ|กำลังพล|ทรัพยากร|บริหารงาน|จัดการงาน|ติดตามงาน|งานสนับสนุน|เจ้าภาพงาน|workflow|back office/i, weight: 124 },
   { tag: "สืบสวนดิจิทัล", pattern: /สืบสวน|สอบสวน|คดี|ผู้ต้องหา|พยาน|หลักฐาน|forensic|investigation/i, weight: 120 },
   { tag: "ไซเบอร์ปลอดภัย", pattern: /ไซเบอร์|ออนไลน์|หลอกลวง|มิจฉาชีพ|บัญชีม้า|phishing|fraud|scam|cyber/i, weight: 118 },
   { tag: "บริการประชาชน", pattern: /ประชาชน|ร้องเรียน|แจ้งเหตุ|บริการ|ผู้เสียหาย|service|community|citizen/i, weight: 116 },
   { tag: "จราจรอัจฉริยะ", pattern: /จราจร|รถ|ถนน|อุบัติเหตุ|ทางหลวง|traffic|vehicle|accident/i, weight: 114 },
   { tag: "เชื่อมโยงข้อมูล", pattern: /เชื่อมโยง|บูรณาการ|แลกเปลี่ยนข้อมูล|ระบบกลาง|integration|api|database/i, weight: 112 },
-  { tag: "วิเคราะห์ข้อมูล", pattern: /วิเคราะห์|สถิติ|รายงาน|dashboard|ดัชนี|data|analytics|insight/i, weight: 110 },
+  { tag: "วิเคราะห์ข้อมูล", pattern: /วิเคราะห์|จำแนก|ประมวลผลข้อมูล|สถิติ|รายงาน|dashboard|ดัชนี|data|analytics|insight|classification/i, weight: 110 },
   { tag: "AIช่วยตำรวจ", pattern: /ai|ปัญญาประดิษฐ์|แมชชีน|machine learning|โมเดล|คาดการณ์|ทำนาย/i, weight: 108 },
   { tag: "แจ้งเตือนทันที", pattern: /แจ้งเตือน|เตือนภัย|notification|alert|real.?time|ทันที|เฝ้าระวัง/i, weight: 106 },
   { tag: "ลดเวลางาน", pattern: /ลดเวลา|รวดเร็ว|อัตโนมัติ|automation|workflow|ประหยัดเวลา|เพิ่มประสิทธิภาพ/i, weight: 104 },
   { tag: "ตรวจเอกสาร", pattern: /เอกสาร|pdf|ocr|สแกน|แบบฟอร์ม|หนังสือ|document|scan/i, weight: 102 },
-  { tag: "ภาพและกล้อง", pattern: /กล้อง|ภาพ|ใบหน้า|ป้ายทะเบียน|cctv|camera|vision|image/i, weight: 100 },
+  { tag: "ภาพและกล้อง", pattern: strictVisualPattern, weight: 100 },
   { tag: "โดรนภาคสนาม", pattern: /โดรน|uav|ภาคสนาม|พื้นที่|ลาดตระเวน|drone/i, weight: 98 },
   { tag: "แผนที่พิกัด", pattern: /แผนที่|พิกัด|ตำแหน่ง|พื้นที่เสี่ยง|gis|map|location|tracking/i, weight: 96 },
   { tag: "IoTตำรวจ", pattern: /iot|sensor|เซนเซอร์|อุปกรณ์|device|smart/i, weight: 94 },
   { tag: "ป้องกันเหตุ", pattern: /ป้องกัน|เฝ้าระวัง|ความเสี่ยง|risk|safety|security|ปลอดภัย/i, weight: 92 },
   { tag: "งานพิสูจน์หลักฐาน", pattern: /พิสูจน์หลักฐาน|นิติวิทยาศาสตร์|dna|ลายนิ้วมือ|วัตถุพยาน/i, weight: 90 },
-  { tag: "งานอำนวยการ", pattern: /บริหาร|จัดการ|ติดตามงาน|สารบรรณ|กำลังพล|ทรัพยากร/i, weight: 88 },
   { tag: "แอปภาคประชาชน", pattern: /แอป|มือถือ|mobile|application|app|แพลตฟอร์ม/i, weight: 86 },
   { tag: "พร้อมต่อยอด", pattern: /ต้นแบบ|ทดลอง|prototype|pilot|ต่อยอด|ใช้งานจริง|ขยายผล/i, weight: 84 },
 ];
@@ -76,7 +85,8 @@ export function parseSubmissionHashtags(value?: string | null, fallback?: Hashta
     .map((tag) => normalizeTag(tag))
     .filter(Boolean);
   const unique = uniqueTags(tags).slice(0, 3);
-  if (unique.length) return unique;
+  const repaired = repairStoredHashtags(unique, fallback);
+  if (repaired.length) return repaired;
   if (fallback) return generateSubmissionHashtags(fallback);
   return unique;
 }
@@ -97,13 +107,41 @@ function extractTokens(text: string) {
     .filter((token) => token && !stopWords.has(token.toLowerCase()) && !stopWords.has(token));
 }
 
-function scoreMeaningTag(item: { pattern: RegExp; weight: number }, titleText: string, summaryText: string, documentText: string) {
+function scoreMeaningTag(item: MeaningTag, titleText: string, summaryText: string, documentText: string) {
   let score = 0;
-  if (item.pattern.test(titleText)) score += item.weight * 5;
-  if (item.pattern.test(summaryText)) score += item.weight * 3;
+  if (matchesPattern(titleText, item.pattern)) score += item.weight * 5;
+  if (matchesPattern(summaryText, item.pattern)) score += item.weight * 3;
   const documentMatches = countPatternMatches(documentText, item.pattern);
   if (documentMatches) score += item.weight + Math.min(documentMatches, 8) * 8;
   return score;
+}
+
+function repairStoredHashtags(tags: string[], fallback?: HashtagSource) {
+  if (!tags.length) return tags;
+  const sourceText = [fallback?.titleTh, fallback?.titleEn, fallback?.summary, fallback?.documentText].filter(Boolean).join(" ");
+  const repaired = tags.filter((tag) => isStoredTagSupported(tag, sourceText));
+  if (fallback && repaired.length < tags.length) {
+    return uniqueTags([...generateSubmissionHashtags(fallback), ...repaired]).slice(0, 3);
+  }
+  if (!fallback || repaired.length >= 3) return repaired.slice(0, 3);
+  for (const tag of generateSubmissionHashtags(fallback)) {
+    pushTag(repaired, tag);
+    if (repaired.length >= 3) break;
+  }
+  return repaired;
+}
+
+function isStoredTagSupported(tag: string, sourceText: string) {
+  if (tag === "ภาพและกล้อง") return matchesPattern(sourceText, strictVisualPattern);
+  if (tag === "โดรนภาคสนาม") return /โดรน|uav|ลาดตระเวน|drone/i.test(sourceText);
+  if (tag === "แผนที่พิกัด") return /แผนที่|พิกัด|gis|map|location|tracking/i.test(sourceText);
+  if (tag === "IoTตำรวจ") return /iot|sensor|เซนเซอร์|อุปกรณ์|device|smart/i.test(sourceText);
+  return true;
+}
+
+function matchesPattern(text: string, pattern: RegExp) {
+  pattern.lastIndex = 0;
+  return pattern.test(text);
 }
 
 function countPatternMatches(text: string, pattern: RegExp) {
