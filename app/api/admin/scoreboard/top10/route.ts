@@ -29,6 +29,9 @@ const contentTop = 132;
 const contentBottom = 784;
 const marginX = 34;
 const contentWidth = 527;
+const infoLabelWidth = 154;
+const infoValueX = marginX + 180;
+const infoValueWidth = contentWidth - 198;
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();
@@ -194,7 +197,7 @@ function drawSubmissionPages(doc: PDFKit.PDFDocument, submission: AdminSubmissio
 
   y = drawSection(doc, "ข้อมูลผลงาน", y);
   for (const [label, value] of submissionInfoRows(submission)) {
-    const height = infoRowHeight(doc, value);
+    const height = infoRowHeight(doc, label, value);
     ensureRoom(height + 7);
     y = drawInfoRow(doc, label, value, y);
   }
@@ -203,7 +206,7 @@ function drawSubmissionPages(doc: PDFKit.PDFDocument, submission: AdminSubmissio
   ensureRoom(34);
   y = drawSection(doc, "คะแนนรอบแรก", y);
   for (const [label, value] of scoreRows(submission)) {
-    const height = infoRowHeight(doc, value);
+    const height = infoRowHeight(doc, label, value);
     ensureRoom(height + 7);
     y = drawInfoRow(doc, label, value, y);
   }
@@ -250,21 +253,27 @@ function drawSection(doc: PDFKit.PDFDocument, title: string, y: number) {
 }
 
 function drawInfoRow(doc: PDFKit.PDFDocument, label: string, value: string, y: number) {
-  const height = infoRowHeight(doc, value);
+  const height = infoRowHeight(doc, label, value);
   doc.roundedRect(marginX, y, contentWidth, height, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.font(fonts.bold).fontSize(8.5).fillColor(PDF_THEME.gold).text(label, marginX + 12, y + 10, {
-    width: 132,
-    lineBreak: false,
+    width: infoLabelWidth,
+    lineGap: 1,
   });
-  doc.font(fonts.regular).fontSize(10.2).fillColor(PDF_THEME.text).text(clean(value), marginX + 158, y + 9, {
-    width: contentWidth - 176,
+  doc.font(fonts.regular).fontSize(10.2).fillColor(PDF_THEME.text).text(clean(value), infoValueX, y + 9, {
+    width: infoValueWidth,
     lineGap: 1.3,
   });
   return y + height + 7;
 }
 
-function infoRowHeight(doc: PDFKit.PDFDocument, value: string) {
-  return Math.max(38, 18 + textHeight(doc, clean(value), contentWidth - 176, fonts.regular, 10.2, 1.3));
+function infoRowHeight(doc: PDFKit.PDFDocument, label: string, value: string) {
+  return Math.max(
+    38,
+    18 + Math.max(
+      textHeight(doc, label, infoLabelWidth, fonts.bold, 8.5, 1),
+      textHeight(doc, clean(value), infoValueWidth, fonts.regular, 10.2, 1.3),
+    ),
+  );
 }
 
 function submissionInfoRows(submission: AdminSubmissionDetail): Array<[string, string]> {
@@ -285,9 +294,9 @@ function scoreRows(submission: AdminSubmissionDetail): Array<[string, string]> {
   return [
     ["ความเป็นผลงานของตำรวจ", `${submission.review_rules_score ?? "-"} / 20`],
     ["ปัญหาและความจำเป็น", `${submission.review_problem_score ?? "-"} / 15`],
-    ["แนวคิดหรือนวัตกรรม", `${submission.review_innovation_score ?? "-"} / 25`],
-    ["หลักฐานผลลัพธ์", `${submission.review_evidence_score ?? "-"} / 20`],
-    ["ผลกระทบและขยายผล", `${submission.review_impact_score ?? "-"} / 20`],
+    ["แนวคิดหรือรูปแบบนวัตกรรม", `${submission.review_innovation_score ?? "-"} / 25`],
+    ["หลักฐานผลลัพธ์เบื้องต้น", `${submission.review_evidence_score ?? "-"} / 20`],
+    ["ความคุ้มค่าและการขยายผล", `${submission.review_impact_score ?? "-"} / 20`],
     ["ผู้ตรวจ", submission.review_assigned_admin_email || submission.review_scored_by_email || "-"],
     ["หมายเหตุการตรวจ", submission.review_note || "-"],
   ];

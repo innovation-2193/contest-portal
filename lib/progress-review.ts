@@ -3,11 +3,11 @@ import { superAdminEmails } from "./admin-auth";
 import type { SubmissionListItem } from "./admin-store";
 
 export const progressScoreCriteria = [
-  { key: "review_rules_score", label: "ผลงานตำรวจ", max: 20 },
-  { key: "review_problem_score", label: "ปัญหา/จำเป็น", max: 15 },
-  { key: "review_innovation_score", label: "นวัตกรรม", max: 25 },
-  { key: "review_evidence_score", label: "หลักฐานผลลัพธ์", max: 20 },
-  { key: "review_impact_score", label: "ผลกระทบ", max: 20 },
+  { key: "review_rules_score", label: "ความเป็นผลงานของตำรวจ", max: 20 },
+  { key: "review_problem_score", label: "ปัญหาและความจำเป็น", max: 15 },
+  { key: "review_innovation_score", label: "แนวคิดหรือรูปแบบนวัตกรรม", max: 25 },
+  { key: "review_evidence_score", label: "หลักฐานผลลัพธ์เบื้องต้น", max: 20 },
+  { key: "review_impact_score", label: "ความคุ้มค่าและการขยายผล", max: 20 },
 ] as const;
 
 export type ReviewerProgress = {
