@@ -7409,6 +7409,18 @@ body:has(.prelander-page)::before {
   overflow: hidden;
 }
 
+.progress1-reviewer-link-card {
+  padding: 0;
+}
+
+.progress1-reviewer-card-shell {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(100px, auto) minmax(150px, auto);
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+}
+
 .progress1-reviewer-card summary {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) minmax(108px, auto);
@@ -7483,7 +7495,38 @@ body:has(.prelander-page)::before {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.progress1-reviewer-card > .progress1-reviewer-meta {
   padding: 0 16px 16px;
+}
+
+.progress1-reviewer-card-shell .progress1-reviewer-meta {
+  grid-column: 2 / 4;
+  padding: 0;
+}
+
+.progress1-reviewer-detail-link {
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+.progress1-reviewer-detail-hero {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) minmax(112px, auto);
+  gap: 14px;
+  align-items: center;
+}
+
+.progress1-reviewer-detail-hero .progress1-reviewer-meta {
+  grid-column: 2 / -1;
+}
+
+.progress1-reviewer-detail-hero h2 {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.25;
 }
 
 .progress1-submission-list {
@@ -7643,6 +7686,14 @@ body:has(.prelander-page)::before {
   overflow-wrap: anywhere;
 }
 
+.progress1-executive-list {
+  padding: 0;
+}
+
+.progress1-executive-item {
+  padding: 16px;
+}
+
 @keyframes progress1Spin {
   to { transform: rotate(360deg); }
 }
@@ -7678,6 +7729,8 @@ body:has(.prelander-page)::before {
   }
 
   .progress1-reviewer-card summary,
+  .progress1-reviewer-card-shell,
+  .progress1-reviewer-detail-hero,
   .progress1-submission-head {
     grid-template-columns: 1fr;
   }
@@ -7693,6 +7746,15 @@ body:has(.prelander-page)::before {
 
   .progress1-reviewer-stats span {
     white-space: normal;
+  }
+
+  .progress1-reviewer-card-shell .progress1-reviewer-meta,
+  .progress1-reviewer-detail-hero .progress1-reviewer-meta {
+    grid-column: auto;
+  }
+
+  .progress1-reviewer-detail-link {
+    width: 100%;
   }
 
   .progress1-summary-grid {
@@ -7719,6 +7781,10 @@ body:has(.prelander-page)::before {
 
   .progress1-submission-head .small-action {
     width: 100%;
+  }
+
+  .progress1-executive-item {
+    padding: 13px;
   }
 }
 
