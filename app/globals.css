@@ -13503,83 +13503,6 @@ body:has(.report-page) .brand b {
   color: var(--ink);
 }
 
-.report-score-breakdown {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: 10px;
-  min-width: 0;
-  margin-top: 2px;
-}
-
-.report-score-total,
-.report-score-criteria article {
-  min-width: 0;
-  border: 1px solid rgba(118, 214, 202, 0.26);
-  border-radius: 8px;
-  background: rgba(4, 18, 38, 0.62);
-}
-
-.report-score-total {
-  display: grid;
-  align-content: center;
-  gap: 3px;
-  padding: 10px 12px;
-}
-
-.report-score-total span,
-.report-score-criteria span {
-  min-width: 0;
-  color: #aebbd0;
-  font-size: 12px;
-  font-weight: 1000;
-  line-height: 1.35;
-}
-
-.report-score-total b {
-  color: var(--ink);
-  font-size: 22px;
-  font-weight: 1000;
-  line-height: 1.1;
-}
-
-.report-score-criteria {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.report-score-criteria article {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 10px;
-}
-
-.report-score-criteria b {
-  color: #f7fbff;
-  font-size: 16px;
-  font-weight: 1000;
-  line-height: 1.15;
-}
-
-.report-score-criteria i {
-  display: block;
-  width: 100%;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(64, 89, 128, 0.72);
-}
-
-.report-score-criteria i span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #83ddf3, #f2cf4d);
-}
-
 .report-card-link {
   grid-column: 1 / -1;
   justify-self: start;
@@ -14035,12 +13958,6 @@ body:has(.report-page) .brand b {
   .report-bar-list {
     grid-template-columns: 1fr;
   }
-  .report-score-breakdown {
-    grid-template-columns: 1fr;
-  }
-  .report-score-criteria {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .report-bar-track {
     height: 18px;
   }
@@ -14421,9 +14338,6 @@ body:has(.report-page) .brand b {
   .submission-report-item > span,
   .submission-report-item em {
     justify-self: start;
-  }
-  .report-score-criteria {
-    grid-template-columns: 1fr;
   }
   .report-card-link {
     justify-self: stretch;

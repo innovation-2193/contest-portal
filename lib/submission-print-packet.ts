@@ -11,6 +11,7 @@ import {
   pdfFontBold,
   pdfFontRegular,
 } from "./pdf-theme";
+import { progressScoreCriteria } from "./progress-review";
 import {
   readSubmissionPdfFile,
   submissionDocumentTypes,
@@ -116,6 +117,12 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
     ["คำอธิบายย่อ", submission.summary],
   ];
   y = drawInfoGrid(doc, workInfoRows, y, nextPage);
+
+  if (hasReviewScore(submission)) {
+    y += 4;
+    y = ensureRoom(y, reviewScoreCardHeight());
+    y = drawReviewScoreCard(doc, submission, options, y);
+  }
 
   const reviewerComment = reviewCommentText(submission);
   if (reviewerComment) {
@@ -266,6 +273,10 @@ function reviewCommentText(submission: AdminSubmissionDetail) {
   return note;
 }
 
+function hasReviewScore(submission: AdminSubmissionDetail) {
+  return typeof submission.review_total_score === "number";
+}
+
 function reviewerLabelForComment(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
   return options.reviewerLabel
     || submission.review_scored_by_email
@@ -276,6 +287,80 @@ function reviewerLabelForComment(submission: AdminSubmissionDetail, options: Sub
 function reviewCommentMeta(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
   const submittedAt = submission.review_submitted_at ? formatPdfThaiDateTime(submission.review_submitted_at) : "-";
   return `ผู้ตรวจ ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
+}
+
+function reviewScoreCardHeight() {
+  return 214;
+}
+
+function drawReviewScoreCard(
+  doc: PDFKit.PDFDocument,
+  submission: AdminSubmissionDetail,
+  options: SubmissionPrintPacketOptions,
+  y: number,
+) {
+  const x = 34;
+  const width = 527;
+  const height = reviewScoreCardHeight();
+  const totalScore = submission.review_total_score ?? 0;
+  const submittedAt = submission.review_submitted_at ? formatPdfThaiDateTime(submission.review_submitted_at) : "-";
+  const meta = `ผู้ตรวจ ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
+  const rowX = x + 16;
+  const rowWidth = width - 32;
+  const rowTop = y + 68;
+  const rowHeight = 25;
+  const barWidth = 138;
+
+  doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.rect(x, y, width, 5).fill(PDF_THEME.gold);
+  doc.font(pdfFontBold).fontSize(13).fillColor(PDF_THEME.navy).text("คะแนนจากผู้ตรวจ", x + 16, y + 18, {
+    width: 240,
+    lineBreak: false,
+  });
+  doc.font(pdfFontBold).fontSize(20).fillColor(PDF_THEME.gold).text(`${totalScore}/100`, x + width - 130, y + 15, {
+    width: 112,
+    align: "right",
+    lineBreak: false,
+  });
+  doc.font(pdfFontRegular).fontSize(8.8).fillColor(PDF_THEME.muted).text(clean(meta), x + 16, y + 40, {
+    width: width - 32,
+    lineBreak: false,
+  });
+
+  progressScoreCriteria.forEach((criterion, index) => {
+    const score = submission[criterion.key];
+    const value = typeof score === "number" ? score : null;
+    const cursorY = rowTop + index * rowHeight;
+    const scoreText = `${value ?? "-"} / ${criterion.max}`;
+    const progress = value === null ? 0 : clampPercent(value, criterion.max);
+
+    doc.roundedRect(rowX, cursorY, rowWidth, 20, 5).fill(index % 2 === 0 ? "#f8fafc" : "#eef4fb");
+    doc.font(pdfFontBold).fontSize(8.9).fillColor(PDF_THEME.text).text(criterion.label, rowX + 10, cursorY + 6, {
+      width: 190,
+      lineBreak: false,
+    });
+    doc.font(pdfFontBold).fontSize(9.3).fillColor(PDF_THEME.navy).text(scoreText, rowX + 214, cursorY + 6, {
+      width: 62,
+      align: "right",
+      lineBreak: false,
+    });
+    doc.roundedRect(rowX + 292, cursorY + 7, barWidth, 7, 4).fill("#dde8f4");
+    doc.roundedRect(rowX + 292, cursorY + 7, Math.max(progress ? 5 : 0, progress * barWidth), 7, 4).fill(PDF_THEME.gold);
+    doc.font(pdfFontRegular).fontSize(7.6).fillColor(PDF_THEME.muted).text(`${Math.round(progress * 100)}%`, rowX + 440, cursorY + 5.5, {
+      width: 44,
+      align: "right",
+      lineBreak: false,
+    });
+  });
+
+  doc.font(pdfFontRegular).fontSize(8).fillColor(PDF_THEME.muted).text(
+    "คะแนนรวมคำนวณจากคะแนนรายด้าน 5 เกณฑ์ตามแบบฟอร์ม Paper Screening ที่บันทึกในระบบ",
+    x + 16,
+    y + height - 28,
+    { width: width - 32, lineBreak: false },
+  );
+
+  return y + height + 10;
 }
 
 function reviewCommentCardHeight(doc: PDFKit.PDFDocument, comment: string, meta: string) {
@@ -447,6 +532,11 @@ function drawPacketFooter(doc: PDFKit.PDFDocument, pageNumber: number, reference
 
 function clean(value: string) {
   return value.replace(/\s+/g, " ").trim() || "-";
+}
+
+function clampPercent(value: number, max: number) {
+  if (!max) return 0;
+  return Math.min(1, Math.max(0, value / max));
 }
 
 function collectPdf(doc: PDFKit.PDFDocument) {
