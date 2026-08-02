@@ -56,20 +56,30 @@ async function ensureSubmissionColumns() {
     await ensureColumn("submissions", "review_assigned_admin_email", "ALTER TABLE submissions ADD COLUMN review_assigned_admin_email VARCHAR(255) NULL AFTER status");
     await ensureColumn("submissions", "review_assigned_at", "ALTER TABLE submissions ADD COLUMN review_assigned_at VARCHAR(40) NULL AFTER review_assigned_admin_email");
     await ensureColumn("submissions", "review_scored_by_email", "ALTER TABLE submissions ADD COLUMN review_scored_by_email VARCHAR(255) NULL AFTER review_assigned_at");
-    await ensureColumn("submissions", "review_rules_score", "ALTER TABLE submissions ADD COLUMN review_rules_score TINYINT UNSIGNED NULL AFTER review_scored_by_email");
-    await ensureColumn("submissions", "review_problem_score", "ALTER TABLE submissions ADD COLUMN review_problem_score TINYINT UNSIGNED NULL AFTER review_rules_score");
-    await ensureColumn("submissions", "review_innovation_score", "ALTER TABLE submissions ADD COLUMN review_innovation_score TINYINT UNSIGNED NULL AFTER review_problem_score");
-    await ensureColumn("submissions", "review_evidence_score", "ALTER TABLE submissions ADD COLUMN review_evidence_score TINYINT UNSIGNED NULL AFTER review_innovation_score");
-    await ensureColumn("submissions", "review_impact_score", "ALTER TABLE submissions ADD COLUMN review_impact_score TINYINT UNSIGNED NULL AFTER review_evidence_score");
-    await ensureColumn("submissions", "review_total_score", "ALTER TABLE submissions ADD COLUMN review_total_score SMALLINT UNSIGNED NULL AFTER review_impact_score");
+    await ensureColumn("submissions", "review_rules_score", "ALTER TABLE submissions ADD COLUMN review_rules_score DECIMAL(5,2) UNSIGNED NULL AFTER review_scored_by_email");
+    await ensureColumn("submissions", "review_problem_score", "ALTER TABLE submissions ADD COLUMN review_problem_score DECIMAL(5,2) UNSIGNED NULL AFTER review_rules_score");
+    await ensureColumn("submissions", "review_innovation_score", "ALTER TABLE submissions ADD COLUMN review_innovation_score DECIMAL(5,2) UNSIGNED NULL AFTER review_problem_score");
+    await ensureColumn("submissions", "review_evidence_score", "ALTER TABLE submissions ADD COLUMN review_evidence_score DECIMAL(5,2) UNSIGNED NULL AFTER review_innovation_score");
+    await ensureColumn("submissions", "review_impact_score", "ALTER TABLE submissions ADD COLUMN review_impact_score DECIMAL(5,2) UNSIGNED NULL AFTER review_evidence_score");
+    await ensureColumn("submissions", "review_total_score", "ALTER TABLE submissions ADD COLUMN review_total_score DECIMAL(5,2) UNSIGNED NULL AFTER review_impact_score");
     await ensureColumn("submissions", "review_note", "ALTER TABLE submissions ADD COLUMN review_note VARCHAR(1000) NULL AFTER review_total_score");
     await ensureColumn("submissions", "review_submitted_at", "ALTER TABLE submissions ADD COLUMN review_submitted_at VARCHAR(40) NULL AFTER review_note");
+    await ensureSubmissionScorePrecision();
   }
 
   if (!await tableExists("submission_members")) return;
   await ensureColumn("submission_members", "position", "ALTER TABLE submission_members ADD COLUMN position VARCHAR(255) NOT NULL DEFAULT '' AFTER email");
   await ensureColumn("submission_members", "division", "ALTER TABLE submission_members ADD COLUMN division VARCHAR(255) NOT NULL DEFAULT '' AFTER position");
   await ensureColumn("submission_members", "bureau", "ALTER TABLE submission_members ADD COLUMN bureau VARCHAR(255) NOT NULL DEFAULT '' AFTER division");
+}
+
+async function ensureSubmissionScorePrecision() {
+  await db.execute("ALTER TABLE submissions MODIFY review_rules_score DECIMAL(5,2) UNSIGNED NULL");
+  await db.execute("ALTER TABLE submissions MODIFY review_problem_score DECIMAL(5,2) UNSIGNED NULL");
+  await db.execute("ALTER TABLE submissions MODIFY review_innovation_score DECIMAL(5,2) UNSIGNED NULL");
+  await db.execute("ALTER TABLE submissions MODIFY review_evidence_score DECIMAL(5,2) UNSIGNED NULL");
+  await db.execute("ALTER TABLE submissions MODIFY review_impact_score DECIMAL(5,2) UNSIGNED NULL");
+  await db.execute("ALTER TABLE submissions MODIFY review_total_score DECIMAL(5,2) UNSIGNED NULL");
 }
 
 async function ensureSatisfactionEvaluationsTable() {

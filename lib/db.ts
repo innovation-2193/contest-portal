@@ -9,7 +9,8 @@ export const db = globalDb.contestPool ?? mysql.createPool({
   connectionLimit: 10,
   enableKeepAlive: true,
   timezone: "+07:00",
-  charset: "utf8mb4"
+  charset: "utf8mb4",
+  decimalNumbers: true,
 });
 if (process.env.NODE_ENV !== "production") globalDb.contestPool = db;
 

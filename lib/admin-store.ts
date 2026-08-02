@@ -1167,7 +1167,7 @@ export async function assignSubmissionReviewer(submissionCode: string, adminEmai
 export async function saveSubmissionScore(input: SubmissionScoreInput) {
   const code = input.submissionCode.trim();
   const actorEmail = input.actorEmail.trim().toLowerCase();
-  const totalScore = input.rulesScore + input.problemScore + input.innovationScore + input.evidenceScore + input.impactScore;
+  const totalScore = roundScore(input.rulesScore + input.problemScore + input.innovationScore + input.evidenceScore + input.impactScore);
   validateScoreInput(input, totalScore);
   const submittedAt = new Date().toISOString();
 
@@ -1568,11 +1568,19 @@ function validateScoreInput(input: SubmissionScoreInput, totalScore: number) {
     ["ความคุ้มค่าและการขยายผล", input.impactScore, 20],
   ] as const;
   for (const [label, value, max] of ranges) {
-    if (!Number.isInteger(value) || value < 0 || value > max) {
-      throw new Error(`คะแนน ${label} ต้องอยู่ระหว่าง 0-${max}`);
+    if (!isValidScore(value) || value < 0 || value > max) {
+      throw new Error(`คะแนน ${label} ต้องอยู่ระหว่าง 0-${max} และมีทศนิยมได้ไม่เกิน 2 ตำแหน่ง`);
     }
   }
   if (totalScore < 0 || totalScore > 100) throw new Error("คะแนนรวมต้องอยู่ระหว่าง 0-100");
+}
+
+function isValidScore(value: number) {
+  return Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-9;
+}
+
+function roundScore(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 async function saveNewsImage(file: File) {

@@ -175,7 +175,7 @@ function ScorePanel({ item, isSuperAdmin }: { item: AdminSubmissionDetail; isSup
     <form action={saveScoreAction} className="admin-form score-review-form">
       <input type="hidden" name="submissionCode" value={item.submission_code}/>
       <div className="score-review-grid">
-        {paperScreeningCriteria.map((criterion) => <label key={criterion.name}>{criterion.label}<small>เต็ม {criterion.max} คะแนน</small><input type="number" name={criterion.name} min={0} max={criterion.max} step={1} defaultValue={String((item[criterion.field] as number | null) ?? 0)} disabled={locked} required/></label>)}
+        {paperScreeningCriteria.map((criterion) => <label key={criterion.name}>{criterion.label}<small>เต็ม {criterion.max} คะแนน</small><input type="number" name={criterion.name} min={0} max={criterion.max} step="0.01" defaultValue={String((item[criterion.field] as number | string | null) ?? 0)} disabled={locked} required/></label>)}
       </div>
       <label>หมายเหตุ<textarea name="note" maxLength={1000} defaultValue={item.review_note ?? ""} disabled={locked} placeholder="บันทึกเหตุผลหรือข้อสังเกตสำหรับ Super Admin"/></label>
       {locked ? <p className="admin-print-note">คะแนนนี้ถูกส่งแล้ว Admin ไม่สามารถแก้ไขได้ หากต้องแก้ไขให้ Super Admin ดำเนินการ</p> : (
@@ -453,9 +453,13 @@ function text(formData: FormData, name: string) {
 }
 
 function score(formData: FormData, name: string) {
-  const value = Number(String(formData.get(name) ?? "0"));
-  if (!Number.isFinite(value)) return 0;
-  return Math.trunc(value);
+  const rawValue = String(formData.get(name) ?? "0").trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(rawValue)) {
+    throw new Error("คะแนนต้องเป็นตัวเลข และมีทศนิยมได้ไม่เกิน 2 ตำแหน่ง");
+  }
+  const value = Number(rawValue);
+  if (!Number.isFinite(value)) throw new Error("คะแนนต้องเป็นตัวเลข");
+  return Math.round(value * 100) / 100;
 }
 
 function formatAdminDate(value?: string | null) {
