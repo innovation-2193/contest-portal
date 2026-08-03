@@ -22,7 +22,7 @@ const fonts: PdfFontSet = {
   bold: pdfFontBold,
 };
 const rowsPerPage = 5;
-const signatureBlockY = 452;
+const signatureBlockY = 444;
 
 const committeeSignatories = [
   { rank: "พล.ต.ท.", name: "ไพบูลย์ น้อยหุ่น", unit: "ผบช.สทส.", role: "ประธานกรรมการ" },
@@ -283,9 +283,7 @@ function drawScoreFormRow(
   let cursor = x;
   values.forEach((value, valueIndex) => {
     if (valueIndex > 0) doc.moveTo(cursor, y).lineTo(cursor, y + height).lineWidth(0.35).stroke("#d9e2ef");
-    if (valueIndex >= 3) {
-      doc.roundedRect(cursor + 8, y + 12, columns[valueIndex][1] - 16, height - 24, 4).fillAndStroke("#ffffff", "#b8c6d7");
-    } else {
+    if (valueIndex < 3) {
       drawClampedCellText(doc, clean(value), cursor + 7, y + 9, columns[valueIndex][1] - 14, valueIndex === 0 ? 9 : 8.2, valueIndex === 0 ? fonts.bold : fonts.regular, valueIndex === 0 ? PDF_THEME.navy : PDF_THEME.text, valueIndex === 0 ? 1 : 2);
     }
     cursor += columns[valueIndex][1];
@@ -296,45 +294,36 @@ function drawCommitteeSignatureBlock(doc: PDFKit.PDFDocument, y: number) {
   const blockWidth = 790;
   const x = (doc.page.width - blockWidth) / 2;
   const topY = y;
-  const bottomY = y + 55;
-  drawSignatureSlot(doc, { rankX: x + 12, roleX: x + 145, roleWidth: 150, y: topY }, committeeSignatories[0]);
-  drawSignatureSlot(doc, { rankX: x + 290, roleX: x + 420, roleWidth: 175, y: topY }, committeeSignatories[1]);
-  drawSignatureSlot(doc, { rankX: x + 590, roleX: x + 710, roleWidth: 80, y: topY }, committeeSignatories[2]);
-  drawSignatureSlot(doc, { rankX: x + 180, roleX: x + 314, roleWidth: 110, y: bottomY }, committeeSignatories[3]);
-  drawSignatureSlot(doc, { rankX: x + 438, roleX: x + 552, roleWidth: 178, y: bottomY }, committeeSignatories[4]);
+  const bottomY = y + 58;
+  drawSignatureSlot(doc, x + 12, topY, 245, committeeSignatories[0]);
+  drawSignatureSlot(doc, x + 272, topY, 245, committeeSignatories[1]);
+  drawSignatureSlot(doc, x + 532, topY, 245, committeeSignatories[2]);
+  drawSignatureSlot(doc, x + 167, bottomY, 245, committeeSignatories[3]);
+  drawSignatureSlot(doc, x + 427, bottomY, 245, committeeSignatories[4]);
 }
 
 function drawSignatureSlot(
   doc: PDFKit.PDFDocument,
-  layout: {
-    rankX: number;
-    roleX: number;
-    roleWidth: number;
-    y: number;
-  },
+  x: number,
+  y: number,
+  width: number,
   signatory: typeof committeeSignatories[number],
 ) {
-  doc.font(fonts.regular).fontSize(10.5).fillColor("#111111");
-  const rankWidth = doc.widthOfString(signatory.rank);
-  const dotWidth = doc.widthOfString(".");
-  const nameText = `(${signatory.name})`;
-  const nameX = layout.rankX + rankWidth - dotWidth;
-
-  doc.text(signatory.rank, layout.rankX, layout.y, {
-    lineBreak: false,
-  });
-  doc.text(signatory.role, layout.roleX, layout.y, {
-    width: layout.roleWidth,
+  const fullName = `${signatory.rank}${signatory.name}`;
+  doc.moveTo(x + 16, y).lineTo(x + width - 16, y).lineWidth(0.75).stroke("#8c97a8");
+  doc.font(fonts.bold).fontSize(9.6).fillColor("#263142").text(fullName, x, y + 12, {
+    width,
     align: "center",
     lineBreak: false,
   });
-  doc.text(nameText, nameX, layout.y + 18, {
+  doc.font(fonts.bold).fontSize(9.2).text(signatory.role, x, y + 28, {
+    width,
+    align: "center",
     lineBreak: false,
   });
-
-  const nameWidth = doc.widthOfString(nameText);
-  const unitWidth = doc.widthOfString(signatory.unit);
-  doc.text(signatory.unit, nameX + (nameWidth - unitWidth) / 2, layout.y + 37, {
+  doc.font(fonts.regular).fontSize(8.7).fillColor("#475569").text(signatory.unit, x, y + 43, {
+    width,
+    align: "center",
     lineBreak: false,
   });
 }
