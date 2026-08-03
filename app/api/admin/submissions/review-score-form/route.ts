@@ -22,7 +22,7 @@ const fonts: PdfFontSet = {
   bold: pdfFontBold,
 };
 const rowsPerPage = 5;
-const signatureBlockY = 444;
+const signatureBlockY = 454;
 
 const committeeSignatories = [
   { rank: "พล.ต.ท.", name: "ไพบูลย์ น้อยหุ่น", unit: "ผบช.สทส.", role: "ประธานกรรมการ" },
@@ -291,38 +291,39 @@ function drawScoreFormRow(
 }
 
 function drawCommitteeSignatureBlock(doc: PDFKit.PDFDocument, y: number) {
-  const blockWidth = 790;
-  const x = (doc.page.width - blockWidth) / 2;
+  const center = doc.page.width / 2;
   const topY = y;
-  const bottomY = y + 58;
-  drawSignatureSlot(doc, x + 12, topY, 245, committeeSignatories[0]);
-  drawSignatureSlot(doc, x + 272, topY, 245, committeeSignatories[1]);
-  drawSignatureSlot(doc, x + 532, topY, 245, committeeSignatories[2]);
-  drawSignatureSlot(doc, x + 167, bottomY, 245, committeeSignatories[3]);
-  drawSignatureSlot(doc, x + 427, bottomY, 245, committeeSignatories[4]);
+  const bottomY = y + 52;
+  drawSignatureSlot(doc, center - 300, topY, committeeSignatories[0]);
+  drawSignatureSlot(doc, center, topY, committeeSignatories[1]);
+  drawSignatureSlot(doc, center + 300, topY, committeeSignatories[2]);
+  drawSignatureSlot(doc, center - 150, bottomY, committeeSignatories[3]);
+  drawSignatureSlot(doc, center + 150, bottomY, committeeSignatories[4]);
 }
 
 function drawSignatureSlot(
   doc: PDFKit.PDFDocument,
-  x: number,
+  centerX: number,
   y: number,
-  width: number,
   signatory: typeof committeeSignatories[number],
 ) {
+  const lineWidth = 168;
+  const textWidth = 215;
+  const textX = centerX - textWidth / 2;
   const fullName = `${signatory.rank}${signatory.name}`;
-  doc.moveTo(x + 16, y).lineTo(x + width - 16, y).lineWidth(0.75).stroke("#8c97a8");
-  doc.font(fonts.bold).fontSize(9.6).fillColor("#263142").text(fullName, x, y + 12, {
-    width,
+  doc.moveTo(centerX - lineWidth / 2, y).lineTo(centerX + lineWidth / 2, y).lineWidth(0.45).stroke("#9aa6b8");
+  doc.font(fonts.bold).fontSize(8.8).fillColor("#263142").text(fullName, textX, y + 13, {
+    width: textWidth,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.bold).fontSize(9.2).text(signatory.role, x, y + 28, {
-    width,
+  doc.font(fonts.bold).fontSize(8.6).text(signatory.role, textX, y + 27, {
+    width: textWidth,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.7).fillColor("#475569").text(signatory.unit, x, y + 43, {
-    width,
+  doc.font(fonts.regular).fontSize(8.1).fillColor("#475569").text(signatory.unit, textX, y + 40, {
+    width: textWidth,
     align: "center",
     lineBreak: false,
   });
