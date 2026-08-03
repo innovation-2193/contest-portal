@@ -313,22 +313,28 @@ function drawSignatureSlot(
   width: number,
   signatory: typeof committeeSignatories[number],
 ) {
-  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(signatory.rank, x, y, {
+  const signatureFontSize = 8.9;
+  doc.font(fonts.regular).fontSize(signatureFontSize).fillColor("#111111");
+  const rankBeforeFinalDot = signatory.rank.endsWith(".") ? signatory.rank.slice(0, -1) : signatory.rank;
+  const nameX = x + doc.widthOfString(rankBeforeFinalDot);
+  const nameWidth = width - (nameX - x);
+
+  doc.text(signatory.rank, x, y, {
     width: 56,
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(signatory.role, x + 108, y, {
+  doc.text(signatory.role, x + 108, y, {
     width: width - 108,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(`(${signatory.name})`, x, y + 17, {
-    width,
-    align: "center",
+  doc.text(`(${signatory.name})`, nameX, y + 17, {
+    width: nameWidth,
+    align: "left",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.2).fillColor("#111111").text(signatory.unit, x, y + 34, {
-    width,
+  doc.font(fonts.regular).fontSize(8.2).fillColor("#111111").text(signatory.unit, nameX, y + 34, {
+    width: nameWidth,
     align: "center",
     lineBreak: false,
   });
