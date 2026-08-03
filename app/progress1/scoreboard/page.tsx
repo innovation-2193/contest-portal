@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, RefreshCw, Trophy } from "lucide-react";
 import { ProgressAutoRefresh } from "../../../components/ProgressAutoRefresh";
 import { ProgressScoreboardPanel } from "../../../components/ProgressScoreboard";
+import { requireSuperAdminPage } from "../../../lib/admin-guard";
 import { listSubmissions } from "../../../lib/admin-store";
 import { sortScoreboardSubmissions } from "../../../lib/scoreboard-ranking";
 import {
@@ -15,6 +16,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ProgressScoreboardPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  await requireSuperAdminPage();
   const params = await searchParams;
   const searchQuery = normalizeProgressSearchQuery(params.q);
   const allSubmissions = await listSubmissions();

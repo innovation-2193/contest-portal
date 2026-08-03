@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Clock3, Eye, Gauge, RefreshCw, ShieldCheck, St
 import { ProgressAutoRefresh } from "../../components/ProgressAutoRefresh";
 import { ProgressScoreboardPanel } from "../../components/ProgressScoreboard";
 import { ProgressTabbedSections } from "../../components/ProgressTabbedSections";
+import { requireSuperAdminPage } from "../../lib/admin-guard";
 import { listAdminAccounts } from "../../lib/admin-users";
 import { listSubmissions } from "../../lib/admin-store";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
@@ -28,6 +29,7 @@ type ProgressStatusFilter = "all" | "completed" | "in_progress" | "pending";
 type ProgressView = "scoreboard" | "reviewers";
 
 export default async function Progress1Page({ searchParams }: { searchParams: Promise<{ status?: string; reviewer?: string; view?: string; q?: string }> }) {
+  await requireSuperAdminPage();
   const params = await searchParams;
   const statusFilter = normalizeStatusFilter(params.status);
   const reviewerFilter = (params.reviewer ?? "").trim().toLowerCase();

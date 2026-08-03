@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { redirectToAdmin, requireSuperAdminRequest } from "../../../../../../lib/admin-guard";
 import { getSubmissionDetail } from "../../../../../../lib/admin-store";
 import { exportWatermarkFromRequest } from "../../../../../../lib/pdf-watermark";
 import { reviewerLabel } from "../../../../../../lib/progress-review";
@@ -7,6 +8,7 @@ import { submissionPrintPacketPdf } from "../../../../../../lib/submission-print
 export const runtime = "nodejs";
 
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
+  if (!requireSuperAdminRequest(request)) return redirectToAdmin(request);
   const watermark = exportWatermarkFromRequest(request);
   const { code } = await params;
   const submission = await getSubmissionDetail(decodeURIComponent(code));

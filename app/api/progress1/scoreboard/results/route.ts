@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
+import { redirectToAdmin, requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import { listSubmissions, type SubmissionListItem } from "../../../../../lib/admin-store";
 import { listAdminAccounts } from "../../../../../lib/admin-users";
 import {
@@ -31,6 +32,7 @@ const columns = [
 ] as const;
 
 export async function GET(request: Request) {
+  if (!requireSuperAdminRequest(request)) return redirectToAdmin(request);
   const watermark = exportWatermarkFromRequest(request);
   const [submissions, admins] = await Promise.all([
     listSubmissions(),

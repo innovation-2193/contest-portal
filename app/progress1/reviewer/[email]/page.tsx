@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { ArrowLeft, CheckCircle2, Clock3, Download, FileText, MessageSquareText, RefreshCw, Trophy, UserCheck } from "lucide-react";
 import { ProgressAutoRefresh } from "../../../../components/ProgressAutoRefresh";
+import { requireSuperAdminPage } from "../../../../lib/admin-guard";
 import { listAdminAccounts } from "../../../../lib/admin-users";
 import { listSubmissions, type SubmissionListItem } from "../../../../lib/admin-store";
 import {
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function ProgressReviewerPage({ params }: { params: Promise<{ email: string }> }) {
+  await requireSuperAdminPage();
   const { email } = await params;
   const reviewerEmail = decodeURIComponent(email).trim().toLowerCase();
   const [submissions, adminAccounts] = await Promise.all([
