@@ -7771,6 +7771,10 @@ body:has(.prelander-page)::before {
   margin-bottom: 14px;
 }
 
+.public-progress2-filter-form {
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.34fr) auto;
+}
+
 .progress2-summary-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -7780,7 +7784,7 @@ body:has(.prelander-page)::before {
 }
 
 .progress2-table {
-  min-width: 980px;
+  min-width: 860px;
 }
 
 .progress1-reviewer-list {

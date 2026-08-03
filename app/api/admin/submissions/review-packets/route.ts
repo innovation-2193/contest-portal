@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!session) return adminUnauthorizedResponse(request);
   if (session.role !== "super_admin") return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const submissions = (await listSubmissions()).sort((left, right) => left.submitted_at.localeCompare(right.submitted_at));
+  const submissions = (await listSubmissions()).sort(compareSubmittedAt);
   const entries: ZipEntry[] = [];
   for (const item of submissions) {
     const detail = await getSubmissionDetail(item.submission_code);
@@ -52,4 +52,8 @@ function safeFileName(value: string) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 120) || "submission";
+}
+
+function compareSubmittedAt<T extends { submitted_at: string }>(left: T, right: T) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }

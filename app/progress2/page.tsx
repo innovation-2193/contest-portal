@@ -1,37 +1,25 @@
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck, UserCheck } from "lucide-react";
 import { ProgressAutoRefresh } from "../../components/ProgressAutoRefresh";
-import { requireSuperAdminPage } from "../../lib/admin-guard";
-import { listAdminAccounts } from "../../lib/admin-users";
 import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
-import { formatProgressDate, normalizeProgressSearchQuery, submissionMatchesProgressSearch } from "../../lib/progress-review";
+import { formatProgressDate, normalizeProgressSearchQuery } from "../../lib/progress-review";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ReviewStatusFilter = "all" | "reviewed" | "pending";
 
-export default async function Progress2Page({ searchParams }: { searchParams: Promise<{ q?: string; status?: string; reviewer?: string }> }) {
-  await requireSuperAdminPage();
+export default async function Progress2Page({ searchParams }: { searchParams: Promise<{ q?: string; status?: string }> }) {
   const params = await searchParams;
   const searchQuery = normalizeProgressSearchQuery(params.q);
   const statusFilter = normalizeStatusFilter(params.status);
-  const reviewerFilter = (params.reviewer ?? "").trim().toLowerCase();
-  const [submissions, adminAccounts] = await Promise.all([
-    listSubmissions(),
-    listAdminAccounts(),
-  ]);
-  const reviewerNames = new Map(adminAccounts.filter((admin) => !admin.disabled).map((admin) => [
-    admin.email.toLowerCase(),
-    admin.name ? `${admin.name} • ${admin.email}` : admin.email,
-  ]));
+  const submissions = await listSubmissions();
   const reviewed = submissions.filter((item) => Boolean(item.review_submitted_at));
   const pending = submissions.filter((item) => !item.review_submitted_at);
   const visibleSubmissions = submissions.filter((item) => {
     if (statusFilter === "reviewed" && !item.review_submitted_at) return false;
     if (statusFilter === "pending" && item.review_submitted_at) return false;
-    if (reviewerFilter && (item.review_assigned_admin_email ?? "").toLowerCase() !== reviewerFilter) return false;
-    if (searchQuery && !submissionMatchesProgressSearch(item, searchQuery)) return false;
+    if (searchQuery && !publicSubmissionMatchesSearch(item, searchQuery)) return false;
     return true;
   });
   const generatedAt = new Date().toISOString();
@@ -47,7 +35,7 @@ export default async function Progress2Page({ searchParams }: { searchParams: Pr
         </div>
         <div className="admin-actions">
           <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
-          <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+          <Link className="secondary" href="/"><ArrowLeft/>กลับหน้าแรก</Link>
         </div>
       </div>
 
@@ -72,30 +60,25 @@ export default async function Progress2Page({ searchParams }: { searchParams: Pr
             <p>สถานะในตารางนี้มีเพียงตรวจแล้วและยังไม่ตรวจเท่านั้น</p>
           </div>
         </header>
-        <form className="audit-filter-form progress2-filter-form" method="get">
+        <form className="audit-filter-form progress2-filter-form public-progress2-filter-form" method="get">
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={searchQuery} placeholder="ชื่อโครงการ ชื่อผู้สมัคร หรือรหัสใบสมัคร"/></div></label>
           <label>สถานะ<select name="status" defaultValue={statusFilter}>
             <option value="all">ทั้งหมด</option>
             <option value="reviewed">ตรวจแล้ว</option>
             <option value="pending">ยังไม่ตรวจ</option>
           </select></label>
-          <label>ผู้ตรวจเอกสาร<select name="reviewer" defaultValue={reviewerFilter}>
-            <option value="">ทั้งหมด</option>
-            {adminAccounts.filter((admin) => !admin.disabled).map((admin) => <option key={admin.id} value={admin.email.toLowerCase()}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
-          </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">กรองข้อมูล</button><Link className="ghost-action" href="/progress2">ล้าง</Link></div>
         </form>
         <div className="admin-table-wrap progress2-table-wrap">
           <table className="admin-table compact-admin-table progress2-table">
-            <thead><tr><th>ลำดับ</th><th>รหัส</th><th>ชื่อโครงการ</th><th>ผู้สมัคร</th><th>ผู้ตรวจเอกสาร</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>ลำดับ</th><th>รหัส</th><th>ชื่อโครงการ</th><th>ผู้สมัคร</th><th>สถานะ</th></tr></thead>
             <tbody>{visibleSubmissions.length ? visibleSubmissions.map((item, index) => <tr key={item.submission_code}>
               <td data-label="ลำดับ"><b>{(index + 1).toLocaleString("th-TH")}</b></td>
               <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatProgressDate(item.submitted_at)}</small></td>
               <td data-label="ชื่อโครงการ">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
               <td data-label="ผู้สมัคร">{ownerName(item)}<small>{item.division || "-"} • {item.bureau || "-"}</small></td>
-              <td data-label="ผู้ตรวจเอกสาร">{reviewerLabel(item, reviewerNames)}</td>
               <td data-label="สถานะ"><ReviewStatus item={item}/></td>
-            </tr>) : <tr><td colSpan={6}>ไม่พบข้อมูล</td></tr>}</tbody>
+            </tr>) : <tr><td colSpan={5}>ไม่พบข้อมูล</td></tr>}</tbody>
           </table>
         </div>
       </section>
@@ -122,12 +105,24 @@ function ownerName(submission: SubmissionListItem) {
   return `${submission.first_name} ${submission.last_name}`.replace(/\s+/g, " ").trim() || "-";
 }
 
-function reviewerLabel(submission: SubmissionListItem, reviewerNames: Map<string, string>) {
-  const email = submission.review_assigned_admin_email?.trim().toLowerCase();
-  return email ? reviewerNames.get(email) || email : "-";
-}
-
 function normalizeStatusFilter(value?: string): ReviewStatusFilter {
   if (value === "reviewed" || value === "pending") return value;
   return "all";
+}
+
+function publicSubmissionMatchesSearch(item: SubmissionListItem, query: string) {
+  const terms = normalizeProgressSearchQuery(query).split(" ").filter(Boolean);
+  if (!terms.length) return true;
+  const haystack = normalizeProgressSearchQuery([
+    item.submission_code,
+    item.title_th,
+    item.team_name,
+    item.first_name,
+    item.last_name,
+    `${item.first_name} ${item.last_name}`,
+    item.division,
+    item.bureau,
+    ...item.hashtags,
+  ].filter(Boolean).join(" "));
+  return terms.every((term) => haystack.includes(term));
 }
