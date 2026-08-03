@@ -71,6 +71,7 @@ async function dailyReportPdf(
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const teams = submissions.filter((item) => item.submission_type === "team");
+  const reportSubmissions = submissions.slice(0, 5);
 
   doc.info.Title = "รายงานสรุปประจำวัน";
   doc.info.Subject = "Daily report for Police Innovation Contest 2026";
@@ -130,7 +131,7 @@ async function dailyReportPdf(
   }
   drawAllSubmissionsTable(
     doc,
-    submissions,
+    reportSubmissions,
     margin,
     y,
     contentWidth,
@@ -378,9 +379,7 @@ function drawAllSubmissionsTable(
 
   const drawHeading = (cursorY: number, continued = false) => {
     doc.font(pdfFontBold).fontSize(14).fillColor(PDF_THEME.navy).text(
-      continued
-        ? `ผลงานที่ส่งมาแล้วทั้งหมด (ต่อ) จำนวน ${submissions.length.toLocaleString("th-TH")} รายการ`
-        : `ผลงานที่ส่งมาแล้วทั้งหมด จำนวน ${submissions.length.toLocaleString("th-TH")} รายการ`,
+      continued ? "ผลงานที่ส่งมาแล้วทั้งหมด (ต่อ)" : "ผลงานที่ส่งมาแล้วทั้งหมด",
       x,
       cursorY,
       { width, lineBreak: false },

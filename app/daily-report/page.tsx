@@ -147,7 +147,7 @@ export default async function DailyReportPage() {
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const pendingReview = Math.max(0, submissions.length - scored.length);
   const reviewPercent = submissions.length ? Math.round((scored.length / submissions.length) * 100) : 0;
-  const reportSubmissions = submissions;
+  const reportSubmissions = submissions.slice(0, 5);
 
   return <div className="admin-page report-page">
     <div className="wide">
@@ -277,8 +277,8 @@ export default async function DailyReportPage() {
       <section className="admin-panel report-panel">
         <header className="admin-section-head">
           <FileText/>
-          <div><h2>ผลงานที่ส่งมาแล้วทั้งหมด</h2><p>แสดงผลงานทุกใบสมัครจากระบบรับสมัคร จำนวน {reportSubmissions.length.toLocaleString("th-TH")} รายการ</p></div>
-          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ค้นหา / กรองรายการ</Link></div>
+          <div><h2>ผลงานที่ส่งมาแล้วทั้งหมด</h2><p>ผลงานล่าสุดจากระบบรับสมัคร</p></div>
+          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ดูทั้งหมด</Link></div>
         </header>
         <div className="submission-report-list">
           {reportSubmissions.length ? reportSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
