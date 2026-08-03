@@ -289,7 +289,6 @@ export default async function DailyReportPage() {
 }
 
 function BoothUnitShowcase({ units, people, attendedUnits }: { units: BoothUnitStat[]; people: number; attendedUnits: number }) {
-  const topUnits = units.slice(0, 4);
   return <div className="report-booth-showcase">
     <div className="report-booth-total">
       <Building2/>
@@ -304,7 +303,7 @@ function BoothUnitShowcase({ units, people, attendedUnits }: { units: BoothUnitS
       <span><b>{attendedUnits.toLocaleString("th-TH")}</b><small>หน่วยที่มีคนเช็คอินแล้ว</small></span>
     </div>
     <div className="report-booth-units">
-      {topUnits.length ? topUnits.map((unit) => <article key={unit.label}>
+      {units.length ? units.map((unit) => <article key={unit.label}>
         <b>{unit.label}</b>
         <span>{unit.people.toLocaleString("th-TH")} คน • เช็คอินแล้ว {unit.attended.toLocaleString("th-TH")} คน</span>
       </article>) : <p>ยังไม่มีข้อมูลหน่วยจัดบูธในระบบ</p>}

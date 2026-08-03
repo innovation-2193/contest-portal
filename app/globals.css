@@ -12374,6 +12374,12 @@ body:has(.report-page) .brand b {
   display: grid;
   gap: 8px;
   min-width: 0;
+  max-height: 214px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: rgba(223, 186, 51, 0.58) rgba(1, 9, 22, 0.2);
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
 }
 
 .report-booth-units article,
