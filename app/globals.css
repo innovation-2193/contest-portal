@@ -7772,11 +7772,54 @@ body:has(.prelander-page)::before {
 }
 
 .public-progress2-filter-form {
-  grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.34fr) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.34fr) minmax(190px, 0.54fr) auto;
 }
 
 .progress2-summary-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.progress2-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(178px, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.progress2-category-card {
+  display: grid;
+  gap: 7px;
+  min-height: 138px;
+  padding: 14px;
+  border: 1px solid rgba(113, 215, 212, 0.22);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.52);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.progress2-category-card.is-active,
+.progress2-category-card:focus-visible,
+.progress2-category-card:hover {
+  border-color: rgba(243, 203, 53, 0.78);
+  background: rgba(243, 203, 53, 0.08);
+}
+
+.progress2-category-card b {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.progress2-category-card strong {
+  color: var(--gold);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.progress2-category-card span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .progress2-table-wrap {
@@ -7784,7 +7827,26 @@ body:has(.prelander-page)::before {
 }
 
 .progress2-table {
-  min-width: 860px;
+  min-width: 1040px;
+}
+
+.progress2-category-row td {
+  background: rgba(113, 215, 212, 0.1);
+  color: var(--gold-soft);
+  font-weight: 950;
+}
+
+.progress2-category-row small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.work-category-pill {
+  border-color: rgba(113, 215, 212, 0.38);
+  background: rgba(113, 215, 212, 0.1);
+  color: var(--cyan);
 }
 
 .progress1-reviewer-list {

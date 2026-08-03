@@ -21,6 +21,7 @@ import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmi
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { adminNoticePath } from "../../../../lib/admin-flash";
 import { isThaiCitizenId } from "../../../../lib/validation";
+import { normalizeWorkCategory, workCategories, workCategoryLabel } from "../../../../lib/work-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
             <Detail label="ชื่อผลงานภาษาไทย" value={item.title_th}/>
             <Detail label="Innovation Title" value={item.title_en || "-"}/>
             <Detail label="ประเภทการส่ง" value={item.submission_type === "team" ? `ส่งแบบกลุ่ม${item.team_name ? ` (${item.team_name})` : ""}` : "ส่งเดี่ยว"}/>
+            <Detail label="สายงานที่เกี่ยวข้อง" value={workCategoryLabel(item.work_category)}/>
             <Detail label="บัญชีอีเมล" value={item.email}/>
             <Detail label="Link Video" value={item.video_url || "-"}/>
             <Detail label="คำอธิบายย่อ" value={item.summary} wide/>
@@ -209,6 +211,9 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       </select></label>
       <label>ชื่อทีม<input name="teamName" defaultValue={item.team_name ?? ""} placeholder="กรอกเมื่อเป็นการส่งแบบกลุ่ม"/></label>
       <label>สถานะ<select name="status" defaultValue={item.status}>{submissionStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label>สายงานที่เกี่ยวข้อง<select name="workCategory" defaultValue={item.work_category}>
+        {workCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
+      </select><small className="field-help">ระบบจัดหมวดให้อัตโนมัติ และ Super Admin สามารถแก้ไขได้</small></label>
       <label className="span-2">ชื่อผลงานภาษาไทย<input name="titleTh" defaultValue={item.title_th} required/></label>
       <label>Innovation Title<input name="titleEn" defaultValue={item.title_en ?? ""}/></label>
       <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
@@ -242,10 +247,12 @@ async function updateSubmissionAction(formData: FormData) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
+  if (session.role !== "super_admin") redirect("/admin");
 
   const submissionCode = text(formData, "submissionCode");
   const submissionType = text(formData, "submissionType");
   const status = text(formData, "status");
+  const workCategory = normalizeWorkCategory(text(formData, "workCategory"));
   const email = text(formData, "email").toLowerCase();
   const summary = text(formData, "summary").slice(0, 500);
   const includedMembers = new Set(formData.getAll("includeMember").map(String));
@@ -272,6 +279,7 @@ async function updateSubmissionAction(formData: FormData) {
 
   if (submissionType !== "individual" && submissionType !== "team") throw new Error("ประเภทการส่งไม่ถูกต้อง");
   if (!submissionStatuses.some(([value]) => value === status)) throw new Error("สถานะใบสมัครไม่ถูกต้อง");
+  if (!workCategory) throw new Error("สายงานที่เกี่ยวข้องไม่ถูกต้อง");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("อีเมลบัญชีไม่ถูกต้อง");
   if (summary.length < 20) throw new Error("คำอธิบายย่อต้องมีอย่างน้อย 20 ตัวอักษร");
   const videoUrl = text(formData, "videoUrl");
@@ -294,6 +302,7 @@ async function updateSubmissionAction(formData: FormData) {
     summary,
     videoUrl,
     status: status as "draft" | "submitted" | "screening" | "qualified" | "rejected",
+    workCategory,
     members: members.map(({ order: _order, hasValue: _hasValue, ...member }) => member),
   });
   await recordAuditEvent({
@@ -302,9 +311,11 @@ async function updateSubmissionAction(formData: FormData) {
     entityType: "submission",
     entityId: submissionCode,
     summary: `แก้ไขใบสมัครประกวด ${submissionCode}`,
-    payload: { status, submissionType: effectiveSubmissionType },
+    payload: { status, submissionType: effectiveSubmissionType, workCategory },
   }, requestHeaders);
   revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  revalidatePath("/progress2");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`, "submission_saved"));
 }

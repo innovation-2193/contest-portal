@@ -23,6 +23,7 @@ import { isThaiCitizenId } from "../../../lib/validation";
 import { recordAuditEvent } from "../../../lib/audit-log";
 import { generateSubmissionHashtags, serializeSubmissionHashtags } from "../../../lib/submission-hashtags";
 import { buildSubmissionHashtagContext } from "../../../lib/submission-file-text";
+import { inferSubmissionWorkCategory } from "../../../lib/work-categories";
 export const runtime = "nodejs";
 
 const fields = z.object({
@@ -49,6 +50,7 @@ export async function POST(request:Request){
     for(const {type,file} of files){const pdf=file as File,bytes=new Uint8Array(await pdf.arrayBuffer()),storedName=`${type}-${randomUUID()}.pdf`;if(Buffer.from(bytes.subarray(0,5)).toString("ascii")!=="%PDF-")throw new Error(`${pdf.name} ไม่ใช่ไฟล์ PDF ที่ถูกต้อง`);stored.push({id:randomUUID(),type,original:pdf.name.slice(0,255),stored:storedName,mime:pdf.type,size:pdf.size,hash:createHash("sha256").update(bytes).digest("hex"),bytes});}
     const documentText = await buildSubmissionHashtagContext(stored.map((item) => ({ documentType: item.type, originalName: item.original, bytes: item.bytes })));
     const hashtags = serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText }));
+    const workCategory = inferSubmissionWorkCategory({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, hashtags: hashtags.split(",") });
     for(const item of stored)await writeFile(path.join(uploadRoot,item.stored),item.bytes);
     await ensureDatabaseSchema();
     try{await transaction(async connection=>{
@@ -56,7 +58,7 @@ export async function POST(request:Request){
       await connection.execute("INSERT INTO users(id,email,provider,display_name) VALUES(?,?,'local',?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),updated_at=CURRENT_TIMESTAMP(3)",[candidateUserId,data.email,`${data.firstName} ${data.lastName}`]);
       const [userRows]=await connection.execute("SELECT id FROM users WHERE email=? LIMIT 1",[data.email]);
       const userId=(userRows as Array<{id:string}>)[0].id;
-      await connection.execute("INSERT INTO submissions(id,submission_code,user_id,submission_type,team_name,title_th,title_en,summary,hashtags,video_url,consent_rules,consent_pdpa) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",[submissionId,submissionCode,userId,data.submissionType,data.teamName||null,data.titleTh,data.titleEn||null,data.summary,hashtags,data.videoUrl||null,true,true]);
+      await connection.execute("INSERT INTO submissions(id,submission_code,user_id,submission_type,team_name,title_th,title_en,summary,hashtags,work_category,video_url,consent_rules,consent_pdpa) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",[submissionId,submissionCode,userId,data.submissionType,data.teamName||null,data.titleTh,data.titleEn||null,data.summary,hashtags,workCategory,data.videoUrl||null,true,true]);
       await connection.execute("INSERT INTO submission_members(id,submission_id,member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",[randomUUID(),submissionId,1,data.title,data.firstName,data.lastName,data.citizenId,data.phone,data.email,data.position,data.division,data.bureau]);
       for(const [index,member] of teamMembers.entries())await connection.execute("INSERT INTO submission_members(id,submission_id,member_order,title,first_name,last_name,citizen_id,phone,email,position,division,bureau) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",[randomUUID(),submissionId,index+2,member.title,member.firstName,member.lastName,member.citizenId,member.phone,member.email,member.position,member.division,member.bureau]);
       for(const item of stored)await connection.execute("INSERT INTO submission_files(id,submission_id,document_type,original_name,stored_name,mime_type,byte_size,sha256) VALUES(?,?,?,?,?,?,?,?)",[item.id,submissionId,item.type,item.original,item.stored,item.mime,item.size,item.hash]);

@@ -27,6 +27,7 @@ import {
   listLocalSubmissions,
   updateLocalSubmission,
   updateLocalSubmissionReview,
+  updateLocalSubmissionWorkCategory,
   type LocalSubmissionRecord,
 } from "./local-submissions";
 import {
@@ -35,6 +36,11 @@ import {
   serializeSubmissionHashtags,
 } from "./submission-hashtags";
 import { buildSubmissionHashtagContext } from "./submission-file-text";
+import {
+  inferSubmissionWorkCategory,
+  normalizeWorkCategory,
+  type WorkCategory,
+} from "./work-categories";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -118,6 +124,7 @@ export type SubmissionListItem = {
   submission_type: string;
   team_name: string | null;
   title_th: string;
+  work_category: WorkCategory;
   hashtags: string[];
   status: string;
   review_assigned_admin_email: string | null;
@@ -212,6 +219,7 @@ export type SubmissionUpdateInput = {
   summary: string;
   videoUrl: string;
   status: "draft" | "submitted" | "screening" | "qualified" | "rejected";
+  workCategory: WorkCategory;
   members: Array<Omit<SubmissionMemberDetail, "member_order">>;
 };
 
@@ -915,7 +923,7 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     await ensureDatabaseSchema();
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -923,10 +931,7 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
        ORDER BY s.submitted_at DESC LIMIT 500`,
       assignedEmail ? [assignedEmail] : [],
     );
-    return (rows as Array<Omit<SubmissionListItem, "hashtags"> & { title_en?: string | null; summary?: string | null; hashtags?: string | null }>).map((row) => ({
-      ...row,
-      hashtags: parseSubmissionHashtags(row.hashtags, { titleTh: row.title_th, titleEn: row.title_en, summary: row.summary }),
-    }));
+    return (rows as Array<Omit<SubmissionListItem, "hashtags" | "work_category"> & { title_en?: string | null; summary?: string | null; hashtags?: string | null; work_category?: string | null }>).map(submissionListRowToItem);
   } catch (error) {
     if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat(options);
     if (!isDatabaseUnavailable(error)) throw error;
@@ -960,7 +965,7 @@ export async function getSubmissionDetail(submissionCode: string) {
   try {
     await ensureDatabaseSchema();
     const [submissionRows] = await db.execute(
-      `SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email
+      `SELECT s.id,s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email
        FROM submissions s JOIN users u ON u.id=s.user_id WHERE s.submission_code=? LIMIT 1`,
       [code],
     );
@@ -973,6 +978,7 @@ export async function getSubmissionDetail(submissionCode: string) {
       title_en: string | null;
       summary: string;
       hashtags: string | null;
+      work_category: string | null;
       video_url: string | null;
       status: string;
       review_assigned_admin_email: string | null;
@@ -1008,6 +1014,7 @@ export async function getSubmissionDetail(submissionCode: string) {
     return {
       ...submission,
       hashtags: parseSubmissionHashtags(submission.hashtags, { titleTh: submission.title_th, titleEn: submission.title_en, summary: submission.summary }),
+      work_category: submissionWorkCategory(submission),
       first_name: primary?.first_name ?? "",
       last_name: primary?.last_name ?? "",
       position: primary?.position ?? "",
@@ -1079,7 +1086,7 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
         [input.email.trim().toLowerCase(), `${primary.first_name} ${primary.last_name}`, submission.user_id],
       );
       await connection.execute(
-        "UPDATE submissions SET submission_type=?,team_name=?,title_th=?,title_en=?,summary=?,hashtags=?,video_url=?,status=? WHERE id=?",
+        "UPDATE submissions SET submission_type=?,team_name=?,title_th=?,title_en=?,summary=?,hashtags=?,work_category=?,video_url=?,status=? WHERE id=?",
         [
           input.submissionType,
           input.submissionType === "team" ? input.teamName : null,
@@ -1087,6 +1094,7 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
           input.titleEn || null,
           input.summary.slice(0, 500),
           serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
+          normalizeWorkCategory(input.workCategory) ?? inferSubmissionWorkCategory({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary }),
           input.videoUrl || null,
           input.status,
           submission.id,
@@ -1129,8 +1137,25 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
       summary: input.summary,
       videoUrl: input.videoUrl,
       status: input.status,
+      workCategory: input.workCategory,
       members: input.members,
     });
+  }
+}
+
+export async function updateSubmissionWorkCategory(submissionCode: string, workCategory: WorkCategory) {
+  const code = submissionCode.trim();
+  const category = normalizeWorkCategory(workCategory);
+  if (!category) throw new Error("สายงานไม่ถูกต้อง");
+  try {
+    await ensureDatabaseSchema();
+    await db.execute(
+      "UPDATE submissions SET work_category=? WHERE submission_code=?",
+      [category, code],
+    );
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    await updateLocalSubmissionWorkCategory(code, category);
   }
 }
 
@@ -1672,17 +1697,14 @@ async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | n
   try {
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,NULL AS work_category,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
        ${assignedEmail ? "WHERE 1=0" : ""}
        ORDER BY s.submitted_at DESC LIMIT 500`,
     );
-    return (rows as Array<Omit<SubmissionListItem, "hashtags"> & { hashtags?: string | null }>).map((row) => ({
-      ...row,
-      hashtags: parseSubmissionHashtags(row.hashtags, { titleTh: row.title_th }),
-    }));
+    return (rows as Array<Omit<SubmissionListItem, "hashtags" | "work_category"> & { hashtags?: string | null; work_category?: string | null }>).map(submissionListRowToItem);
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
@@ -1747,12 +1769,14 @@ async function listLocalSubmissionApplicantsForExport(): Promise<SubmissionAppli
 }
 
 function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionListItem {
+  const hashtags = parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary });
   return {
     submission_code: local.submission_code,
     submission_type: local.submission_type,
     team_name: local.team_name,
     title_th: local.title_th,
-    hashtags: parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary }),
+    work_category: normalizeWorkCategory(local.work_category) ?? inferSubmissionWorkCategory({ titleTh: local.title_th, titleEn: local.title_en, summary: local.summary, hashtags }),
+    hashtags,
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,
     review_assigned_at: local.review_assigned_at ?? null,
@@ -1777,6 +1801,7 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
 
 function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmissionDetail {
   const primary = local.members[0];
+  const hashtags = parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary });
   return {
     submission_code: local.submission_code,
     submission_type: local.submission_type,
@@ -1784,7 +1809,8 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
     title_th: local.title_th,
     title_en: local.title_en,
     summary: local.summary,
-    hashtags: parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary }),
+    hashtags,
+    work_category: normalizeWorkCategory(local.work_category) ?? inferSubmissionWorkCategory({ titleTh: local.title_th, titleEn: local.title_en, summary: local.summary, hashtags }),
     video_url: local.video_url,
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,
@@ -1815,4 +1841,43 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
       sha256: file.sha256,
     })),
   };
+}
+
+function submissionListRowToItem(row: Omit<SubmissionListItem, "hashtags" | "work_category"> & {
+  title_en?: string | null;
+  summary?: string | null;
+  hashtags?: string | null;
+  work_category?: string | null;
+}): SubmissionListItem {
+  const hashtags = parseSubmissionHashtags(row.hashtags, { titleTh: row.title_th, titleEn: row.title_en, summary: row.summary });
+  return {
+    ...row,
+    hashtags,
+    work_category: normalizeWorkCategory(row.work_category) ?? inferSubmissionWorkCategory({
+      titleTh: row.title_th,
+      titleEn: row.title_en,
+      summary: row.summary,
+      hashtags,
+    }),
+  };
+}
+
+function submissionWorkCategory(submission: {
+  title_th?: string | null;
+  title_en?: string | null;
+  summary?: string | null;
+  hashtags?: string | null;
+  work_category?: string | null;
+}) {
+  const hashtags = parseSubmissionHashtags(submission.hashtags, {
+    titleTh: submission.title_th,
+    titleEn: submission.title_en,
+    summary: submission.summary,
+  });
+  return normalizeWorkCategory(submission.work_category) ?? inferSubmissionWorkCategory({
+    titleTh: submission.title_th,
+    titleEn: submission.title_en,
+    summary: submission.summary,
+    hashtags,
+  });
 }

@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { generateSubmissionHashtags, serializeSubmissionHashtags } from "./submission-hashtags";
 import { buildSubmissionHashtagContext } from "./submission-file-text";
+import { inferSubmissionWorkCategory, normalizeWorkCategory, type WorkCategory } from "./work-categories";
 
 export type LocalSubmissionMember = {
   title: string;
@@ -24,6 +25,7 @@ export type LocalSubmissionRecord = {
   title_en: string;
   summary: string;
   hashtags?: string | null;
+  work_category?: WorkCategory | null;
   video_url: string;
   status: string;
   review_assigned_admin_email?: string | null;
@@ -67,6 +69,7 @@ export type LocalSubmissionUpdateInput = {
   summary: string;
   videoUrl: string;
   status: string;
+  workCategory: WorkCategory;
   members: LocalSubmissionMember[];
 };
 
@@ -173,6 +176,7 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       title_en: data.titleEn ?? "",
       summary: data.summary.slice(0, 500),
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText: data.hashtagContext })),
+      work_category: inferSubmissionWorkCategory({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, hashtags: [] }),
       video_url: data.videoUrl ?? "",
       status: "submitted",
       review_assigned_admin_email: null,
@@ -254,6 +258,7 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
       title_en: input.titleEn,
       summary: input.summary.slice(0, 500),
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
+      work_category: normalizeWorkCategory(input.workCategory) ?? inferSubmissionWorkCategory({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary }),
       video_url: input.videoUrl,
       status: input.status,
       email: input.email.trim().toLowerCase(),
@@ -285,6 +290,29 @@ export async function deleteLocalSubmission(submissionCode: string) {
     store.submissions = store.submissions.filter((item) => item.submission_code !== code);
     if (store.submissions.length === before) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
     await writeStore(store);
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
+export async function updateLocalSubmissionWorkCategory(submissionCode: string, workCategory: WorkCategory) {
+  const work = async () => {
+    const store = await readStore();
+    const code = submissionCode.trim();
+    const index = store.submissions.findIndex((item) => item.submission_code === code);
+    if (index < 0) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+    store.submissions[index] = {
+      ...store.submissions[index],
+      work_category: normalizeWorkCategory(workCategory) ?? inferSubmissionWorkCategory({
+        titleTh: store.submissions[index].title_th,
+        titleEn: store.submissions[index].title_en,
+        summary: store.submissions[index].summary,
+      }),
+    };
+    await writeStore(store);
+    return store.submissions[index];
   };
 
   const result = writeQueue.then(work, work);
