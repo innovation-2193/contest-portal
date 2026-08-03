@@ -297,7 +297,7 @@ function scoreRows(submission: AdminSubmissionDetail): Array<[string, string]> {
     ["แนวคิดหรือรูปแบบนวัตกรรม", `${submission.review_innovation_score ?? "-"} / 25`],
     ["หลักฐานผลลัพธ์เบื้องต้น", `${submission.review_evidence_score ?? "-"} / 20`],
     ["ความคุ้มค่าและการขยายผล", `${submission.review_impact_score ?? "-"} / 20`],
-    ["ผู้ตรวจ", submission.review_assigned_admin_email || submission.review_scored_by_email || "-"],
+    ["ผู้ตรวจเอกสาร", submission.review_assigned_admin_email || submission.review_scored_by_email || "-"],
     ["หมายเหตุการตรวจ", submission.review_note || "-"],
   ];
 }

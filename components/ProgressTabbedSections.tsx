@@ -18,7 +18,7 @@ export function ProgressTabbedSections({
   return <>
     <nav className="progress1-tab-switcher" aria-label="สลับข้อมูลความคืบหน้า">
       <button type="button" className={activeView === "scoreboard" ? "active" : ""} aria-pressed={activeView === "scoreboard"} onClick={() => setActiveView("scoreboard")}><Trophy/>Score Board คะแนน Top 10</button>
-      <button type="button" className={activeView === "reviewers" ? "active" : ""} aria-pressed={activeView === "reviewers"} onClick={() => setActiveView("reviewers")}><UsersRound/>รายชื่อผู้ตรวจ</button>
+      <button type="button" className={activeView === "reviewers" ? "active" : ""} aria-pressed={activeView === "reviewers"} onClick={() => setActiveView("reviewers")}><UsersRound/>รายชื่อผู้ตรวจเอกสาร</button>
     </nav>
     <div hidden={activeView !== "scoreboard"}>{scoreboard}</div>
     <div hidden={activeView !== "reviewers"}>{reviewers}</div>

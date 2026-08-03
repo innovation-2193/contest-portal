@@ -20,7 +20,7 @@ export function ProgressScoreboardPanel({ submissions, total, mode = "preview", 
       <Trophy/>
       <div>
         <h2>{isSearching ? "ผลการค้นหา Score Board" : isPreview ? "Score Board คะแนน Top 10" : "Score Board คะแนนทั้งหมด"}</h2>
-        <p>{isSearching ? "ค้นจากชื่อโครงการ ชื่อผู้สมัคร รหัสใบสมัคร และข้อมูลผู้ตรวจ โดยแสดงรายการรอตรวจเป็นการ์ด disabled" : isPreview ? "จัดอันดับผู้สมัครจากคะแนน Paper Screening สูงสุด 10 ลำดับแรก" : "แสดงผู้สมัครที่ส่งคะแนนแล้วทั้งหมด เรียงจากคะแนนสูงสุด"}</p>
+        <p>{isSearching ? "ค้นจากชื่อโครงการ ชื่อผู้สมัคร รหัสใบสมัคร และข้อมูลผู้ตรวจเอกสาร โดยแสดงรายการรอตรวจเป็นการ์ด disabled" : isPreview ? "จัดอันดับผู้สมัครจากคะแนน Paper Screening สูงสุด 10 ลำดับแรก" : "แสดงผู้สมัครที่ส่งคะแนนแล้วทั้งหมด เรียงจากคะแนนสูงสุด"}</p>
       </div>
       <div className="admin-actions progress1-scoreboard-actions">
         <a className="secondary" href="/api/progress1/scoreboard/top10" target="_blank" rel="noreferrer"><Download/>Export Top 10 PDF</a>
@@ -51,7 +51,7 @@ export function ProgressScoreboardList({ submissions, isSearching = false }: { s
         <b>#{index + 1}</b>
         <div>
           <strong>{submission.title_th}</strong>
-          <small>{submission.submission_code} • {ownerName(submission)} • ผู้ตรวจ {reviewerName(submission)}</small>
+          <small>{submission.submission_code} • {ownerName(submission)} • ผู้ตรวจเอกสาร {reviewerName(submission)}</small>
           <HashtagPills tags={submission.hashtags}/>
         </div>
         <span>{reviewed ? `${submission.review_total_score ?? "-"}/100` : "รอตรวจ"}</span>
@@ -78,8 +78,8 @@ export function ProgressScoreboardList({ submissions, isSearching = false }: { s
           <MessageSquareText/>
           <div>
             <b>Comments</b>
-            <p>{submission.review_note?.trim() || "ยังไม่มี comments จากผู้ตรวจ"}</p>
-            <small>ส่งคะแนนเมื่อ {formatProgressDate(submission.review_submitted_at)} • ผู้ตรวจ {reviewerName(submission)}</small>
+            <p>{submission.review_note?.trim() || "ยังไม่มี comments จากผู้ตรวจเอกสาร"}</p>
+            <small>ส่งคะแนนเมื่อ {formatProgressDate(submission.review_submitted_at)} • ผู้ตรวจเอกสาร {reviewerName(submission)}</small>
           </div>
         </div>
         <div className="scoreboard-actions progress1-scoreboard-detail-actions">
@@ -88,7 +88,7 @@ export function ProgressScoreboardList({ submissions, isSearching = false }: { s
       </div> : <div className="progress1-scoreboard-detail progress1-scoreboard-pending">
         <MessageSquareText/>
         <div>
-          <b>ยังไม่มีคะแนนจากผู้ตรวจ</b>
+          <b>ยังไม่มีคะแนนจากผู้ตรวจเอกสาร</b>
           <p>{isSearching ? "รายการนี้ถูก assign แล้วแต่ยังไม่ได้ส่งคะแนน จึงแสดงแบบ disabled เฉพาะตอนค้นหา" : "รายการนี้ยังไม่มีคะแนน"}</p>
         </div>
       </div>}

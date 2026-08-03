@@ -55,10 +55,10 @@ async function getReviewerLabel(input: { assignedEmail: string | null; scoredEma
   const scoredEmail = input.scoredEmail?.trim().toLowerCase() || "";
   const assignedEmail = input.assignedEmail?.trim().toLowerCase() || "";
   const email = assignedEmail || scoredEmail;
-  if (!email) return "ยังไม่ได้ระบุผู้ตรวจ";
+  if (!email) return "ยังไม่ได้ระบุผู้ตรวจเอกสาร";
 
   const accountLabel = await getAdminDisplayName(email);
-  return `${accountLabel} • ผู้ตรวจ`;
+  return `${accountLabel} • ผู้ตรวจเอกสาร`;
 }
 
 async function getAdminDisplayName(email: string) {

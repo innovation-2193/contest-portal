@@ -33,7 +33,7 @@ export async function sendSubmissionAssignmentEmail(submission: AdminSubmissionD
 function assignmentText(submission: AdminSubmissionDetail, detailUrl: string) {
   const owner = primaryOwnerName(submission);
   return [
-    "เรียนคณะกรรมการ/ผู้ตรวจ",
+    "เรียนคณะกรรมการ/ผู้ตรวจเอกสาร",
     "",
     "ท่านได้รับมอบหมายให้ตรวจผลงานรอบที่ 1 การประเมินเอกสาร",
     `รหัสผลงาน: ${submission.submission_code}`,
@@ -49,7 +49,7 @@ function assignmentText(submission: AdminSubmissionDetail, detailUrl: string) {
 
 function assignmentHtml(submission: AdminSubmissionDetail, detailUrl: string) {
   const owner = primaryOwnerName(submission);
-  return `<p style="margin:0 0 16px">เรียนคณะกรรมการ/ผู้ตรวจ</p>
+  return `<p style="margin:0 0 16px">เรียนคณะกรรมการ/ผู้ตรวจเอกสาร</p>
     <p style="margin:0 0 18px;line-height:1.8">ท่านได้รับมอบหมายให้ตรวจผลงาน <strong>รอบที่ 1 การประเมินเอกสาร</strong> กรุณาเข้าสู่ระบบหลังบ้านเพื่อเปิดข้อมูลผู้สมัคร เอกสารแนบ และบันทึกคะแนนตามเกณฑ์ที่กำหนด</p>
     <div style="margin:0 0 20px;padding:18px;border:1px solid #dce3ed;border-radius:12px;background:#f6f8fc">
       <div style="font-size:12px;font-weight:700;color:#657083">รหัสผลงาน</div>

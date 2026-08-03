@@ -120,7 +120,7 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
     ["บัญชีอีเมล", submission.email],
     ["Link Video", submission.video_url || "-"],
     ["Hashtag", submission.hashtags.map((tag) => `#${tag}`).join(" ") || "-"],
-    ...(options.reviewerLabel ? [["แอดมินผู้ตรวจ", options.reviewerLabel] as [string, string]] : []),
+    ...(options.reviewerLabel ? [["แอดมินผู้ตรวจเอกสาร", options.reviewerLabel] as [string, string]] : []),
     ["คำอธิบายย่อ", submission.summary],
   ];
   y = drawInfoGrid(doc, workInfoRows, y, nextPage);
@@ -293,7 +293,7 @@ function reviewerLabelForComment(submission: AdminSubmissionDetail, options: Sub
 
 function reviewCommentMeta(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
   const submittedAt = submission.review_submitted_at ? formatPdfThaiDateTime(submission.review_submitted_at) : "-";
-  return `ผู้ตรวจ ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
+  return `ผู้ตรวจเอกสาร ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
 }
 
 function reviewScoreCardHeight() {
@@ -311,7 +311,7 @@ function drawReviewScoreCard(
   const height = reviewScoreCardHeight();
   const totalScore = submission.review_total_score ?? 0;
   const submittedAt = submission.review_submitted_at ? formatPdfThaiDateTime(submission.review_submitted_at) : "-";
-  const meta = `ผู้ตรวจ ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
+  const meta = `ผู้ตรวจเอกสาร ${reviewerLabelForComment(submission, options)} • ส่งคะแนนเมื่อ ${submittedAt}`;
   const rowX = x + 16;
   const rowWidth = width - 32;
   const rowTop = y + 68;
@@ -321,7 +321,7 @@ function drawReviewScoreCard(
 
   doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.rect(x, y, width, 5).fill(PDF_THEME.gold);
-  doc.font(pdfFontBold).fontSize(13).fillColor(PDF_THEME.navy).text("คะแนนจากผู้ตรวจ", x + 16, y + 18, {
+  doc.font(pdfFontBold).fontSize(13).fillColor(PDF_THEME.navy).text("คะแนนจากผู้ตรวจเอกสาร", x + 16, y + 18, {
     width: 240,
     lineBreak: false,
   });
@@ -412,7 +412,7 @@ function drawReviewCommentCard(
   const commentBoxHeight = Math.max(52, 32 + commentHeight);
 
   doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
-  doc.font(pdfFontBold).fontSize(12.5).fillColor(PDF_THEME.navy).text("Comments ของผู้ตรวจ", x + outerPaddingX, y + 18, {
+  doc.font(pdfFontBold).fontSize(12.5).fillColor(PDF_THEME.navy).text("Comments ของผู้ตรวจเอกสาร", x + outerPaddingX, y + 18, {
     width: 240,
     lineBreak: false,
   });

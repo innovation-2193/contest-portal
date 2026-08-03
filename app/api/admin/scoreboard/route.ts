@@ -61,7 +61,7 @@ async function scoreboardPdf(submissions: SubmissionListItem[]) {
     ["รหัส", 104],
     ["ผลงาน", 228],
     ["ผู้สมัคร", 140],
-    ["ผู้ตรวจ", 154],
+    ["ผู้ตรวจเอกสาร", 154],
     ["คะแนน", 70],
     ["สถานะ", 54],
   ] as const;

@@ -170,7 +170,7 @@ function ScorePanel({ item, isSuperAdmin }: { item: AdminSubmissionDetail; isSup
         {hasScore ? "ส่งคะแนนแล้ว" : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}
       </span>
       <b>{item.review_total_score ?? "-"} / 100 คะแนน</b>
-      <small><ShieldCheck/> ผู้ตรวจ: {assignedLabel}{item.review_submitted_at ? ` • ส่งเมื่อ ${formatAdminDate(item.review_submitted_at)}` : ""}</small>
+      <small><ShieldCheck/> ผู้ตรวจเอกสาร: {assignedLabel}{item.review_submitted_at ? ` • ส่งเมื่อ ${formatAdminDate(item.review_submitted_at)}` : ""}</small>
     </div>
     <form action={saveScoreAction} className="admin-form score-review-form">
       <input type="hidden" name="submissionCode" value={item.submission_code}/>

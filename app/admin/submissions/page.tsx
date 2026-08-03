@@ -65,7 +65,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
   return <div className="admin-page">
     <div className="wide">
       <div className="admin-topline">
-        <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจ และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
+        <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจเอกสาร และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
         <div className="admin-actions">
           {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export"><FileText/>Export PDF รายชื่อผู้สมัคร</a>}
           <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
@@ -75,7 +75,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       <section className="admin-panel">
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
-          <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อผลงาน ผู้สมัคร อีเมล รหัส SUB หรือผู้ตรวจ"/></div></label>
+          <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อผลงาน ผู้สมัคร อีเมล รหัส SUB หรือผู้ตรวจเอกสาร"/></div></label>
           <label>สถานะตรวจ<select name="review" defaultValue={review}>
             <option value="all">ทั้งหมด</option>
             <option value="unassigned">ยังไม่ assign</option>
@@ -83,8 +83,8 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
             <option value="pending">รอตรวจ</option>
             <option value="scored">ส่งคะแนนแล้ว</option>
           </select></label>
-          {isSuperAdmin && <label>ผู้ตรวจ<select name="reviewer" defaultValue={reviewer}>
-            <option value="">ผู้ตรวจทั้งหมด</option>
+          {isSuperAdmin && <label>ผู้ตรวจเอกสาร<select name="reviewer" defaultValue={reviewer}>
+            <option value="">ผู้ตรวจเอกสารทั้งหมด</option>
             <option value="__unassigned">ยังไม่ assign</option>
             {activeAdmins.map((admin) => <option key={admin.id} value={admin.email.toLowerCase()}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
           </select></label>}
@@ -94,12 +94,12 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
+        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจเอกสาร</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
           <td data-label="ลำดับ"><b>{((currentPage - 1) * pageSize + index + 1).toLocaleString("th-TH")}</b></td>
           <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
           <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small><HashtagPills tags={item.hashtags}/></td>
           <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
-          <td data-label="ผู้ตรวจ">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins} returnTo={`${currentListPath}#submission-${item.submission_code}`}/> : item.review_assigned_admin_email || "-"}</td>
+          <td data-label="ผู้ตรวจเอกสาร">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins} returnTo={`${currentListPath}#submission-${item.submission_code}`}/> : item.review_assigned_admin_email || "-"}</td>
           <td data-label="คะแนน"><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
           <td data-label="สถานะ">{reviewStatus(item)}</td>
           <td data-label="การจัดการ"><div className="table-action-stack">

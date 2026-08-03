@@ -56,11 +56,11 @@ export async function reviewerLabel(input: { assignedEmail: string | null; score
   const scoredEmail = input.scoredEmail?.trim().toLowerCase() || "";
   const assignedEmail = input.assignedEmail?.trim().toLowerCase() || "";
   const email = assignedEmail || scoredEmail;
-  if (!email) return "ยังไม่ได้ระบุผู้ตรวจ";
+  if (!email) return "ยังไม่ได้ระบุผู้ตรวจเอกสาร";
 
-  if (superAdminEmails.some((item) => item === email)) return `Super Admin (${email}) • ผู้ตรวจ`;
+  if (superAdminEmails.some((item) => item === email)) return `Super Admin (${email}) • ผู้ตรวจเอกสาร`;
   const account = await findAdminAccountByEmail(email);
-  return `${account?.name ? `${account.name} (${account.email})` : email} • ผู้ตรวจ`;
+  return `${account?.name ? `${account.name} (${account.email})` : email} • ผู้ตรวจเอกสาร`;
 }
 
 export function sortByPendingThenDate(a: SubmissionListItem, b: SubmissionListItem) {

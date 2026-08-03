@@ -392,9 +392,9 @@ function ReviewQueuePanel({
   const pendingReview = allSubmissions.filter((item) => !item.review_submitted_at).length;
   const completedReview = allSubmissions.filter((item) => item.review_submitted_at).length;
   const assignedCount = allSubmissions.filter((item) => item.review_assigned_admin_email).length;
-  const assignmentLabel = isSuperAdmin ? "assign ผู้ตรวจแล้ว" : "assign ให้คุณแล้ว";
+  const assignmentLabel = isSuperAdmin ? "assign ผู้ตรวจเอกสารแล้ว" : "assign ให้คุณแล้ว";
   const description = isSuperAdmin
-    ? `ตรวจสถานะใบสมัคร Assign ผู้ตรวจ และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที หน้านี้แสดงล่าสุด ${dashboardLimit.toLocaleString("th-TH")} รายการ`
+    ? `ตรวจสถานะใบสมัคร Assign ผู้ตรวจเอกสาร และเปิดรายละเอียดผลงานจากจุดนี้ได้ทันที หน้านี้แสดงล่าสุด ${dashboardLimit.toLocaleString("th-TH")} รายการ`
     : `รายการที่ได้รับมอบหมายให้ตรวจรอบแรกอยู่ตรงนี้ เปิดตรวจได้ทันที หน้านี้แสดงล่าสุด ${dashboardLimit.toLocaleString("th-TH")} รายการ`;
 
   return <section className="admin-panel review-focus-panel">
@@ -578,7 +578,7 @@ function ReviewAssignmentPanel({ submissions, admins, total, returnPath }: { sub
           <em className={`status-pill ${submission.review_assigned_admin_email ? "registered" : "cancelled"}`}>{submission.review_assigned_admin_email || "ยังไม่ assign"}</em>
         </div>
         <div className="assignment-controls">
-          <label>ผู้ตรวจ<select name="adminEmail" defaultValue={submission.review_assigned_admin_email ?? ""}>
+          <label>ผู้ตรวจเอกสาร<select name="adminEmail" defaultValue={submission.review_assigned_admin_email ?? ""}>
             <option value="">ยังไม่ assign</option>
             {admins.map((admin) => <option key={admin.id} value={admin.email}>{admin.name ? `${admin.name} • ${admin.email}` : admin.email}</option>)}
           </select></label>
@@ -714,14 +714,14 @@ function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<
 }
 
 function ReviewQueueTable({ submissions }: { submissions: Awaited<ReturnType<typeof listSubmissions>> }) {
-  return <div className="admin-table-wrap review-focus-table"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจ</th><th>สถานะตรวจ</th><th></th></tr></thead><tbody>{submissions.length ? submissions.map((item, index) => {
+  return <div className="admin-table-wrap review-focus-table"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจเอกสาร</th><th>สถานะตรวจ</th><th></th></tr></thead><tbody>{submissions.length ? submissions.map((item, index) => {
     const hasScore = item.review_submitted_at !== null && item.review_submitted_at !== undefined;
     return <tr key={item.submission_code}>
       <td data-label="ลำดับ"><b>{(index + 1).toLocaleString("th-TH")}</b></td>
       <td data-label="รหัส"><b>{item.submission_code}</b><small>ส่งเมื่อ {formatAdminDate(item.submitted_at)}</small></td>
       <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
       <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
-      <td data-label="ผู้ตรวจ">{item.review_assigned_admin_email || "-"}</td>
+      <td data-label="ผู้ตรวจเอกสาร">{item.review_assigned_admin_email || "-"}</td>
       <td data-label="สถานะ"><span className={`status-pill ${hasScore ? "attended" : item.review_assigned_admin_email ? "registered" : "cancelled"}`}>{hasScore ? `ส่งคะแนนแล้ว ${item.review_total_score ?? "-"}/100` : item.review_assigned_admin_email ? "รอตรวจ" : "ยังไม่ assign"}</span>{item.review_submitted_at && <small>ส่งคะแนน {formatAdminDate(item.review_submitted_at)}</small>}</td>
       <td data-label="การจัดการ"><Link className={hasScore ? "secondary small-action" : "primary small-action"} href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>{hasScore ? "ดูคะแนน" : "เปิดตรวจ"}</Link></td>
     </tr>;

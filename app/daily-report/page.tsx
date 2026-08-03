@@ -262,7 +262,7 @@ export default async function DailyReportPage() {
             </div>
             <div className="report-status-kpi-grid">
               <StatusKpi label="ผลงานที่ส่งทั้งหมด" value={submissions.length} detail="ใบสมัครประกวดที่ส่งเข้าระบบทั้งหมด"/>
-              <StatusKpi label="ตรวจแล้ว" value={scored.length} detail="มีคะแนนรวมจากผู้ตรวจแล้ว"/>
+              <StatusKpi label="ตรวจแล้ว" value={scored.length} detail="มีคะแนนรวมจากผู้ตรวจเอกสารแล้ว"/>
               <StatusKpi label="ยังไม่ได้ตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวมในระบบ"/>
             </div>
             <div className="report-status-progress">

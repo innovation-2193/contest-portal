@@ -66,7 +66,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
         <div>
           <span className="eyebrow">Realtime Review Progress</span>
           <h1>สรุปความคืบหน้าการตรวจรอบที่ 1</h1>
-          <p>ดูรายชื่อผู้ตรวจ ความคืบหน้ารายคน และเปิดเข้าไปตรวจรายการที่ได้รับมอบหมาย</p>
+          <p>ดูรายชื่อผู้ตรวจเอกสาร ความคืบหน้ารายคน และเปิดเข้าไปตรวจรายการที่ได้รับมอบหมาย</p>
         </div>
         <div className="admin-actions">
           <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
@@ -80,7 +80,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <h2>{overallPercent.toLocaleString("th-TH", { maximumFractionDigits: 0 })}%</h2>
           <p>{hasAssignedWork
             ? `ส่งคะแนนแล้ว ${scoredSubmissions.length.toLocaleString("th-TH")} จากงานที่ assign แล้ว ${assignedSubmissions.length.toLocaleString("th-TH")} รายการ`
-            : "ยังไม่มีงานที่ assign ให้ผู้ตรวจในระบบ"}</p>
+            : "ยังไม่มีงานที่ assign ให้ผู้ตรวจเอกสารในระบบ"}</p>
           <ProgressBar value={overallPercent} label="ความคืบหน้ารวม"/>
         </div>
         <div className="progress1-summary-grid">
@@ -88,11 +88,11 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <SummaryCard icon="done" label="ส่งคะแนนแล้ว" value={scoredSubmissions.length} tone="green"/>
           <SummaryCard icon="pending" label="รอตรวจ" value={pendingSubmissions.length} tone="gold"/>
           <SummaryCard icon="score" label="คะแนนเฉลี่ย" value={averageScore === null ? "N/A" : averageScore.toFixed(1)} suffix={averageScore === null ? "" : "/100"} tone="blue"/>
-          <SummaryCard icon="reviewer" label="ผู้ตรวจที่มีงาน" value={reviewerProgress.length} tone="violet"/>
+          <SummaryCard icon="reviewer" label="ผู้ตรวจเอกสารที่มีงาน" value={reviewerProgress.length} tone="violet"/>
         </div>
         <div className="progress1-status-strip">
           <span>ตรวจล่าสุด: {formatProgressDate(latestDate(scoredSubmissions.map((item) => item.review_submitted_at)))}</span>
-          <span>ผู้ตรวจคืบหน้าสูงสุด: {topReviewer ? `${topReviewer.name} (${percent(topReviewer.scored.length, topReviewer.assigned.length).toFixed(0)}%)` : "-"}</span>
+          <span>ผู้ตรวจเอกสารคืบหน้าสูงสุด: {topReviewer ? `${topReviewer.name} (${percent(topReviewer.scored.length, topReviewer.assigned.length).toFixed(0)}%)` : "-"}</span>
           <span>ข้อมูล ณ {formatProgressDate(generatedAt)}</span>
         </div>
       </section>
@@ -105,8 +105,8 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
           <header className="admin-section-head">
             <UsersRound/>
             <div>
-              <h2>รายชื่อผู้ตรวจ</h2>
-              <p>เรียงผู้ตรวจที่ตรวจครบแล้วขึ้นก่อน และเรียงตามเวลาที่ส่งคะแนนก่อน</p>
+              <h2>รายชื่อผู้ตรวจเอกสาร</h2>
+              <p>เรียงผู้ตรวจเอกสารที่ตรวจครบแล้วขึ้นก่อน และเรียงตามเวลาที่ส่งคะแนนก่อน</p>
             </div>
           </header>
           <form className="audit-filter-form progress1-filter-form" method="get">
@@ -118,8 +118,8 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
               <option value="in_progress">กำลังตรวจ</option>
               <option value="pending">รอตรวจ</option>
             </select></label>
-            <label>รายชื่อผู้ตรวจ<select name="reviewer" defaultValue={reviewerFilter}>
-              <option value="">ผู้ตรวจทั้งหมด</option>
+            <label>รายชื่อผู้ตรวจเอกสาร<select name="reviewer" defaultValue={reviewerFilter}>
+              <option value="">ผู้ตรวจเอกสารทั้งหมด</option>
               {reviewerProgress.map((reviewer) => <option key={reviewer.email} value={reviewer.email}>{reviewer.name} • {reviewer.email}</option>)}
             </select></label>
             <div className="audit-filter-actions">
@@ -127,7 +127,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
               <Link className="ghost-action" href="/progress1?view=reviewers">ล้างตัวกรอง</Link>
             </div>
           </form>
-          {searchQuery && <p className="progress1-search-result-note">ผลค้นหา “{searchQuery}” จะแสดงผู้ตรวจที่มีใบสมัครตรงกับชื่อโครงการหรือชื่อผู้สมัคร</p>}
+          {searchQuery && <p className="progress1-search-result-note">ผลค้นหา “{searchQuery}” จะแสดงผู้ตรวจเอกสารที่มีใบสมัครตรงกับชื่อโครงการหรือชื่อผู้สมัคร</p>}
           <div className="progress1-reviewer-list">
             {filteredReviewers.length ? filteredReviewers.map((reviewer) => <ReviewerCard key={reviewer.email} reviewer={reviewer}/>) : <ProgressEmptyState filtered={reviewerProgress.length > 0}/>}
           </div>
@@ -169,8 +169,8 @@ function ProgressEmptyState({ filtered = false }: { filtered?: boolean }) {
   return <div className="progress1-empty-state">
     <UserCheck/>
     <div>
-      <b>{filtered ? "ไม่พบผู้ตรวจตามตัวกรอง" : "ยังไม่มีงานที่ assign ให้ผู้ตรวจ"}</b>
-      <p>{filtered ? "ลองเปลี่ยนสถานะการตรวจหรือเลือกผู้ตรวจทั้งหมดอีกครั้ง" : "เมื่อ Super Admin assign ใบสมัครให้ผู้ตรวจแล้ว ความคืบหน้าและรายละเอียดคะแนนจะแสดงในหน้านี้อัตโนมัติ"}</p>
+      <b>{filtered ? "ไม่พบผู้ตรวจเอกสารตามตัวกรอง" : "ยังไม่มีงานที่ assign ให้ผู้ตรวจเอกสาร"}</b>
+      <p>{filtered ? "ลองเปลี่ยนสถานะการตรวจหรือเลือกผู้ตรวจเอกสารทั้งหมดอีกครั้ง" : "เมื่อ Super Admin assign ใบสมัครให้ผู้ตรวจเอกสารแล้ว ความคืบหน้าและรายละเอียดคะแนนจะแสดงในหน้านี้อัตโนมัติ"}</p>
     </div>
   </div>;
 }

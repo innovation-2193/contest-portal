@@ -40,14 +40,14 @@ export default async function ProgressReviewerPage({ params }: { params: Promise
         </div>
         <div className="admin-actions">
           <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
-          <Link className="secondary" href="/progress1"><ArrowLeft/>กลับหน้ารายชื่อผู้ตรวจ</Link>
+          <Link className="secondary" href="/progress1"><ArrowLeft/>กลับหน้ารายชื่อผู้ตรวจเอกสาร</Link>
         </div>
       </div>
 
       <section className="admin-panel progress1-reviewer-detail-hero">
         <div className="progress1-reviewer-avatar"><UserCheck/></div>
         <div>
-          <h2>ความคืบหน้าของผู้ตรวจ</h2>
+          <h2>ความคืบหน้าของผู้ตรวจเอกสาร</h2>
           <ProgressBar value={progress} label={`ตรวจแล้ว ${reviewer.scored.length} จาก ${reviewer.assigned.length}`}/>
         </div>
         <div className="progress1-reviewer-stats">
@@ -77,7 +77,7 @@ export default async function ProgressReviewerPage({ params }: { params: Promise
 }
 
 function SubmissionExecutiveList({ reviewer }: { reviewer: ReviewerProgress }) {
-  if (!reviewer.assigned.length) return <div className="progress1-empty-state"><FileText/><div><b>ยังไม่มีรายการตรวจ</b><p>เมื่อมีใบสมัครที่ assign ให้ผู้ตรวจคนนี้ รายการจะแสดงที่นี่</p></div></div>;
+  if (!reviewer.assigned.length) return <div className="progress1-empty-state"><FileText/><div><b>ยังไม่มีรายการตรวจ</b><p>เมื่อมีใบสมัครที่ assign ให้ผู้ตรวจเอกสารคนนี้ รายการจะแสดงที่นี่</p></div></div>;
 
   return <div className="progress1-submission-list progress1-executive-list">
     {reviewer.assigned.map((item) => <SubmissionExecutiveCard key={item.submission_code} item={item} reviewer={reviewer}/>)}
@@ -101,7 +101,7 @@ function SubmissionExecutiveCard({ item, reviewer }: { item: SubmissionListItem;
     <div className="progress1-submission-owner">
       <span><b>ผู้สมัคร</b>{item.first_name} {item.last_name}</span>
       <span><b>หน่วยงาน</b>{item.division || "-"} • {item.bureau || "-"}</span>
-      <span className="progress1-reviewer-owner"><b>ผู้ตรวจ</b><strong>{reviewer.name}</strong><small>{reviewer.email}</small></span>
+      <span className="progress1-reviewer-owner"><b>ผู้ตรวจเอกสาร</b><strong>{reviewer.name}</strong><small>{reviewer.email}</small></span>
       <span><b>ส่งคะแนนเมื่อ</b>{formatProgressDate(item.review_submitted_at)}</span>
     </div>
 
@@ -126,7 +126,7 @@ function SubmissionExecutiveCard({ item, reviewer }: { item: SubmissionListItem;
       <MessageSquareText/>
       <div>
         <b>Comments</b>
-        <p>{item.review_note?.trim() || "ยังไม่มี comments จากผู้ตรวจ"}</p>
+        <p>{item.review_note?.trim() || "ยังไม่มี comments จากผู้ตรวจเอกสาร"}</p>
       </div>
     </div>
   </article>;
