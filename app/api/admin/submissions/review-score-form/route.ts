@@ -293,12 +293,13 @@ function drawScoreFormRow(
 }
 
 function drawCommitteeSignatureBlock(doc: PDFKit.PDFDocument, y: number) {
-  const x = 36;
-  const slotWidth = 210;
-  const topY = y + 4;
-  const bottomY = y + 60;
-  const topXs = [x + 8, x + 286, x + 564];
-  const bottomXs = [x + 160, x + 438];
+  const blockWidth = 760;
+  const x = (doc.page.width - blockWidth) / 2;
+  const slotWidth = 230;
+  const topY = y + 2;
+  const bottomY = y + 58;
+  const topXs = [x, x + 265, x + 530];
+  const bottomXs = [x + 160, x + 425];
   drawSignatureSlot(doc, topXs[0], topY, slotWidth, committeeSignatories[0]);
   drawSignatureSlot(doc, topXs[1], topY, slotWidth, committeeSignatories[1]);
   drawSignatureSlot(doc, topXs[2], topY, slotWidth, committeeSignatories[2]);
@@ -313,27 +314,24 @@ function drawSignatureSlot(
   width: number,
   signatory: typeof committeeSignatories[number],
 ) {
-  const signatureFontSize = 8.9;
-  doc.font(fonts.regular).fontSize(signatureFontSize).fillColor("#111111");
-  const rankBeforeFinalDot = signatory.rank.endsWith(".") ? signatory.rank.slice(0, -1) : signatory.rank;
-  const nameX = x + doc.widthOfString(rankBeforeFinalDot);
-  const nameWidth = width - (nameX - x);
+  const nameX = x + 46;
+  const nameWidth = width - 46;
 
-  doc.text(signatory.rank, x, y, {
-    width: 56,
+  doc.font(fonts.regular).fontSize(9.2).fillColor("#111111").text(signatory.rank, x, y, {
+    width: 62,
     lineBreak: false,
   });
-  doc.text(signatory.role, x + 108, y, {
-    width: width - 108,
+  doc.font(fonts.regular).fontSize(9.2).fillColor("#111111").text(signatory.role, x + 116, y, {
+    width: width - 116,
     align: "center",
     lineBreak: false,
   });
   doc.text(`(${signatory.name})`, nameX, y + 17, {
     width: nameWidth,
-    align: "left",
+    align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.2).fillColor("#111111").text(signatory.unit, nameX, y + 34, {
+  doc.font(fonts.regular).fontSize(8.6).fillColor("#111111").text(signatory.unit, nameX, y + 34, {
     width: nameWidth,
     align: "center",
     lineBreak: false,
