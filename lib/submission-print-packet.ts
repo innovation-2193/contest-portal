@@ -34,6 +34,7 @@ export type SubmissionPrintPacketOptions = {
   reviewerLabel?: string | null;
   watermark?: PdfExportWatermark | null;
   watermarkIp?: string | null;
+  includeReview?: boolean;
 };
 
 export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions = {}) {
@@ -125,14 +126,14 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
   ];
   y = drawInfoGrid(doc, workInfoRows, y, nextPage);
 
-  if (hasReviewScore(submission)) {
+  if (options.includeReview !== false && hasReviewScore(submission)) {
     y += 4;
     y = ensureRoom(y, reviewScoreCardHeight());
     y = drawReviewScoreCard(doc, submission, options, y);
   }
 
   const reviewerComment = reviewCommentText(submission);
-  if (reviewerComment) {
+  if (options.includeReview !== false && reviewerComment) {
     const commentMeta = reviewCommentMeta(submission, options);
     y += 4;
     y = ensureRoom(y, reviewCommentCardHeight(doc, reviewerComment, commentMeta));

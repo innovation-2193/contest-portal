@@ -36,6 +36,8 @@ const actionOptions = [
   ["submission.score.submitted", "ส่งคะแนนรอบแรก"],
   ["submission.scoreboard_pdf", "พิมพ์ Score Board"],
   ["submission.scoreboard_top10_pdf", "Export Top 10 Score Board"],
+  ["submission.committee_score_form_pdf", "Export แบบฟอร์มให้คะแนนกรรมการ"],
+  ["submission.review_packets_zip", "Export ZIP PDF ใบสมัคร"],
   ["admin.settings.updated", "แก้ไขตั้งค่าระบบ"],
   ["admin_user.created", "เพิ่มแอดมิน"],
   ["admin_user.updated", "แก้ไขแอดมิน"],
@@ -206,6 +208,8 @@ function auditActionLabel(action: string) {
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";
   if (action === "submission.scoreboard_pdf") return "พิมพ์ Score Board";
   if (action === "submission.scoreboard_top10_pdf") return "Export Top 10 Score Board";
+  if (action === "submission.committee_score_form_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ";
+  if (action === "submission.review_packets_zip") return "Export ZIP PDF ใบสมัคร";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
   if (action === "admin_user.created") return "เพิ่มแอดมิน";
   if (action === "admin_user.updated") return "แก้ไขแอดมิน";

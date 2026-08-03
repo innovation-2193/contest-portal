@@ -92,6 +92,30 @@ const policeCompactKeywords = [
   "ศพฐ",
 ];
 
+const policeTitleKeywords = [
+  "พลตำรวจ",
+  "พลตอ",
+  "พลตท",
+  "พลตต",
+  "พันตำรวจ",
+  "พตอ",
+  "พตท",
+  "พตต",
+  "ร้อยตำรวจ",
+  "รตอ",
+  "รตท",
+  "รตต",
+  "ดาบตำรวจ",
+  "ดต",
+  "จ่าสิบตำรวจ",
+  "จสต",
+  "สิบตำรวจ",
+  "สตอ",
+  "สตท",
+  "สตต",
+  "นายดาบตำรวจ",
+];
+
 const civilianOrAcademicTitles = [
   "นาย",
   "นาง",
@@ -195,8 +219,13 @@ function compactOrg(division: string, bureau: string) {
 
 function isPoliceParticipant(participant: RegistrationRecord) {
   const title = normalizeCompact(participant.title);
-  if (title && !civilianOrAcademicTitles.includes(title)) return true;
+  if (title && policeTitleKeywords.some((keyword) => title.includes(keyword))) return true;
+  if (title && !civilianOrAcademicTitles.includes(title) && !hasPoliceOrganization(participant)) return false;
 
+  return hasPoliceOrganization(participant);
+}
+
+function hasPoliceOrganization(participant: RegistrationRecord) {
   const text = `${participant.position} ${participant.division} ${participant.bureau}`.toLowerCase();
   const compactText = normalizeCompact(text);
   return policeKeywords.some((keyword) => text.includes(keyword.toLowerCase()))

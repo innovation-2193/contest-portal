@@ -68,6 +68,9 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจเอกสาร และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
         <div className="admin-actions">
           {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export"><FileText/>Export PDF รายชื่อผู้สมัคร</a>}
+          {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-score-form" target="_blank" rel="noreferrer"><FileText/>แบบฟอร์มให้คะแนนกรรมการ</a>}
+          {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-packets"><FileText/>ZIP PDF ทุกโครงการ</a>}
+          {isSuperAdmin && <Link className="secondary" href="/progress2"><Eye/>สถานะตรวจ</Link>}
           <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
         </div>
       </div>
