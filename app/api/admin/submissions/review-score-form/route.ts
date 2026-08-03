@@ -22,7 +22,7 @@ const fonts: PdfFontSet = {
   bold: pdfFontBold,
 };
 const rowsPerPage = 5;
-const signatureBlockY = 436;
+const signatureBlockY = 452;
 
 const committeeSignatories = [
   { rank: "พล.ต.ท.", name: "ไพบูลย์ น้อยหุ่น", unit: "ผบช.สทส.", role: "ประธานกรรมการ" },
@@ -293,47 +293,48 @@ function drawScoreFormRow(
 }
 
 function drawCommitteeSignatureBlock(doc: PDFKit.PDFDocument, y: number) {
-  const blockWidth = 760;
+  const blockWidth = 790;
   const x = (doc.page.width - blockWidth) / 2;
-  const slotWidth = 230;
-  const topY = y + 2;
-  const bottomY = y + 58;
-  const topXs = [x, x + 265, x + 530];
-  const bottomXs = [x + 160, x + 425];
-  drawSignatureSlot(doc, topXs[0], topY, slotWidth, committeeSignatories[0]);
-  drawSignatureSlot(doc, topXs[1], topY, slotWidth, committeeSignatories[1]);
-  drawSignatureSlot(doc, topXs[2], topY, slotWidth, committeeSignatories[2]);
-  drawSignatureSlot(doc, bottomXs[0], bottomY, slotWidth, committeeSignatories[3]);
-  drawSignatureSlot(doc, bottomXs[1], bottomY, slotWidth, committeeSignatories[4]);
+  const topY = y;
+  const bottomY = y + 55;
+  drawSignatureSlot(doc, { rankX: x + 12, roleX: x + 145, roleWidth: 150, y: topY }, committeeSignatories[0]);
+  drawSignatureSlot(doc, { rankX: x + 290, roleX: x + 420, roleWidth: 175, y: topY }, committeeSignatories[1]);
+  drawSignatureSlot(doc, { rankX: x + 590, roleX: x + 710, roleWidth: 80, y: topY }, committeeSignatories[2]);
+  drawSignatureSlot(doc, { rankX: x + 180, roleX: x + 314, roleWidth: 110, y: bottomY }, committeeSignatories[3]);
+  drawSignatureSlot(doc, { rankX: x + 438, roleX: x + 552, roleWidth: 178, y: bottomY }, committeeSignatories[4]);
 }
 
 function drawSignatureSlot(
   doc: PDFKit.PDFDocument,
-  x: number,
-  y: number,
-  width: number,
+  layout: {
+    rankX: number;
+    roleX: number;
+    roleWidth: number;
+    y: number;
+  },
   signatory: typeof committeeSignatories[number],
 ) {
-  const nameX = x + 46;
-  const nameWidth = width - 46;
+  doc.font(fonts.regular).fontSize(10.5).fillColor("#111111");
+  const rankWidth = doc.widthOfString(signatory.rank);
+  const dotWidth = doc.widthOfString(".");
+  const nameText = `(${signatory.name})`;
+  const nameX = layout.rankX + rankWidth - dotWidth;
 
-  doc.font(fonts.regular).fontSize(9.2).fillColor("#111111").text(signatory.rank, x, y, {
-    width: 62,
+  doc.text(signatory.rank, layout.rankX, layout.y, {
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(9.2).fillColor("#111111").text(signatory.role, x + 116, y, {
-    width: width - 116,
+  doc.text(signatory.role, layout.roleX, layout.y, {
+    width: layout.roleWidth,
     align: "center",
     lineBreak: false,
   });
-  doc.text(`(${signatory.name})`, nameX, y + 17, {
-    width: nameWidth,
-    align: "center",
+  doc.text(nameText, nameX, layout.y + 18, {
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(8.6).fillColor("#111111").text(signatory.unit, nameX, y + 34, {
-    width: nameWidth,
-    align: "center",
+
+  const nameWidth = doc.widthOfString(nameText);
+  const unitWidth = doc.widthOfString(signatory.unit);
+  doc.text(signatory.unit, nameX + (nameWidth - unitWidth) / 2, layout.y + 37, {
     lineBreak: false,
   });
 }
