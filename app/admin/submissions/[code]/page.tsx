@@ -60,7 +60,7 @@ const paperScreeningCriteria = [
   { name: "impactScore", label: "ความคุ้มค่าและการขยายผล", max: 20, field: "review_impact_score" },
 ] as const;
 
-export default async function AdminSubmissionDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ deleteOtp?: string; notice?: string }> }) {
+export default async function AdminSubmissionDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ deleteOtp?: string; notice?: string; edit?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -71,6 +71,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
   const query = await searchParams;
   const issuedAt = formatAdminDate(new Date().toISOString());
   const isSuperAdmin = session.role === "super_admin";
+  const editOpen = query.edit === "1";
   const deleteOtpAutoFill = item
     ? getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, {
         purpose: "delete_submission",
@@ -126,7 +127,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
           <ScorePanel item={item} isSuperAdmin={isSuperAdmin}/>
         </section>
         <section className="admin-detail-block print-hidden">
-          <details className="admin-edit-disclosure">
+          <details id="edit-submission" className="admin-edit-disclosure" open={editOpen}>
             <summary><Pencil/>แก้ไขข้อมูลใบสมัคร</summary>
             {isSuperAdmin ? <SubmissionEditForm item={item}/> : <p>เฉพาะ Super Admin เท่านั้นที่แก้ไขข้อมูลใบสมัครได้</p>}
           </details>

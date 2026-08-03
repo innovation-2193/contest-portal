@@ -294,18 +294,11 @@ function drawScoreFormRow(
 
 function drawCommitteeSignatureBlock(doc: PDFKit.PDFDocument, y: number) {
   const x = 36;
-  const width = doc.page.width - 72;
-  doc.moveTo(x, y + 15).lineTo(x + width, y + 15).lineWidth(0.45).stroke("#cfd8e6");
-  doc.font(fonts.bold).fontSize(8.2).fillColor(PDF_THEME.navy).text("ลงนามร่วมกันโดยคณะกรรมการ", x, y, {
-    width: 210,
-    lineBreak: false,
-  });
-
-  const slotWidth = 190;
-  const topY = y + 30;
-  const bottomY = y + 72;
-  const topXs = [x + 22, x + 300, x + 578];
-  const bottomXs = [x + 176, x + 454];
+  const slotWidth = 210;
+  const topY = y + 4;
+  const bottomY = y + 60;
+  const topXs = [x + 8, x + 286, x + 564];
+  const bottomXs = [x + 160, x + 438];
   drawSignatureSlot(doc, topXs[0], topY, slotWidth, committeeSignatories[0]);
   drawSignatureSlot(doc, topXs[1], topY, slotWidth, committeeSignatories[1]);
   drawSignatureSlot(doc, topXs[2], topY, slotWidth, committeeSignatories[2]);
@@ -320,18 +313,21 @@ function drawSignatureSlot(
   width: number,
   signatory: typeof committeeSignatories[number],
 ) {
-  doc.moveTo(x + 18, y).lineTo(x + width - 18, y).lineWidth(0.5).stroke("#7d8798");
-  doc.font(fonts.bold).fontSize(6.7).fillColor("#4d596b").text(`${signatory.rank} (${signatory.name})`, x, y + 8, {
+  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(signatory.rank, x, y, {
+    width: 56,
+    lineBreak: false,
+  });
+  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(signatory.role, x + 108, y, {
+    width: width - 108,
+    align: "center",
+    lineBreak: false,
+  });
+  doc.font(fonts.regular).fontSize(8.9).fillColor("#111111").text(`(${signatory.name})`, x, y + 17, {
     width,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.bold).fontSize(6.5).fillColor("#4d596b").text(signatory.role, x, y + 19, {
-    width,
-    align: "center",
-    lineBreak: false,
-  });
-  doc.font(fonts.regular).fontSize(6.1).fillColor("#6b7484").text(signatory.unit, x, y + 29, {
+  doc.font(fonts.regular).fontSize(8.2).fillColor("#111111").text(signatory.unit, x, y + 34, {
     width,
     align: "center",
     lineBreak: false,
@@ -339,7 +335,9 @@ function drawSignatureSlot(
 }
 
 function ownerName(item: SubmissionListItem) {
-  return `${item.first_name} ${item.last_name}`.replace(/\s+/g, " ").trim() || "-";
+  const title = clean(item.title);
+  const separator = title !== "-" && (title.endsWith(".") || /[A-Za-z]/.test(title)) ? " " : "";
+  return `${title === "-" ? "" : `${title}${separator}`}${item.first_name} ${item.last_name}`.replace(/\s+/g, " ").trim() || "-";
 }
 
 function compareSubmittedAt(left: SubmissionListItem, right: SubmissionListItem) {

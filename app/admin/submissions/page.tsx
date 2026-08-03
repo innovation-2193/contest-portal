@@ -6,11 +6,11 @@ import { ArrowLeft, Eye, FileText, Hash, Mail, Printer, Search, Settings, Trophy
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
-import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant, updateSubmissionWorkCategory } from "../../../lib/admin-store";
+import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath, adminNoticeReturnPath, safeAdminReturnPath } from "../../../lib/admin-flash";
 import { sendSubmissionAssignmentEmail } from "../../../lib/submission-assignment-mail";
-import { normalizeWorkCategory, workCategories, workCategoryLabel } from "../../../lib/work-categories";
+import { workCategoryLabel } from "../../../lib/work-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -99,12 +99,12 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>สายงาน</th><th>ผู้ตรวจเอกสาร</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
+        <div className="admin-table-wrap"><table className="admin-table compact-admin-table submissions-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>สายงาน</th><th>ผู้ตรวจเอกสาร</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
           <td data-label="ลำดับ"><b>{((currentPage - 1) * pageSize + index + 1).toLocaleString("th-TH")}</b></td>
           <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
           <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ทีม ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small><HashtagPills tags={item.hashtags}/></td>
           <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
-          <td data-label="สายงาน">{isSuperAdmin ? <WorkCategoryInlineForm submissionCode={item.submission_code} current={item.work_category} returnTo={`${currentListPath}#submission-${item.submission_code}`}/> : <span className="status-pill work-category-pill">{workCategoryLabel(item.work_category)}</span>}</td>
+          <td data-label="สายงาน"><Link className="status-pill work-category-pill work-category-link" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}?edit=1#edit-submission`}>{workCategoryLabel(item.work_category)}</Link></td>
           <td data-label="ผู้ตรวจเอกสาร">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins} returnTo={`${currentListPath}#submission-${item.submission_code}`}/> : item.review_assigned_admin_email || "-"}</td>
           <td data-label="คะแนน"><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
           <td data-label="สถานะ">{reviewStatus(item)}</td>
@@ -113,7 +113,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
               <input type="hidden" name="submissionCode" value={item.submission_code}/>
               <button className="primary small-action" type="submit"><Mail/>ลงทะเบียน+ส่งเมล</button>
             </form>}
-            <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}`}><Eye/>ดูข้อมูล</Link>
+            <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}?edit=1#edit-submission`}><Eye/>ดู/แก้ไข</Link>
             <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a>
           </div></td>
         </tr>) : <tr><td colSpan={9}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
@@ -121,17 +121,6 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       </section>
     </div>
   </div>;
-}
-
-function WorkCategoryInlineForm({ submissionCode, current, returnTo }: { submissionCode: string; current: string; returnTo: string }) {
-  return <form className="inline-assign-form work-category-inline-form" action={updateWorkCategoryAction}>
-    <input type="hidden" name="submissionCode" value={submissionCode}/>
-    <input type="hidden" name="returnTo" value={returnTo}/>
-    <select name="workCategory" defaultValue={current}>
-      {workCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-    </select>
-    <button className="secondary small-action" type="submit">บันทึก</button>
-  </form>;
 }
 
 function AssignInlineForm({ submissionCode, current, admins, returnTo }: { submissionCode: string; current: string | null; admins: Awaited<ReturnType<typeof listAdminAccounts>>; returnTo: string }) {
@@ -172,31 +161,6 @@ async function assignSubmissionAction(formData: FormData) {
   revalidatePath("/admin/submissions");
   revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
   redirect(adminNoticeReturnPath(safeAdminReturnPath(formData.get("returnTo"), "/admin/submissions"), "assignment_saved"));
-}
-
-async function updateWorkCategoryAction(formData: FormData) {
-  "use server";
-  const cookieStore = await cookies();
-  const session = getAdminSession(cookieStore.get(cookieName)?.value);
-  if (!session || session.role !== "super_admin") redirect("/admin");
-  const requestHeaders = await headers();
-  const submissionCode = String(formData.get("submissionCode") ?? "").trim();
-  const workCategory = normalizeWorkCategory(formData.get("workCategory"));
-  if (!submissionCode || !workCategory) throw new Error("ข้อมูลสายงานไม่ถูกต้อง");
-  await updateSubmissionWorkCategory(submissionCode, workCategory);
-  await recordAuditEvent({
-    actor: actorFromAdminSession(session),
-    action: "submission.work_category.updated",
-    entityType: "submission",
-    entityId: submissionCode,
-    summary: `แก้ไขสายงานใบสมัคร ${submissionCode} เป็น ${workCategoryLabel(workCategory)}`,
-    payload: { workCategory },
-  }, requestHeaders);
-  revalidatePath("/admin");
-  revalidatePath("/admin/submissions");
-  revalidatePath(`/admin/submissions/${encodeURIComponent(submissionCode)}`);
-  revalidatePath("/progress2");
-  redirect(adminNoticeReturnPath(safeAdminReturnPath(formData.get("returnTo"), "/admin/submissions"), "submission_saved"));
 }
 
 async function registerSubmissionParticipantAction(formData: FormData) {

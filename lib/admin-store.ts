@@ -140,6 +140,7 @@ export type SubmissionListItem = {
   review_submitted_at: string | null;
   submitted_at: string;
   email: string;
+  title: string;
   first_name: string;
   last_name: string;
   position: string;
@@ -923,7 +924,7 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     await ensureDatabaseSchema();
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,m.position,m.division,m.bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.position,m.division,m.bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -1015,6 +1016,7 @@ export async function getSubmissionDetail(submissionCode: string) {
       ...submission,
       hashtags: parseSubmissionHashtags(submission.hashtags, { titleTh: submission.title_th, titleEn: submission.title_en, summary: submission.summary }),
       work_category: submissionWorkCategory(submission),
+      title: primary?.title ?? "",
       first_name: primary?.first_name ?? "",
       last_name: primary?.last_name ?? "",
       position: primary?.position ?? "",
@@ -1697,7 +1699,7 @@ async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | n
   try {
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,NULL AS work_category,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,NULL AS work_category,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -1791,6 +1793,7 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
     review_submitted_at: local.review_submitted_at ?? null,
     submitted_at: local.submitted_at,
     email: local.email,
+    title: local.title,
     first_name: local.first_name,
     last_name: local.last_name,
     position: local.position,
@@ -1826,6 +1829,7 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
     review_submitted_at: local.review_submitted_at ?? null,
     submitted_at: local.submitted_at,
     email: local.email,
+    title: primary?.title ?? local.title,
     first_name: primary?.first_name ?? local.first_name,
     last_name: primary?.last_name ?? local.last_name,
     position: primary?.position ?? local.position,

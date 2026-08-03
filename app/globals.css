@@ -6465,6 +6465,30 @@ body:has(.prelander-page)::before {
   min-width: 760px;
 }
 
+.submissions-admin-table {
+  min-width: 1240px;
+}
+
+.submissions-admin-table th:nth-child(2),
+.submissions-admin-table td:nth-child(2) {
+  min-width: 92px;
+}
+
+.submissions-admin-table th:nth-child(3),
+.submissions-admin-table td:nth-child(3) {
+  min-width: 230px;
+}
+
+.submissions-admin-table th:nth-child(5),
+.submissions-admin-table td:nth-child(5) {
+  min-width: 138px;
+}
+
+.submissions-admin-table th:nth-child(6),
+.submissions-admin-table td:nth-child(6) {
+  min-width: 260px;
+}
+
 .admin-table th,
 .admin-table td {
   padding: 10px 12px;
@@ -7847,6 +7871,12 @@ body:has(.prelander-page)::before {
   border-color: rgba(113, 215, 212, 0.38);
   background: rgba(113, 215, 212, 0.1);
   color: var(--cyan);
+}
+
+.work-category-link {
+  width: fit-content;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .progress1-reviewer-list {
