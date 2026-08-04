@@ -18284,24 +18284,27 @@ footer {
 }
 
 .contest-public-search > div {
-  align-items: center;
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
+  position: relative;
+  display: block;
+  width: 100%;
   min-width: 0;
 }
 
 .contest-public-search svg {
+  position: absolute;
+  top: 50%;
+  left: 16px;
   color: #8fd8d7;
   height: 18px;
-  justify-self: center;
-  margin-right: -32px;
+  margin: 0;
   pointer-events: none;
+  transform: translateY(-50%);
   width: 18px;
   z-index: 1;
 }
 
 .contest-public-search input {
-  padding-left: 38px;
+  padding-left: 48px;
 }
 
 .contest-public-filter-actions {
@@ -18635,6 +18638,11 @@ footer {
 }
 
 @media (max-width: 1120px) {
+  .contest-public-shell {
+    width: calc(100% - 24px);
+    max-width: none;
+  }
+
   .contest-public-filter-form {
     grid-template-columns: minmax(0, 1fr) minmax(220px, 0.8fr);
   }
