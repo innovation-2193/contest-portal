@@ -1,28 +1,21 @@
-import { Download, FileArchive, FileText } from "lucide-react";
-import { getSubmissionDetail, listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
+import { Download, FileText } from "lucide-react";
+import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ContestRow = {
   submission: SubmissionListItem;
-  documentCount: number;
 };
 
 export default async function ContestPage() {
   const submissions = (await listSubmissions()).sort(compareSubmittedAt);
-  const rows = await Promise.all(submissions.map(async (submission) => {
-    const detail = await getSubmissionDetail(submission.submission_code);
-    return {
-      submission,
-      documentCount: detail?.files.length ?? 0,
-    } satisfies ContestRow;
-  }));
+  const rows = submissions.map((submission) => ({ submission } satisfies ContestRow));
 
   return <div className="contest-public-page">
     <div className="wide contest-public-shell">
       <section className="contest-public-hero">
-        <div className="contest-public-hero-icon"><FileArchive/></div>
+        <div className="contest-public-hero-icon"><FileText/></div>
         <div>
           <span className="eyebrow">Public Contest Documents</span>
           <h1>รายการสมัครประกวดนวัตกรรม</h1>
@@ -50,11 +43,9 @@ export default async function ContestPage() {
                 <td data-label="ลำดับ">{(index + 1).toLocaleString("th-TH")}</td>
                 <td data-label="ชื่อนวัตกรรม"><b>{row.submission.title_th}</b></td>
                 <td data-label="ดาวน์โหลดเอกสาร">
-                  {row.documentCount > 0
-                    ? <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
-                      <Download/>ดาวน์โหลดเอกสาร
-                    </a>
-                    : <span className="contest-download-empty">ไม่มีเอกสาร</span>}
+                  <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
+                    <Download/>ดาวน์โหลดเอกสาร
+                  </a>
                 </td>
               </tr>) : <tr><td colSpan={3}>ยังไม่มีรายการสมัครประกวด</td></tr>}
             </tbody>
