@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { CalendarClock, Car, ClipboardList, Download, Eye, FileScan, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
+import { CommitteeScoreDashboardCard } from "../../components/CommitteeScoreDashboardCard";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
 import { SecretInput } from "../../components/SecretInput";
@@ -62,12 +63,6 @@ import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluati
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
-import {
-  buildCommitteeScoreboard,
-  committeeJudges,
-  listCommitteeScoreRecords,
-  type CommitteeScoreSummaryRow,
-} from "../../lib/committee-score-store";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +86,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
 
-  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations, committeeScoreRecords } = await loadAdminPageData(session);
+  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
@@ -163,12 +158,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
   const scoreBoard = sortScoreboardSubmissions(submissions);
-  const committeeScoreBoard = isSuperAdmin
-    ? buildCommitteeScoreboard(
-      submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
-      committeeScoreRecords,
-    ).filter((row) => row.averageScore !== null)
-    : [];
   const awardedSubmissionKeys = new Set(winners.map((winner) => winner.submissionCode || winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division)));
   const availableWinnerSubmissions = submissions.filter((submission) => {
     const key = winnerFallbackKey(submission.title_th, submissionOwnerName(submission), submissionDivision(submission));
@@ -217,7 +206,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length} returnPath={currentAdminPath}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
-    {isSuperAdmin && <CommitteeScoreBoardPanel rows={committeeScoreBoard.slice(0, dashboardLimit)} total={committeeScoreBoard.length} exportHref={committeeScoreExportHref}/>}
+    {isSuperAdmin && <CommitteeScoreDashboardCard exportHref={committeeScoreExportHref}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการที่ผ่านเข้าสู่ 10 ทีมสุดท้าย ระบบจะแสดงเป็นรายชื่อเดียว และรอบถัดไปเริ่มนับคะแนนใหม่</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
@@ -282,7 +271,7 @@ const emptyEvaluationSummary: EvaluationSummary = {
 
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
-  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations, committeeScoreRecords] = await Promise.all([
+  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
     withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
@@ -292,10 +281,9 @@ async function loadAdminPageData(session: AdminSession) {
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
     isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
     isSuperAdmin ? withAdminFallback("parking reservations", listParkingReservations(), []) : Promise.resolve([]),
-    isSuperAdmin ? withAdminFallback("committee score records", listCommitteeScoreRecords(), []) : Promise.resolve([]),
   ]);
   const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
-  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations, committeeScoreRecords };
+  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -636,24 +624,6 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
       </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
     </div>
     <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
-  </section>;
-}
-
-function CommitteeScoreBoardPanel({ rows, total, exportHref }: { rows: CommitteeScoreSummaryRow[]; total: number; exportHref: string }) {
-  return <section className="admin-panel">
-    <header className="admin-section-head"><Trophy/><div><h2>Score Board คณะกรรมการรอบที่ 1</h2><p>จัดอันดับจากคะแนนเฉลี่ยของกรรมการ 5 ท่านเท่านั้น ไม่รวมกับคะแนนเจ้าหน้าที่ตรวจเอกสาร</p></div><div className="admin-actions"><a className="primary" href={exportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a><Link className="secondary" href="/admin/ocr-scores"><FileScan/>เปิด OCR คะแนน</Link></div></header>
-    <div className="scoreboard-list committee-dashboard-scoreboard">
-      {rows.length ? rows.map((row) => <article className="scoreboard-row" key={row.submissionCode}>
-        <b>#{row.rank}</b>
-        <div><strong>{row.submissionTitle}</strong><small>{row.submissionCode} • ลำดับนวัตกรรม {row.submissionOrder.toLocaleString("th-TH")} • {row.ownerName}</small></div>
-        <span>{row.averageScore?.toFixed(2) ?? "-"}/100</span>
-        <div className="scoreboard-actions committee-score-mini">
-          {committeeJudges.map((judge) => <em key={judge.key} className={`status-pill ${row.judgeScores[judge.key] === null ? "registered" : "attended"}`}>ก.{judge.order}: {row.judgeScores[judge.key] ?? "-"}</em>)}
-          <Link className="secondary small-action" href="/admin/ocr-scores"><Eye/>ดูรายละเอียด</Link>
-        </div>
-      </article>) : <div className="participant-empty">ยังไม่มีคะแนนคณะกรรมการจาก OCR</div>}
-    </div>
-    <CardMore total={total} shown={rows.length} href="/admin/ocr-scores"/>
   </section>;
 }
 
