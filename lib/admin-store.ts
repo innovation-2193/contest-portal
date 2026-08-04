@@ -37,7 +37,7 @@ import {
 } from "./submission-hashtags";
 import { buildSubmissionHashtagContext } from "./submission-file-text";
 import {
-  inferSubmissionWorkCategory,
+  defaultWorkCategory,
   normalizeWorkCategory,
   type WorkCategory,
 } from "./work-categories";
@@ -1052,7 +1052,7 @@ export async function getSubmissionDetail(submissionCode: string) {
     const members = memberRows as SubmissionMemberDetail[];
     const primary = members[0];
     const [fileRows] = await db.execute(
-      "SELECT document_type,original_name,stored_name,mime_type,byte_size,sha256 FROM submission_files WHERE submission_id=? ORDER BY FIELD(document_type,'ownership','concept','prototype','implementation')",
+      "SELECT document_type,original_name,stored_name,mime_type,byte_size,sha256 FROM submission_files WHERE submission_id=? ORDER BY FIELD(document_type,'ownership','concept','prototype','implementation'), byte_size DESC, original_name ASC",
       [submission.id],
     );
 
@@ -1067,7 +1067,7 @@ export async function getSubmissionDetail(submissionCode: string) {
       division: primary?.division ?? "",
       bureau: primary?.bureau ?? "",
       members,
-      files: fileRows as SubmissionFileDetail[],
+      files: uniqueSubmissionFiles(fileRows as SubmissionFileDetail[]),
     } satisfies AdminSubmissionDetail;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
@@ -1081,10 +1081,10 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
   const type = documentType.trim();
   try {
     const [rows] = await db.execute(
-      "SELECT s.id,f.document_type,f.original_name,f.stored_name,f.mime_type,f.byte_size,f.sha256 FROM submissions s JOIN submission_files f ON f.submission_id=s.id WHERE s.submission_code=? AND f.document_type=? LIMIT 1",
+      "SELECT s.id AS submission_id,f.document_type,f.original_name,f.stored_name,f.mime_type,f.byte_size,f.sha256 FROM submissions s JOIN submission_files f ON f.submission_id=s.id WHERE s.submission_code=? AND f.document_type=? ORDER BY f.byte_size DESC, f.original_name ASC LIMIT 1",
       [code, type],
     );
-    const file = (rows as Array<SubmissionFileDetail & { id: string }>)[0];
+    const file = (rows as Array<SubmissionFileDetail & { submission_id: string }>)[0];
     if (!file) return getLocalSubmissionFile(code, type);
     return {
       document_type: file.document_type,
@@ -1093,12 +1093,21 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
       mime_type: file.mime_type,
       byte_size: file.byte_size,
       sha256: file.sha256,
-      filePath: path.join(storageDir, "uploads", file.id, file.stored_name),
+      filePath: path.join(storageDir, "uploads", file.submission_id, file.stored_name),
     } satisfies AdminSubmissionFile;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     return getLocalSubmissionFile(code, type);
   }
+}
+
+function uniqueSubmissionFiles(files: SubmissionFileDetail[]) {
+  const seen = new Set<string>();
+  return files.filter((file) => {
+    if (seen.has(file.document_type)) return false;
+    seen.add(file.document_type);
+    return true;
+  });
 }
 
 export async function updateSubmission(input: SubmissionUpdateInput) {
@@ -1140,7 +1149,7 @@ export async function updateSubmission(input: SubmissionUpdateInput) {
           input.titleEn || null,
           input.summary.slice(0, 500),
           serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
-          normalizeWorkCategory(input.workCategory) ?? inferSubmissionWorkCategory({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary }),
+          normalizeWorkCategory(input.workCategory) ?? defaultWorkCategory,
           input.videoUrl || null,
           input.status,
           submission.id,
@@ -1823,7 +1832,7 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
     title_th: local.title_th,
     title_en: local.title_en,
     video_url: local.video_url || null,
-    work_category: normalizeWorkCategory(local.work_category) ?? inferSubmissionWorkCategory({ titleTh: local.title_th, titleEn: local.title_en, summary: local.summary, hashtags }),
+    work_category: normalizeWorkCategory(local.work_category) ?? defaultWorkCategory,
     hashtags,
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,
@@ -1880,7 +1889,7 @@ function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmis
     title_en: local.title_en,
     summary: local.summary,
     hashtags,
-    work_category: normalizeWorkCategory(local.work_category) ?? inferSubmissionWorkCategory({ titleTh: local.title_th, titleEn: local.title_en, summary: local.summary, hashtags }),
+    work_category: normalizeWorkCategory(local.work_category) ?? defaultWorkCategory,
     video_url: local.video_url,
     status: local.status,
     review_assigned_admin_email: local.review_assigned_admin_email ?? null,
@@ -1924,12 +1933,7 @@ function submissionListRowToItem(row: Omit<SubmissionListItem, "hashtags" | "wor
   return {
     ...row,
     hashtags,
-    work_category: normalizeWorkCategory(row.work_category) ?? inferSubmissionWorkCategory({
-      titleTh: row.title_th,
-      titleEn: row.title_en,
-      summary: row.summary,
-      hashtags,
-    }),
+    work_category: normalizeWorkCategory(row.work_category) ?? defaultWorkCategory,
   };
 }
 
@@ -1970,15 +1974,5 @@ function submissionWorkCategory(submission: {
   hashtags?: string | null;
   work_category?: string | null;
 }) {
-  const hashtags = parseSubmissionHashtags(submission.hashtags, {
-    titleTh: submission.title_th,
-    titleEn: submission.title_en,
-    summary: submission.summary,
-  });
-  return normalizeWorkCategory(submission.work_category) ?? inferSubmissionWorkCategory({
-    titleTh: submission.title_th,
-    titleEn: submission.title_en,
-    summary: submission.summary,
-    hashtags,
-  });
+  return normalizeWorkCategory(submission.work_category) ?? defaultWorkCategory;
 }

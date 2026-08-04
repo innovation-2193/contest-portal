@@ -7065,91 +7065,114 @@ body:has(.prelander-page)::before {
   color: var(--gold);
 }
 
-.committee-ocr-workspace {
+.committee-score-workspace {
   display: grid;
   gap: 18px;
 }
 
-.committee-ocr-form {
-  grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.2fr) minmax(220px, 0.8fr) auto;
+.committee-score-toolbar {
+  grid-template-columns: minmax(260px, 1fr) minmax(300px, 0.85fr) minmax(360px, 1.15fr) auto;
 }
 
-.committee-ocr-upload input[type="file"] {
-  width: 100%;
-  min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid rgba(68, 99, 145, 0.92);
+.input-with-icon {
+  position: relative;
+  display: block;
+}
+
+.input-with-icon svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.audit-filter-form .input-with-icon input {
+  padding-left: 38px;
+}
+
+.committee-score-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.committee-score-stats span {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(64, 89, 128, 0.54);
   border-radius: 10px;
-  background: rgba(1, 9, 22, 0.88);
-  color: var(--text);
-  font-weight: 800;
+  background: rgba(1, 9, 22, 0.5);
 }
 
-.committee-ocr-alert {
+.committee-score-stats b,
+.committee-score-stats small {
+  display: block;
+}
+
+.committee-score-stats b {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.committee-score-stats small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.committee-score-alert {
   display: flex;
   gap: 8px;
   align-items: center;
   margin-top: 12px;
   padding: 12px 14px;
   border-radius: 12px;
+  color: #dce4f3;
   font-weight: 900;
 }
 
-.committee-ocr-alert svg {
+.committee-score-alert svg {
+  flex: 0 0 auto;
   width: 18px;
   height: 18px;
 }
 
-.committee-ocr-alert.saved {
-  border: 1px solid rgba(31, 157, 91, 0.45);
-  background: rgba(22, 121, 75, 0.18);
-  color: #b8f0d0;
-}
-
-.committee-ocr-alert.error {
-  border: 1px solid rgba(238, 91, 117, 0.48);
-  background: rgba(168, 46, 69, 0.22);
-  color: #ffd3dc;
-}
-
-.committee-ocr-preview-grid {
+.committee-score-alert span {
   display: grid;
-  grid-template-columns: minmax(260px, 0.58fr) minmax(360px, 1fr);
-  gap: 16px;
-  align-items: start;
+  gap: 4px;
+  min-width: 0;
 }
 
-.committee-ocr-image {
-  max-height: 820px;
-  overflow: auto;
-  border: 1px solid rgba(64, 89, 128, 0.6);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.committee-ocr-image img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.committee-ocr-fields {
-  display: grid;
-  gap: 12px;
-}
-
-.committee-ocr-fields label {
-  display: grid;
-  gap: 6px;
-  color: #dce4f3;
+.committee-score-alert small {
+  color: inherit;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
+  line-height: 1.45;
+  opacity: 0.9;
 }
 
-.committee-ocr-fields :is(input, select, textarea) {
+.committee-score-import-form {
+  display: grid;
+  grid-template-columns: auto minmax(150px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+
+.committee-score-import-form label {
+  margin: 0;
+}
+
+.committee-score-import-form input[type="file"] {
   width: 100%;
-  min-height: 42px;
-  padding: 9px 11px;
+  min-height: 44px;
+  padding: 8px 10px;
   border: 1px solid rgba(68, 99, 145, 0.92);
   border-radius: 10px;
   background: rgba(1, 9, 22, 0.88);
@@ -7157,186 +7180,71 @@ body:has(.prelander-page)::before {
   font-weight: 800;
 }
 
-.committee-ocr-detected {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+.committee-score-alert.saved,
+.committee-score-alert.idle,
+.committee-score-alert.loading {
+  border: 1px solid rgba(31, 157, 91, 0.45);
+  background: rgba(22, 121, 75, 0.18);
+  color: #b8f0d0;
 }
 
-.committee-ocr-detected span {
-  display: grid;
-  gap: 5px;
-  min-height: 66px;
-  padding: 10px 12px;
-  border: 1px solid rgba(68, 99, 145, 0.72);
-  border-radius: 10px;
-  background: rgba(1, 9, 22, 0.62);
+.committee-score-alert.error {
+  border: 1px solid rgba(238, 91, 117, 0.48);
+  background: rgba(168, 46, 69, 0.22);
+  color: #ffd3dc;
 }
 
-.committee-ocr-detected b {
-  color: #aebad0;
-  font-size: 11px;
+.committee-score-table-scroll {
+  max-height: 72vh;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
 }
 
-.committee-ocr-detected em {
-  color: var(--text);
-  font-style: normal;
+.committee-score-entry-table {
+  min-width: 1160px;
+}
+
+.committee-score-entry-table th:nth-child(3),
+.committee-score-entry-table td:nth-child(3) {
+  min-width: 320px;
+}
+
+.committee-score-entry-table th:nth-child(n+4):nth-child(-n+8),
+.committee-score-entry-table td:nth-child(n+4):nth-child(-n+8) {
+  width: 86px;
+  min-width: 86px;
+  text-align: center;
+}
+
+.committee-score-entry-table td:nth-child(9),
+.committee-score-entry-table td:nth-child(10) {
+  text-align: center;
+}
+
+.committee-score-entry-table input {
+  min-height: 38px;
+  text-align: center;
   font-weight: 900;
-  line-height: 1.35;
 }
 
-@media (max-width: 760px) {
-  .committee-ocr-detected {
+.committee-score-entry-table input.dirty {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(240, 195, 62, 0.16);
+}
+
+@media (max-width: 980px) {
+  .committee-score-toolbar {
     grid-template-columns: 1fr;
   }
-}
 
-.committee-ocr-score-table {
-  display: grid;
-  gap: 10px;
-}
+  .committee-score-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 
-.committee-ocr-group {
-  display: grid;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid rgba(64, 89, 128, 0.48);
-  border-radius: 12px;
-  background: rgba(2, 11, 27, 0.36);
-}
-
-.committee-ocr-group > b {
-  color: var(--gold-2);
-  font-size: 13px;
-}
-
-.committee-ocr-group label {
-  grid-template-columns: minmax(0, 1fr) 86px;
-  gap: 10px;
-  align-items: center;
-}
-
-.committee-ocr-group label span {
-  color: #eef3fb;
-  line-height: 1.35;
-}
-
-.committee-ocr-group label small {
-  display: inline-block;
-  margin-left: 8px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.committee-ocr-total-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.committee-record-list {
-  display: grid;
-  gap: 12px;
-}
-
-.committee-record-card {
-  border: 1px solid rgba(64, 89, 128, 0.5);
-  border-radius: 12px;
-  background: rgba(2, 11, 27, 0.44);
-  overflow: hidden;
-}
-
-.committee-record-card summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
-  padding: 14px 16px;
-  cursor: pointer;
-  list-style: none;
-}
-
-.committee-record-card summary::-webkit-details-marker {
-  display: none;
-}
-
-.committee-record-card summary b,
-.committee-record-card summary small {
-  display: block;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.committee-record-card summary b {
-  color: var(--ink);
-  line-height: 1.35;
-}
-
-.committee-record-card summary small {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.committee-record-form,
-.committee-record-delete-form {
-  display: grid;
-  gap: 12px;
-  padding: 0 16px 16px;
-}
-
-.committee-record-score-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
-  gap: 8px;
-}
-
-.committee-record-score-grid label,
-.committee-record-meta-grid label,
-.committee-record-form > label {
-  display: grid;
-  gap: 6px;
-  color: #dce4f3;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.committee-record-score-grid label span {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.committee-record-score-grid label small {
-  color: var(--muted);
-}
-
-.committee-record-form :is(input, textarea) {
-  width: 100%;
-  min-height: 38px;
-  padding: 8px 10px;
-  border: 1px solid rgba(68, 99, 145, 0.88);
-  border-radius: 9px;
-  background: rgba(1, 9, 22, 0.88);
-  color: var(--text);
-  font-weight: 900;
-}
-
-.committee-record-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 10px;
-}
-
-.committee-record-actions,
-.committee-record-delete-form {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.committee-record-delete-form {
-  padding-top: 0;
-  border-top: 1px solid rgba(64, 89, 128, 0.34);
+  .committee-score-import-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 .spin-icon {

@@ -2,7 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { generateSubmissionHashtags, serializeSubmissionHashtags } from "./submission-hashtags";
 import { buildSubmissionHashtagContext } from "./submission-file-text";
-import { inferSubmissionWorkCategory, normalizeWorkCategory, type WorkCategory } from "./work-categories";
+import { defaultWorkCategory, normalizeWorkCategory, type WorkCategory } from "./work-categories";
 
 export type LocalSubmissionMember = {
   title: string;
@@ -176,7 +176,7 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       title_en: data.titleEn ?? "",
       summary: data.summary.slice(0, 500),
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText: data.hashtagContext })),
-      work_category: inferSubmissionWorkCategory({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, hashtags: [] }),
+      work_category: defaultWorkCategory,
       video_url: data.videoUrl ?? "",
       status: "submitted",
       review_assigned_admin_email: null,
@@ -258,7 +258,7 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
       title_en: input.titleEn,
       summary: input.summary.slice(0, 500),
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
-      work_category: normalizeWorkCategory(input.workCategory) ?? inferSubmissionWorkCategory({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary }),
+      work_category: normalizeWorkCategory(input.workCategory) ?? defaultWorkCategory,
       video_url: input.videoUrl,
       status: input.status,
       email: input.email.trim().toLowerCase(),
@@ -305,11 +305,7 @@ export async function updateLocalSubmissionWorkCategory(submissionCode: string, 
     if (index < 0) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
     store.submissions[index] = {
       ...store.submissions[index],
-      work_category: normalizeWorkCategory(workCategory) ?? inferSubmissionWorkCategory({
-        titleTh: store.submissions[index].title_th,
-        titleEn: store.submissions[index].title_en,
-        summary: store.submissions[index].summary,
-      }),
+      work_category: normalizeWorkCategory(workCategory) ?? defaultWorkCategory,
     };
     await writeStore(store);
     return store.submissions[index];

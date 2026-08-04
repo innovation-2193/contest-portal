@@ -214,7 +214,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       <label>สถานะ<select name="status" defaultValue={item.status}>{submissionStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
       <label>สายงานที่เกี่ยวข้อง<select name="workCategory" defaultValue={item.work_category}>
         {workCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-      </select><small className="field-help">ระบบจัดหมวดให้อัตโนมัติ และ Super Admin สามารถแก้ไขได้</small></label>
+      </select><small className="field-help">Super Admin สามารถเลือกหรือแก้ไขสายงานได้เอง</small></label>
       <label className="span-2">ชื่อผลงานภาษาไทย<input name="titleTh" defaultValue={item.title_th} required/></label>
       <label>Innovation Title<input name="titleEn" defaultValue={item.title_en ?? ""}/></label>
       <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>

@@ -52,7 +52,8 @@ export type CommitteeScoreInput = {
   judgeKey: string;
   sourceFileName?: string | null;
   sourcePage?: number;
-  itemScores: Record<string, number | null | undefined>;
+  itemScores?: Record<string, number | null | undefined>;
+  totalScore?: number | null;
   declaredTotal?: number | null;
   note?: string | null;
   submittedByEmail: string;
@@ -60,7 +61,8 @@ export type CommitteeScoreInput = {
 
 export type CommitteeScoreUpdateInput = {
   recordId: string;
-  itemScores: Record<string, number | null | undefined>;
+  itemScores?: Record<string, number | null | undefined>;
+  totalScore?: number | null;
   declaredTotal?: number | null;
   note?: string | null;
   submittedByEmail: string;
@@ -175,6 +177,7 @@ export async function updateCommitteeScoreRecord(input: CommitteeScoreUpdateInpu
       sourceFileName: target.sourceFileName,
       sourcePage: target.sourcePage,
       itemScores: input.itemScores,
+      totalScore: input.totalScore,
       declaredTotal: input.declaredTotal,
       note: input.note,
       submittedByEmail: input.submittedByEmail,
@@ -266,15 +269,19 @@ export function latestCommitteeScoreRecords(records: CommitteeScoreRecord[]) {
 function normalizeCommitteeScoreInput(input: CommitteeScoreInput): CommitteeScoreRecord {
   const judge = findCommitteeJudge(input.judgeKey);
   if (!judge) throw Object.assign(new Error("invalid judge"), { code: "INVALID_JUDGE" });
+  const rawItemScores = input.itemScores ?? {};
   const itemScores = Object.fromEntries(committeeScoreCriteria.map((criterion) => {
-    const score = normalizeScore(input.itemScores[criterion.id], criterion.max);
+    const score = normalizeScore(rawItemScores[criterion.id], criterion.max);
     return [criterion.id, score];
   })) as Record<string, number | null>;
   const groupScore = (groupId: CommitteeScoreCriterion["groupId"]) => committeeScoreCriteria
     .filter((criterion) => criterion.groupId === groupId)
     .reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
   const declaredTotal = normalizeScore(input.declaredTotal, 100);
-  const calculatedTotal = committeeScoreCriteria.reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const summedTotal = committeeScoreCriteria.reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const hasItemScore = Object.values(itemScores).some((score) => score !== null);
+  const manualTotal = normalizeScore(input.totalScore, 100);
+  const calculatedTotal = manualTotal ?? (hasItemScore ? summedTotal : declaredTotal ?? 0);
 
   return {
     id: "",
@@ -360,8 +367,11 @@ function hydrateRecord(record: unknown) {
   const innovationScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "innovation").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
   const evidenceScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "evidence").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
   const impactScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "impact").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
-  const calculatedTotal = roundScore(rulesScore + problemScore + innovationScore + evidenceScore + impactScore);
   const declaredTotal = normalizeScore(item.declaredTotal, 100);
+  const summedTotal = rulesScore + problemScore + innovationScore + evidenceScore + impactScore;
+  const hasItemScore = Object.values(itemScores).some((score) => score !== null);
+  const storedTotal = normalizeScore(item.calculatedTotal, 100);
+  const calculatedTotal = roundScore(hasItemScore ? summedTotal : storedTotal ?? declaredTotal ?? 0);
   const now = new Date().toISOString();
   return {
     ...item,

@@ -18,6 +18,8 @@ export async function GET(request: Request) {
         code: submission.submission_code,
         title: submission.title_th,
         order: index + 1,
+        ownerName: `${submission.first_name} ${submission.last_name}`.trim(),
+        division: submission.division || submission.bureau || "",
       }));
 
     return NextResponse.json({ ok: true, submissions });

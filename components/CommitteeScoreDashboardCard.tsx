@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, FileScan, Trophy } from "lucide-react";
+import { Download, Eye, Pencil, Trophy } from "lucide-react";
 import { committeeJudges } from "../lib/committee-score-config";
 
 type DashboardRow = {
@@ -46,7 +46,7 @@ export function CommitteeScoreDashboardCard({ exportHref }: { exportHref: string
   }, []);
 
   return <section className="admin-panel">
-    <header className="admin-section-head"><Trophy/><div><h2>Score Board คณะกรรมการรอบที่ 1</h2><p>จัดอันดับจากคะแนนเฉลี่ยของกรรมการ 5 ท่านเท่านั้น ไม่รวมกับคะแนนเจ้าหน้าที่ตรวจเอกสาร</p></div><div className="admin-actions"><a className="primary" href={exportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a><Link className="secondary" href="/admin/ocr-scores"><FileScan/>เปิด OCR คะแนน</Link></div></header>
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board คณะกรรมการรอบที่ 1</h2><p>จัดอันดับจากคะแนนเฉลี่ยของกรรมการ 5 ท่านเท่านั้น ไม่รวมกับคะแนนเจ้าหน้าที่ตรวจเอกสาร</p></div><div className="admin-actions"><a className="primary" href={exportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a><Link className="secondary" href="/admin/committee-scores"><Pencil/>กรอกคะแนนรวม</Link></div></header>
     <div className="scoreboard-list committee-dashboard-scoreboard">
       {loading ? <div className="participant-empty">กำลังโหลด Score Board คณะกรรมการ...</div> : null}
       {!loading && !data.ok ? <div className="participant-empty">โหลด Score Board คณะกรรมการไม่สำเร็จ: {data.message ?? "กรุณาลองใหม่อีกครั้ง"}</div> : null}
@@ -56,11 +56,11 @@ export function CommitteeScoreDashboardCard({ exportHref }: { exportHref: string
         <span>{row.averageScore?.toFixed(2) ?? "-"}/100</span>
         <div className="scoreboard-actions committee-score-mini">
           {committeeJudges.map((judge) => <em key={judge.key} className={`status-pill ${row.judgeScores[judge.key] === null ? "registered" : "attended"}`}>ก.{judge.order}: {row.judgeScores[judge.key] ?? "-"}</em>)}
-          <Link className="secondary small-action" href="/admin/ocr-scores"><Eye/>ดูรายละเอียด</Link>
+          <Link className="secondary small-action" href="/admin/committee-scores"><Eye/>ดูรายละเอียด</Link>
         </div>
       </article>) : null}
-      {!loading && data.ok && !data.rows.length ? <div className="participant-empty">ยังไม่มีคะแนนคณะกรรมการจาก OCR</div> : null}
+      {!loading && data.ok && !data.rows.length ? <div className="participant-empty">ยังไม่มีคะแนนรวมคณะกรรมการ</div> : null}
     </div>
-    <div className="card-more"><span>ทั้งหมด {data.total.toLocaleString("th-TH")} รายการ</span><Link className="secondary" href="/admin/ocr-scores"><Eye/>ดูทั้งหมด</Link></div>
+    <div className="card-more"><span>ทั้งหมด {data.total.toLocaleString("th-TH")} รายการ</span><Link className="secondary" href="/admin/committee-scores"><Eye/>ดูทั้งหมด</Link></div>
   </section>;
 }

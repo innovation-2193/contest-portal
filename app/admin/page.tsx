@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileScan, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { CommitteeScoreDashboardCard } from "../../components/CommitteeScoreDashboardCard";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
@@ -152,7 +152,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const showAllParkingReservations = params.parkingAll === "1";
   const currentAdminPath = adminDashboardHref(params);
   const requestHeaders = await headers();
-  const ocrScoresHref = localSafeAdminHref(requestHeaders, "/admin/ocr-scores");
+  const committeeScoresHref = localSafeAdminHref(requestHeaders, "/admin/committee-scores");
   const committeeScoreExportHref = localSafeAdminHref(requestHeaders, "/api/admin/committee-scores/export");
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
@@ -176,8 +176,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
-      <div className="admin-checkin-copy"><FileScan/><div><span className="eyebrow">Super Admin Only</span><h2>OCR คะแนน</h2><p>นำคะแนนจากแบบฟอร์มกรรมการ 5 ท่านเข้า preview ตรวจทาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
-      <div className="admin-actions admin-report-actions"><a className="primary" href={ocrScoresHref}><FileScan/>เปิด OCR คะแนน</a><a className="secondary" href={committeeScoreExportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
+      <div className="admin-checkin-copy"><Pencil/><div><span className="eyebrow">Super Admin Only</span><h2>กรอกคะแนนรวม</h2><p>กรอกคะแนนรวมของกรรมการ 5 ท่านต่อผลงาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
+      <div className="admin-actions admin-report-actions"><a className="primary" href={committeeScoresHref}><Pencil/>กรอกคะแนนรวม</a><a className="secondary" href={committeeScoreExportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
@@ -1367,9 +1367,14 @@ function auditActionLabel(action: string) {
   if (action === "submission.committee_score_form_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ";
   if (action === "submission.committee_score_form_zip") return "Export ZIP แบบฟอร์มให้คะแนนกรรมการ";
   if (action === "submission.committee_score_form_custom_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ 2";
-  if (action === "committee_score.ocr_submitted") return "บันทึกคะแนน OCR คณะกรรมการ";
-  if (action === "committee_score.ocr_updated") return "แก้ไขคะแนน OCR คณะกรรมการ";
-  if (action === "committee_score.ocr_deleted") return "ลบคะแนน OCR คณะกรรมการ";
+  if (action === "committee_score.total_submitted") return "บันทึกคะแนนรวมคณะกรรมการ";
+  if (action === "committee_score.total_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";
+  if (action === "committee_score.total_deleted") return "ลบคะแนนรวมคณะกรรมการ";
+  if (action === "committee_score.template_xlsx") return "ดาวน์โหลด Template คะแนนรวม";
+  if (action === "committee_score.import_xlsx") return "Import คะแนนรวม Excel";
+  if (action === "committee_score.ocr_submitted") return "บันทึกคะแนนรวมคณะกรรมการ";
+  if (action === "committee_score.ocr_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";
+  if (action === "committee_score.ocr_deleted") return "ลบคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.scoreboard_pdf") return "Export ผลคะแนนคณะกรรมการ";
   if (action === "submission.review_packets_zip") return "Export ZIP PDF ใบสมัคร";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";

@@ -102,7 +102,7 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
 
   if (!rows.length) {
     doc.roundedRect(x, cursorY + 22, doc.page.width - 48, 80, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-    doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลคะแนน OCR", x, cursorY + 52, {
+    doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลคะแนนรวมคณะกรรมการ", x, cursorY + 52, {
       width: doc.page.width - 48,
       align: "center",
       lineBreak: false,

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, records });
   } catch (error) {
     console.error("committee score records failed", error);
-    return NextResponse.json({ ok: false, message: "โหลดรายการคะแนน OCR ไม่สำเร็จ", records: [] }, { status: 200 });
+    return NextResponse.json({ ok: false, message: "โหลดรายการคะแนนคณะกรรมการไม่สำเร็จ", records: [] }, { status: 200 });
   }
 }
 
@@ -52,12 +52,13 @@ export async function POST(request: Request) {
     })));
     await recordAuditEvent({
       actor: actorFromAdminSession(session),
-      action: "committee_score.ocr_submitted",
+      action: "committee_score.total_submitted",
       entityType: "committee_score",
-      summary: `บันทึกคะแนน OCR คณะกรรมการ ${saved.length.toLocaleString("th-TH")} รายการ`,
+      summary: `บันทึกคะแนนรวมคณะกรรมการ ${saved.length.toLocaleString("th-TH")} รายการ`,
       payload: { count: saved.length, submissions: saved.map((record) => record.submissionCode), judges: [...new Set(saved.map((record) => record.judgeKey))] },
     }, request.headers);
     revalidatePath("/admin");
+    revalidatePath("/admin/committee-scores");
     revalidatePath("/admin/ocr-scores");
     return NextResponse.json({ ok: true, saved });
   } catch (error) {
@@ -75,6 +76,7 @@ export async function PATCH(request: Request) {
   let payload: {
     recordId?: string;
     itemScores?: Record<string, number | null | undefined>;
+    totalScore?: number | null;
     declaredTotal?: number | null;
     note?: string | null;
   };
@@ -88,19 +90,21 @@ export async function PATCH(request: Request) {
     const record = await updateCommitteeScoreRecord({
       recordId: payload.recordId ?? "",
       itemScores: payload.itemScores ?? {},
+      totalScore: payload.totalScore ?? null,
       declaredTotal: payload.declaredTotal ?? null,
       note: payload.note ?? null,
       submittedByEmail: session.email,
     });
     await recordAuditEvent({
       actor: actorFromAdminSession(session),
-      action: "committee_score.ocr_updated",
+      action: "committee_score.total_updated",
       entityType: "committee_score",
       entityId: record.id,
-      summary: `แก้ไขคะแนน OCR ${record.submissionCode} โดย ${record.judgeName}`,
+      summary: `แก้ไขคะแนนรวม ${record.submissionCode} โดย ${record.judgeName}`,
       payload: { submissionCode: record.submissionCode, judgeKey: record.judgeKey, calculatedTotal: record.calculatedTotal, declaredTotal: record.declaredTotal },
     }, request.headers);
     revalidatePath("/admin");
+    revalidatePath("/admin/committee-scores");
     revalidatePath("/admin/ocr-scores");
     return NextResponse.json({ ok: true, record });
   } catch (error) {
@@ -126,14 +130,15 @@ export async function DELETE(request: Request) {
   if (deleted) {
     await recordAuditEvent({
       actor: actorFromAdminSession(session),
-      action: "committee_score.ocr_deleted",
+      action: "committee_score.total_deleted",
       entityType: "committee_score",
       entityId: deleted.id,
-      summary: `ลบคะแนน OCR ${deleted.submissionCode} โดย ${deleted.judgeName}`,
+      summary: `ลบคะแนนรวม ${deleted.submissionCode} โดย ${deleted.judgeName}`,
       payload: { submissionCode: deleted.submissionCode, judgeKey: deleted.judgeKey, calculatedTotal: deleted.calculatedTotal },
     }, request.headers);
   }
   revalidatePath("/admin");
+  revalidatePath("/admin/committee-scores");
   revalidatePath("/admin/ocr-scores");
   return NextResponse.json({ ok: true, deleted });
 }

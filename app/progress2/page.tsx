@@ -83,7 +83,7 @@ export default async function Progress2Page({ searchParams }: { searchParams: Pr
           <UserCheck/>
           <div>
             <h2>รายการใบสมัครประกวด</h2>
-            <p>สถานะในตารางนี้มีเพียงตรวจแล้วและยังไม่ตรวจ พร้อมสายงานที่ระบบจัดหมวดให้อัตโนมัติ</p>
+            <p>สถานะในตารางนี้มีเพียงตรวจแล้วและยังไม่ตรวจ พร้อมสายงานที่ผู้ดูแลกำหนดไว้</p>
           </div>
         </header>
         <form className="audit-filter-form progress2-filter-form public-progress2-filter-form" method="get">

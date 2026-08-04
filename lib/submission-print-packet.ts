@@ -1,8 +1,10 @@
+import path from "path";
 import PDFKitDocument from "pdfkit";
 import { PDFDocument as PdfLibDocument } from "pdf-lib";
 import {
   getSubmissionFile,
   type AdminSubmissionDetail,
+  type AdminSubmissionFile,
 } from "./admin-store";
 import {
   drawDocumentHeader,
@@ -30,6 +32,7 @@ const detailPageWidth = 595.28;
 const detailPageHeight = 841.89;
 const detailContentTop = 132;
 const detailContentBottom = 782;
+const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 
 export type SubmissionPrintPacketOptions = {
   reviewerLabel?: string | null;
@@ -45,7 +48,7 @@ export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail
   await appendPdf(merged, detailPdf);
 
   for (const type of submissionDocumentTypes) {
-    const file = await getSubmissionFile(submission.submission_code, type);
+    const file = submissionFileFromDetail(submission, type) ?? await getSubmissionFile(submission.submission_code, type);
     if (!file) {
       missingAttachments.push(documentLabels[type]);
       continue;
@@ -71,6 +74,15 @@ export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail
   }
 
   return Buffer.from(await merged.save());
+}
+
+function submissionFileFromDetail(submission: AdminSubmissionDetail, type: string): AdminSubmissionFile | null {
+  const file = submission.files.find((item) => item.document_type === type);
+  if (!file || !submission.id) return null;
+  return {
+    ...file,
+    filePath: path.join(storageDir, "uploads", submission.id, file.stored_name),
+  };
 }
 
 async function appendPdf(target: PdfLibDocument, sourceBytes: Uint8Array | Buffer) {
