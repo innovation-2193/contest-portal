@@ -37,10 +37,11 @@ export async function GET(
   if (!entries.length) return NextResponse.json({ error: "documents not found" }, { status: 404 });
 
   const zip = createZip(entries);
+  const fileName = `${safeFileName(`${submission.submission_code}-${submission.title_th}`)}.zip`;
   return new NextResponse(new Uint8Array(zip), {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${safeFileName(`${submission.submission_code}-${submission.title_th}`)}.zip"`,
+      "Content-Disposition": contentDispositionAttachment(fileName, `${submission.submission_code}.zip`),
       "Cache-Control": "public, max-age=60",
     },
   });
@@ -52,4 +53,13 @@ function safeFileName(value: string) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 140) || "documents";
+}
+
+function contentDispositionAttachment(fileName: string, fallbackName: string) {
+  const fallback = fallbackName.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-") || "documents.zip";
+  return `attachment; filename="${fallback}"; filename*=UTF-8''${encodeRFC5987(fileName)}`;
+}
+
+function encodeRFC5987(value: string) {
+  return encodeURIComponent(value).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
