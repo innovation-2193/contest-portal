@@ -17960,6 +17960,12 @@ footer {
   cursor: pointer;
 }
 
+.contest-video-button.is-missing {
+  background: rgba(190, 24, 24, 0.18);
+  border-color: rgba(248, 113, 113, 0.72);
+  color: #fecaca;
+}
+
 .contest-download-button:hover,
 .contest-video-button:hover {
   box-shadow: 0 12px 24px rgba(237, 202, 59, 0.2);
@@ -17968,6 +17974,10 @@ footer {
 
 .contest-video-button:hover {
   box-shadow: 0 12px 24px rgba(113, 215, 212, 0.14);
+}
+
+.contest-video-button.is-missing:hover {
+  box-shadow: 0 12px 24px rgba(248, 113, 113, 0.16);
 }
 
 .contest-video-button:disabled {

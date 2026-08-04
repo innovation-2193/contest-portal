@@ -44,7 +44,12 @@ export default async function ContestPage() {
               {rows.length ? rows.map((row, index) => <tr key={row.submission.submission_code}>
                 <td data-label="ลำดับ">{(index + 1).toLocaleString("th-TH")}</td>
                 <td data-label="ชื่อนวัตกรรม"><b>{row.submission.title_th}</b></td>
-                <td data-label="Link Video"><ContestVideoButton submissionCode={row.submission.submission_code}/></td>
+                <td data-label="Link Video">
+                  <ContestVideoButton
+                    hasVideoLink={Boolean(row.submission.video_url?.trim())}
+                    submissionCode={row.submission.submission_code}
+                  />
+                </td>
                 <td data-label="ดาวน์โหลดเอกสาร">
                   <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
                     <Download/>ดาวน์โหลดเอกสาร

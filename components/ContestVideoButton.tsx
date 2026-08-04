@@ -1,18 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { Video } from "lucide-react";
+import { Video, VideoOff } from "lucide-react";
 
 type VideoCheckResponse = {
   ok?: boolean;
   url?: string;
 };
 
-export function ContestVideoButton({ submissionCode }: { submissionCode: string }) {
+export function ContestVideoButton({
+  hasVideoLink,
+  submissionCode,
+}: {
+  hasVideoLink: boolean;
+  submissionCode: string;
+}) {
   const [loading, setLoading] = useState(false);
 
   async function openVideo() {
     if (loading) return;
+    if (!hasVideoLink) {
+      window.alert("ผู้เข้าประกวดไม่ได้ส่งมา");
+      return;
+    }
     setLoading(true);
     let popup: Window | null = null;
     try {
@@ -38,6 +48,12 @@ export function ContestVideoButton({ submissionCode }: { submissionCode: string 
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!hasVideoLink) {
+    return <button className="contest-video-button is-missing" type="button" onClick={openVideo}>
+      <VideoOff/>ไม่มี Link Video
+    </button>;
   }
 
   return <button className="contest-video-button" type="button" onClick={openVideo} disabled={loading}>
