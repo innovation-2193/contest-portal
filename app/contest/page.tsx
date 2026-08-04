@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
 import { Download, FileText, Search } from "lucide-react";
+import { ContestDocumentReplaceControl } from "../../components/ContestDocumentReplaceControl";
 import { ContestVideoButton } from "../../components/ContestVideoButton";
+import { cookieName, getAdminSession } from "../../lib/admin-auth";
 import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
 import { listAdminAccounts } from "../../lib/admin-users";
 import { checkVideoLink } from "../../lib/video-link-status";
@@ -17,6 +20,9 @@ type ContestVideoStatus = "all" | "has" | "missing";
 
 export default async function ContestPage({ searchParams }: { searchParams: Promise<{ q?: string; reviewer?: string; video?: string }> }) {
   const params = await searchParams;
+  const cookieStore = await cookies();
+  const adminSession = getAdminSession(cookieStore.get(cookieName)?.value);
+  const isSuperAdmin = adminSession?.role === "super_admin";
   const q = (params.q ?? "").replace(/\s+/g, " ").trim();
   const reviewer = (params.reviewer ?? "").trim().toLowerCase();
   const videoStatus = normalizeVideoStatus(params.video);
@@ -106,9 +112,12 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                   />
                 </td>
                 <td data-label="ดาวน์โหลดเอกสาร">
-                  <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
-                    <Download/>ดาวน์โหลดเอกสาร
-                  </a>
+                  <div className="contest-document-actions">
+                    <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
+                      <Download/>ดาวน์โหลดเอกสาร
+                    </a>
+                    {isSuperAdmin ? <ContestDocumentReplaceControl submissionCode={row.submission.submission_code}/> : null}
+                  </div>
                 </td>
               </tr>) : <tr><td colSpan={4}>ไม่พบรายการสมัครประกวดตามเงื่อนไขที่เลือก</td></tr>}
             </tbody>

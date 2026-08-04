@@ -19,7 +19,7 @@ export async function GET(
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": contentDispositionAttachment(fileName, `${submission.submission_code}.pdf`),
-      "Cache-Control": "public, max-age=60",
+      "Cache-Control": "no-store",
     },
   });
 }

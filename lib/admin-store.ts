@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { code } from "./codes";
@@ -25,6 +25,7 @@ import {
   deleteLocalSubmission,
   findLocalSubmissionByCode,
   listLocalSubmissions,
+  replaceLocalSubmissionFile,
   updateLocalSubmission,
   updateLocalSubmissionReview,
   updateLocalSubmissionWorkCategory,
@@ -229,6 +230,14 @@ export type TeamMemberCheckInRecord = {
 
 export type AdminSubmissionFile = SubmissionFileDetail & {
   filePath: string;
+};
+
+export type SubmissionFileReplaceInput = {
+  submissionCode: string;
+  documentType: string;
+  originalName: string;
+  mimeType?: string;
+  bytes: Uint8Array | Buffer;
 };
 
 export type SubmissionUpdateInput = {
@@ -1098,6 +1107,102 @@ export async function getSubmissionFile(submissionCode: string, documentType: st
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     return getLocalSubmissionFile(code, type);
+  }
+}
+
+export async function replaceSubmissionFile(input: SubmissionFileReplaceInput) {
+  const code = input.submissionCode.trim();
+  const type = input.documentType.trim();
+  const bytes = Buffer.from(input.bytes);
+  const originalName = path.basename(input.originalName).replace(/[\u0000-\u001f]/g, "").trim().slice(0, 255) || `${type}.pdf`;
+  const storedName = `${type}-${randomUUID()}.pdf`;
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const mimeType = input.mimeType?.trim() || "application/pdf";
+
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      "SELECT id FROM submissions WHERE submission_code=? LIMIT 1",
+      [code],
+    );
+    const submission = (rows as Array<{ id: string }>)[0];
+    if (!submission) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+
+    const uploadRoot = path.join(storageDir, "uploads", submission.id);
+    const newPath = path.join(uploadRoot, storedName);
+    await mkdir(uploadRoot, { recursive: true });
+    await writeFile(newPath, bytes);
+
+    let oldStoredNames: string[] = [];
+    try {
+      await transaction(async (connection) => {
+        const [fileRows] = await connection.execute(
+          "SELECT stored_name FROM submission_files WHERE submission_id=? AND document_type=?",
+          [submission.id, type],
+        );
+        oldStoredNames = (fileRows as Array<{ stored_name: string }>).map((file) => file.stored_name);
+        await connection.execute(
+          "DELETE FROM submission_files WHERE submission_id=? AND document_type=?",
+          [submission.id, type],
+        );
+        await connection.execute(
+          "INSERT INTO submission_files(id,submission_id,document_type,original_name,stored_name,mime_type,byte_size,sha256) VALUES(?,?,?,?,?,?,?,?)",
+          [randomUUID(), submission.id, type, originalName, storedName, mimeType, bytes.length, hash],
+        );
+      });
+    } catch (error) {
+      await unlink(newPath).catch(() => undefined);
+      throw error;
+    }
+
+    await Promise.all(oldStoredNames
+      .filter((name) => name && name !== storedName)
+      .map((name) => unlink(path.join(uploadRoot, name)).catch(() => undefined)));
+
+    return {
+      document_type: type,
+      original_name: originalName,
+      stored_name: storedName,
+      mime_type: mimeType,
+      byte_size: bytes.length,
+      sha256: hash,
+      filePath: newPath,
+    } satisfies AdminSubmissionFile;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const local = await findLocalSubmissionByCode(code);
+    if (!local) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+    const uploadId = local.upload_id;
+    if (!uploadId) throw Object.assign(new Error("submission upload folder not found"), { code: "NOT_FOUND" });
+    const uploadRoot = path.join(storageDir, "uploads", uploadId);
+    const newPath = path.join(uploadRoot, storedName);
+    await mkdir(uploadRoot, { recursive: true });
+    await writeFile(newPath, bytes);
+    try {
+      const result = await replaceLocalSubmissionFile({
+        submissionCode: code,
+        documentType: type,
+        originalName,
+        storedName,
+        byteSize: bytes.length,
+        sha256: hash,
+      });
+      await Promise.all(result.oldStoredNames
+        .filter((name) => name && name !== storedName)
+        .map((name) => unlink(path.join(uploadRoot, name)).catch(() => undefined)));
+    } catch (localError) {
+      await unlink(newPath).catch(() => undefined);
+      throw localError;
+    }
+    return {
+      document_type: type,
+      original_name: originalName,
+      stored_name: storedName,
+      mime_type: mimeType,
+      byte_size: bytes.length,
+      sha256: hash,
+      filePath: newPath,
+    } satisfies AdminSubmissionFile;
   }
 }
 

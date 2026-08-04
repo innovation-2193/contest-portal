@@ -18394,6 +18394,154 @@ footer {
   color: #07142b;
 }
 
+.contest-document-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.contest-document-editor {
+  width: min(100%, 270px);
+  min-width: 230px;
+}
+
+.contest-document-editor summary {
+  align-items: center;
+  border: 1px solid rgba(216, 182, 47, 0.5);
+  border-radius: 8px;
+  color: #fff0a8;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 8px;
+  justify-content: center;
+  list-style: none;
+  min-height: 38px;
+  padding: 8px 12px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.contest-document-editor summary::-webkit-details-marker {
+  display: none;
+}
+
+.contest-document-editor summary svg {
+  width: 16px;
+  height: 16px;
+}
+
+.contest-document-editor form {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(113, 215, 212, 0.24);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.92);
+  text-align: left;
+}
+
+.contest-document-editor label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #fff0a8;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.contest-document-editor select,
+.contest-document-file-picker em {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(143, 166, 202, 0.48);
+  border-radius: 8px;
+  background: #061226;
+  color: #eef4ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.contest-document-editor select {
+  padding: 0 10px;
+}
+
+.contest-document-file-picker {
+  position: relative;
+}
+
+.contest-document-file-picker em {
+  display: block;
+  overflow: hidden;
+  padding: 9px 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-document-file-picker input {
+  position: absolute;
+  inset: 18px 0 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.contest-document-editor button {
+  align-items: center;
+  justify-content: center;
+  display: inline-flex;
+  gap: 7px;
+  min-height: 38px;
+  border: 1px solid rgba(113, 215, 212, 0.58);
+  border-radius: 8px;
+  background: rgba(113, 215, 212, 0.12);
+  color: #d8ffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.contest-document-editor button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.contest-document-editor button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.contest-document-editor-message {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.contest-document-editor-message svg {
+  width: 15px;
+  height: 15px;
+}
+
+.contest-document-editor-message.saved {
+  color: #b8f0d0;
+}
+
+.contest-document-editor-message.uploading {
+  color: #d8ffff;
+}
+
+.contest-document-editor-message.error {
+  color: #ffd3dc;
+}
+
 .contest-video-button {
   background: rgba(113, 215, 212, 0.1);
   border: 1px solid rgba(113, 215, 212, 0.58);
@@ -18543,5 +18691,11 @@ footer {
   .contest-download-button,
   .contest-video-button {
     width: 100%;
+  }
+
+  .contest-document-actions,
+  .contest-document-editor {
+    width: 100%;
+    min-width: 0;
   }
 }

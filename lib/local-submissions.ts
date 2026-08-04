@@ -87,6 +87,15 @@ export type LocalSubmissionReviewInput = {
   submittedAt?: string | null;
 };
 
+export type LocalSubmissionFileReplaceInput = {
+  submissionCode: string;
+  documentType: string;
+  originalName: string;
+  storedName: string;
+  byteSize: number;
+  sha256: string;
+};
+
 type LocalSubmissionInput = {
   submissionId?: string;
   submissionCode: string;
@@ -340,6 +349,42 @@ export async function updateLocalSubmissionReview(input: LocalSubmissionReviewIn
     };
     await writeStore(store);
     return store.submissions[index];
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
+export async function replaceLocalSubmissionFile(input: LocalSubmissionFileReplaceInput) {
+  const work = async () => {
+    const store = await readStore();
+    const code = input.submissionCode.trim();
+    const index = store.submissions.findIndex((item) => item.submission_code === code);
+    if (index < 0) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+
+    const current = store.submissions[index];
+    const oldFiles = current.files.filter((file) => file.document_type === input.documentType);
+    const nextFile = {
+      document_type: input.documentType,
+      original_name: input.originalName,
+      stored_name: input.storedName,
+      byte_size: input.byteSize,
+      sha256: input.sha256,
+    };
+    store.submissions[index] = {
+      ...current,
+      files: [
+        ...current.files.filter((file) => file.document_type !== input.documentType),
+        nextFile,
+      ],
+    };
+    await writeStore(store);
+    return {
+      record: store.submissions[index],
+      file: nextFile,
+      oldStoredNames: oldFiles.map((file) => file.stored_name),
+    };
   };
 
   const result = writeQueue.then(work, work);
