@@ -15,6 +15,7 @@ type PreviewPage = {
   fileName: string;
   sourcePage: number;
   submissionCode: string;
+  detectedSubmissionCode: string;
   scores: Record<string, string>;
   declaredTotal: string;
   note: string;
@@ -126,6 +127,7 @@ export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }
             fileName: file.name,
             sourcePage: index + 1,
             submissionCode: defaultSubmission?.code ?? "",
+            detectedSubmissionCode: "",
             scores: Object.fromEntries(committeeScoreCriteria.map((criterion) => [criterion.id, ""])) as Record<string, string>,
             declaredTotal: "",
             note: "",
@@ -147,7 +149,7 @@ export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }
 
   async function runOcr(targetPages: PreviewPage[]) {
     if (!targetPages.length) return;
-    const { createWorker } = await import("tesseract.js");
+    const { createWorker, PSM } = await import("tesseract.js");
     const worker = await createWorker("eng", 1, {
       logger: (message) => {
         if (message.status) setProgress(`${message.status} ${Math.round((message.progress || 0) * 100)}%`);
@@ -155,6 +157,7 @@ export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }
     });
     await worker.setParameters({
       tessedit_char_whitelist: "0123456789./",
+      tessedit_pageseg_mode: PSM.SINGLE_CHAR,
       preserve_interword_spaces: "1",
     });
 
@@ -162,18 +165,30 @@ export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }
       for (const page of targetPages) {
         setPages((current) => current.map((item) => item.id === page.id ? { ...item, status: "ocr", message: "กำลังอ่านคะแนน" } : item));
         const canvas = await imageUrlToCanvas(page.imageUrl);
+        const detectedSubmissionCode = await recognizeSubmissionCode(worker, canvas);
+        const matchedSubmission = matchSubmissionByCode(submissions, detectedSubmissionCode);
         const nextScores: Record<string, string> = {};
+        await worker.setParameters({
+          tessedit_char_whitelist: "0123456789./",
+          tessedit_pageseg_mode: PSM.SINGLE_CHAR,
+          preserve_interword_spaces: "1",
+        });
         for (const criterion of committeeScoreCriteria) {
-          const text = await recognizeCrop(worker, canvas, scoreCropRectangle(canvas, criterion.id));
-          nextScores[criterion.id] = scoreFromText(text, criterion.max);
+          nextScores[criterion.id] = await recognizeScoreValue(worker, canvas, scoreCropRectangle(canvas, criterion.id), criterion.max);
         }
-        const totalText = await recognizeCrop(worker, canvas, summaryCropRectangle(canvas));
+        const totalText = await recognizeScoreValue(worker, canvas, summaryCropRectangle(canvas), 100);
         setPages((current) => current.map((item) => item.id === page.id ? {
           ...item,
+          submissionCode: matchedSubmission?.code ?? item.submissionCode,
+          detectedSubmissionCode,
           scores: nextScores,
-          declaredTotal: scoreFromText(totalText, 100),
+          declaredTotal: totalText,
           status: "done",
-          message: "อ่านคะแนนแล้ว กรุณาตรวจทานก่อนบันทึก",
+          message: matchedSubmission
+            ? `อ่านรหัสโครงการ ${matchedSubmission.code} และ map กับรายการในระบบแล้ว`
+            : detectedSubmissionCode
+              ? `อ่านรหัสโครงการได้ ${detectedSubmissionCode} แต่ไม่พบรายการตรงกัน กรุณาเลือกเอง`
+              : "อ่านคะแนนแล้ว กรุณาเลือกนวัตกรรมและตรวจทานก่อนบันทึก",
         } : item));
       }
     } finally {
@@ -188,6 +203,15 @@ export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }
   function updateScore(pageId: string, scoreId: string, value: string) {
     setPages((current) => current.map((page) => page.id === pageId ? { ...page, scores: { ...page.scores, [scoreId]: value } } : page));
   }
+
+  useEffect(() => {
+    if (!submissions.length) return;
+    setPages((current) => current.map((page) => {
+      if (page.submissionCode || !page.detectedSubmissionCode) return page;
+      const matchedSubmission = matchSubmissionByCode(submissions, page.detectedSubmissionCode);
+      return matchedSubmission ? { ...page, submissionCode: matchedSubmission.code, message: `อ่านรหัสโครงการ ${matchedSubmission.code} และ map กับรายการในระบบแล้ว` } : page;
+    }));
+  }, [submissions]);
 
   async function submitScores() {
     const records = pages.map((page) => {
@@ -395,6 +419,13 @@ function PreviewCard({
   const declared = nullableNumber(page.declaredTotal);
   const mismatch = declared === null ? null : Math.round((calculated - declared) * 100) / 100;
   const isMismatch = mismatch !== null && Math.abs(mismatch) > 0.01;
+  const readCount = committeeScoreCriteria.filter((criterion) => page.scores[criterion.id] !== "").length;
+  const statusClass = isMismatch ? "cancelled" : readCount === committeeScoreCriteria.length ? "attended" : "registered";
+  const statusText = isMismatch
+    ? `ผลรวมคลาด ${mismatch}`
+    : readCount === committeeScoreCriteria.length
+      ? "ผลรวมตรง"
+      : `อ่านได้ ${readCount}/${committeeScoreCriteria.length} ข้อ`;
 
   return <section className="admin-panel committee-ocr-preview">
     <header className="admin-section-head">
@@ -403,7 +434,7 @@ function PreviewCard({
         <h2>Preview OCR หน้า {index + 1}</h2>
         <p>{page.fileName} • แผ่นที่ {page.sourcePage.toLocaleString("th-TH")} • {page.status === "ocr" ? "กำลังอ่านคะแนน" : page.message || "พร้อมตรวจทาน"}</p>
       </div>
-      <span className={`status-pill ${isMismatch ? "cancelled" : "attended"}`}>{isMismatch ? <XCircle/> : <CheckCircle2/>}{isMismatch ? `ผลรวมคลาด ${mismatch}` : "ผลรวมตรง"}</span>
+      <span className={`status-pill ${statusClass}`}>{isMismatch ? <XCircle/> : <CheckCircle2/>}{statusText}</span>
     </header>
     <div className="committee-ocr-preview-grid">
       <div className="committee-ocr-image"><img src={page.imageUrl} alt={`preview ${page.fileName} page ${page.sourcePage}`}/></div>
@@ -413,6 +444,7 @@ function PreviewCard({
             <option value="">เลือกนวัตกรรม</option>
             {submissions.map((submission) => <option key={submission.code} value={submission.code}>{submission.order}. {submission.code} • {submission.title}</option>)}
           </select>
+          <small>{page.detectedSubmissionCode ? `รหัสที่ OCR อ่านได้: ${page.detectedSubmissionCode}` : "ระบบจะอ่านรหัสโครงการจากใบและเลือกให้อัตโนมัติ หากไม่ตรงสามารถเลือกเองได้"}</small>
         </label>
         <div className="committee-ocr-score-table">
           {groupLabels.map(([groupId, label]) => <div className="committee-ocr-group" key={groupId}>
@@ -488,7 +520,40 @@ async function imageUrlToCanvas(src: string) {
   return canvas;
 }
 
-async function recognizeCrop(worker: Tesseract.Worker, canvas: HTMLCanvasElement, rect: { left: number; top: number; width: number; height: number }) {
+type CropRect = { left: number; top: number; width: number; height: number };
+
+async function recognizeScoreValue(worker: Tesseract.Worker, canvas: HTMLCanvasElement, rect: CropRect, max: number) {
+  const processedCrop = scoreInkCanvas(canvas, rect);
+  const processedText = await recognizeCanvas(worker, processedCrop);
+  const processedScore = scoreFromText(processedText, max);
+  if (processedScore !== "") return processedScore;
+
+  const rawText = await recognizeCrop(worker, canvas, rect);
+  return scoreFromText(rawText, max);
+}
+
+async function recognizeSubmissionCode(worker: Tesseract.Worker, canvas: HTMLCanvasElement) {
+  const { PSM } = await import("tesseract.js");
+  await worker.setParameters({
+    tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-:",
+    tessedit_pageseg_mode: PSM.SINGLE_LINE,
+    preserve_interword_spaces: "1",
+  });
+
+  for (const rect of submissionCodeCropRectangles(canvas)) {
+    const text = await recognizeCrop(worker, canvas, rect);
+    const code = submissionCodeFromText(text);
+    if (code) return code;
+  }
+  return "";
+}
+
+async function recognizeCanvas(worker: Tesseract.Worker, canvas: HTMLCanvasElement) {
+  const result = await worker.recognize(canvas);
+  return result.data.text ?? "";
+}
+
+async function recognizeCrop(worker: Tesseract.Worker, canvas: HTMLCanvasElement, rect: CropRect) {
   const result = await worker.recognize(canvas, { rectangle: rect });
   return result.data.text ?? "";
 }
@@ -511,10 +576,10 @@ function scoreCropRectangle(canvas: HTMLCanvasElement, scoreId: string) {
     for (const criterion of groupItems) {
       if (criterion.id === scoreId) {
         return {
-          left: Math.round((scoreX + 12) * scaleX),
-          top: Math.round((cursorY + 2) * scaleY),
-          width: Math.round((scoreWidth - 24) * scaleX),
-          height: Math.round((itemHeight - 4) * scaleY),
+          left: Math.round((scoreX + 6) * scaleX),
+          top: Math.round((cursorY - 1.5) * scaleY),
+          width: Math.round((scoreWidth - 12) * scaleX),
+          height: Math.round((itemHeight + 3) * scaleY),
         };
       }
       cursorY += itemHeight;
@@ -534,11 +599,105 @@ function summaryCropRectangle(canvas: HTMLCanvasElement) {
   };
 }
 
+function submissionCodeCropRectangles(canvas: HTMLCanvasElement) {
+  const scaleX = canvas.width / 595.28;
+  const scaleY = canvas.height / 841.89;
+  return [
+    { left: Math.round(250 * scaleX), top: Math.round(36 * scaleY), width: Math.round(330 * scaleX), height: Math.round(34 * scaleY) },
+    { left: Math.round(320 * scaleX), top: Math.round(68 * scaleY), width: Math.round(250 * scaleX), height: Math.round(26 * scaleY) },
+    { left: Math.round(285 * scaleX), top: Math.round(808 * scaleY), width: Math.round(170 * scaleX), height: Math.round(16 * scaleY) },
+  ];
+}
+
+function scoreInkCanvas(source: HTMLCanvasElement, rect: CropRect) {
+  const insetX = Math.max(2, Math.round(rect.width * 0.04));
+  const insetY = Math.max(1, Math.round(rect.height * 0.08));
+  const sourceX = clampInt(rect.left + insetX, 0, source.width - 1);
+  const sourceY = clampInt(rect.top + insetY, 0, source.height - 1);
+  const sourceWidth = clampInt(rect.width - insetX * 2, 1, source.width - sourceX);
+  const sourceHeight = clampInt(rect.height - insetY * 2, 1, source.height - sourceY);
+  const crop = document.createElement("canvas");
+  crop.width = sourceWidth;
+  crop.height = sourceHeight;
+  const cropContext = crop.getContext("2d", { willReadFrequently: true });
+  if (!cropContext) throw new Error("ไม่สามารถเตรียมช่องคะแนนสำหรับ OCR ได้");
+  cropContext.drawImage(source, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+
+  const image = cropContext.getImageData(0, 0, sourceWidth, sourceHeight);
+  for (let index = 0; index < image.data.length; index += 4) {
+    const red = image.data[index];
+    const green = image.data[index + 1];
+    const blue = image.data[index + 2];
+    const max = Math.max(red, green, blue);
+    const min = Math.min(red, green, blue);
+    const average = (red + green + blue) / 3;
+    const saturation = max - min;
+    const redInk = red > 95 && red - green > 32 && red - blue > 32;
+    const blueInk = blue > 80 && blue - red > 24 && blue - green > 12;
+    const darkInk = average < 90 || (average < 125 && saturation > 8);
+    const likelyInk = redInk || blueInk || darkInk;
+    const value = likelyInk ? 0 : 255;
+    image.data[index] = value;
+    image.data[index + 1] = value;
+    image.data[index + 2] = value;
+    image.data[index + 3] = 255;
+  }
+  cropContext.putImageData(image, 0, 0);
+
+  const scale = 4;
+  const margin = 10;
+  const normalized = document.createElement("canvas");
+  normalized.width = (sourceWidth + margin * 2) * scale;
+  normalized.height = (sourceHeight + margin * 2) * scale;
+  const normalizedContext = normalized.getContext("2d");
+  if (!normalizedContext) throw new Error("ไม่สามารถขยายช่องคะแนนสำหรับ OCR ได้");
+  normalizedContext.imageSmoothingEnabled = false;
+  normalizedContext.fillStyle = "#ffffff";
+  normalizedContext.fillRect(0, 0, normalized.width, normalized.height);
+  normalizedContext.drawImage(crop, margin * scale, margin * scale, sourceWidth * scale, sourceHeight * scale);
+  return normalized;
+}
+
 function scoreFromText(text: string, max: number) {
-  const normalized = text.replace(/[Oo]/g, "0").replace(/[^\d.]/g, " ");
-  const value = normalized.split(/\s+/).map(Number).find((number) => Number.isFinite(number));
+  const normalized = text
+    .replace(/[OoQq]/g, "0")
+    .replace(/[Ss]/g, "5")
+    .replace(/[Zz]/g, "2")
+    .replace(/[Il|]/g, "1")
+    .replace(/[^\d.]/g, " ");
+  const value = normalized
+    .split(/\s+/)
+    .map(Number)
+    .find((number) => Number.isFinite(number) && number >= 0 && number <= max);
   if (value === undefined) return "";
   return String(Math.min(Math.max(Math.round(value * 2) / 2, 0), max));
+}
+
+function submissionCodeFromText(text: string) {
+  const normalized = text
+    .toUpperCase()
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, "")
+    .replace(/O/g, "0");
+  const match = normalized.match(/SUB-?\d{4}-?[A-Z0-9]{6,12}/);
+  if (!match) return "";
+  const raw = match[0].replace(/^SUB-?/, "SUB-");
+  const tail = raw.slice("SUB-".length).replace("-", "");
+  return tail.length > 4 ? `SUB-${tail.slice(0, 4)}-${tail.slice(4)}` : raw;
+}
+
+function matchSubmissionByCode(submissions: OcrSubmissionOption[], detectedCode: string) {
+  const normalizedDetected = normalizeSubmissionCode(detectedCode);
+  if (!normalizedDetected) return null;
+  return submissions.find((submission) => normalizeSubmissionCode(submission.code) === normalizedDetected) ?? null;
+}
+
+function normalizeSubmissionCode(value: string) {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/O/g, "0");
+}
+
+function clampInt(value: number, min: number, max: number) {
+  return Math.min(Math.max(Math.round(value), min), max);
 }
 
 function nullableNumber(value: string | number | null | undefined) {

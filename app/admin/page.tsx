@@ -176,10 +176,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
-      <div className="admin-checkin-copy"><ClipboardList/><div><span className="eyebrow">Super Admin Only</span><h2>รายงานไฟล์แนบและวิดีโอ</h2><p>ตรวจไฟล์ 3.1-3.4 พร้อมสถานะลิงก์วิดีโอ และแยกรายการที่ต้องให้เจ้าหน้าที่โทรประสาน</p></div></div>
-      <div className="admin-actions admin-report-actions"><Link className="secondary" href="/video"><Phone/>รายการต้องประสาน</Link><Link className="primary" href="/checklist"><ClipboardList/>เปิด Checklist</Link></div>
-    </section>}
-    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
       <div className="admin-checkin-copy"><FileScan/><div><span className="eyebrow">Super Admin Only</span><h2>OCR คะแนน</h2><p>นำคะแนนจากแบบฟอร์มกรรมการ 5 ท่านเข้า preview ตรวจทาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
       <div className="admin-actions admin-report-actions"><a className="primary" href={ocrScoresHref}><FileScan/>เปิด OCR คะแนน</a><a className="secondary" href={committeeScoreExportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
     </section>}
