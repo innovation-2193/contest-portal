@@ -39,6 +39,8 @@ const actionOptions = [
   ["submission.committee_score_form_pdf", "Export แบบฟอร์มให้คะแนนกรรมการ"],
   ["submission.committee_score_form_zip", "Export ZIP แบบฟอร์มให้คะแนนกรรมการ"],
   ["submission.committee_score_form_custom_pdf", "Export แบบฟอร์มให้คะแนนกรรมการ 2"],
+  ["committee_score.ocr_submitted", "บันทึกคะแนน OCR คณะกรรมการ"],
+  ["committee_score.scoreboard_pdf", "Export ผลคะแนนคณะกรรมการ"],
   ["submission.review_packets_zip", "Export ZIP PDF ใบสมัคร"],
   ["admin.settings.updated", "แก้ไขตั้งค่าระบบ"],
   ["admin_user.created", "เพิ่มแอดมิน"],

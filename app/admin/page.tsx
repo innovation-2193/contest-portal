@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileScan, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -174,6 +174,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
       <div className="admin-checkin-copy"><ClipboardList/><div><span className="eyebrow">Super Admin Only</span><h2>รายงานไฟล์แนบและวิดีโอ</h2><p>ตรวจไฟล์ 3.1-3.4 พร้อมสถานะลิงก์วิดีโอ และแยกรายการที่ต้องให้เจ้าหน้าที่โทรประสาน</p></div></div>
       <div className="admin-actions admin-report-actions"><Link className="secondary" href="/video"><Phone/>รายการต้องประสาน</Link><Link className="primary" href="/checklist"><ClipboardList/>เปิด Checklist</Link></div>
+    </section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
+      <div className="admin-checkin-copy"><FileScan/><div><span className="eyebrow">Super Admin Only</span><h2>OCR คะแนน</h2><p>นำคะแนนจากแบบฟอร์มกรรมการ 5 ท่านเข้า preview ตรวจทาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
+      <div className="admin-actions admin-report-actions"><Link className="primary" href="/admin/ocr-scores"><FileScan/>เปิด OCR คะแนน</Link><a className="secondary" href="/api/admin/committee-scores/export" target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
@@ -1353,6 +1357,8 @@ function auditActionLabel(action: string) {
   if (action === "submission.committee_score_form_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ";
   if (action === "submission.committee_score_form_zip") return "Export ZIP แบบฟอร์มให้คะแนนกรรมการ";
   if (action === "submission.committee_score_form_custom_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ 2";
+  if (action === "committee_score.ocr_submitted") return "บันทึกคะแนน OCR คณะกรรมการ";
+  if (action === "committee_score.scoreboard_pdf") return "Export ผลคะแนนคณะกรรมการ";
   if (action === "submission.review_packets_zip") return "Export ZIP PDF ใบสมัคร";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
   if (action === "admin_user.created") return "เพิ่มแอดมิน";
