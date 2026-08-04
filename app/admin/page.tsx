@@ -707,7 +707,8 @@ function localSafeAdminHref(requestHeaders: Headers, pathname: string) {
   const host = requestHeaders.get("host") ?? "";
   const cleanPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
   if (!host.startsWith("0.0.0.0")) return cleanPath;
-  const port = host.includes(":") ? `:${host.split(":").at(-1)}` : "";
+  const parts = host.split(":");
+  const port = host.includes(":") ? `:${parts[parts.length - 1]}` : "";
   return `http://localhost${port}${cleanPath}`;
 }
 

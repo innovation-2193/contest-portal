@@ -331,13 +331,47 @@ function writeQueued<T>(task: () => Promise<T>) {
 function hydrateRecord(record: unknown) {
   if (!record || typeof record !== "object") return null;
   const item = record as CommitteeScoreRecord;
+  const judge = findCommitteeJudge(String(item.judgeKey ?? "")) ?? committeeJudges[0];
+  const submissionCode = cleanText(item.submissionCode) || "-";
+  const itemScores = Object.fromEntries(committeeScoreCriteria.map((criterion) => {
+    const score = normalizeScore(item.itemScores?.[criterion.id], criterion.max);
+    return [criterion.id, score];
+  })) as Record<string, number | null>;
+  const rulesScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "rules").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const problemScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "problem").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const innovationScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "innovation").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const evidenceScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "evidence").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const impactScore = committeeScoreCriteria.filter((criterion) => criterion.groupId === "impact").reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const calculatedTotal = roundScore(rulesScore + problemScore + innovationScore + evidenceScore + impactScore);
+  const declaredTotal = normalizeScore(item.declaredTotal, 100);
+  const now = new Date().toISOString();
   return {
     ...item,
+    id: cleanText(item.id) || randomUUID(),
+    submissionCode,
+    submissionTitle: cleanText(item.submissionTitle) || submissionCode,
+    submissionOrder: Math.max(1, Math.trunc(Number(item.submissionOrder) || 1)),
+    judgeKey: judge.key,
+    judgeName: cleanText(item.judgeName) || `${judge.rank}${judge.name}`,
     sourceFileName: item.sourceFileName ?? null,
     sourcePage: Number(item.sourcePage) || 1,
-    itemScores: item.itemScores ?? {},
-    declaredTotal: typeof item.declaredTotal === "number" ? item.declaredTotal : null,
-    totalMismatch: typeof item.totalMismatch === "number" ? item.totalMismatch : null,
+    itemScores,
+    rulesScore,
+    problemScore,
+    innovationScore,
+    evidenceScore,
+    impactScore,
+    calculatedTotal,
+    declaredTotal,
+    totalMismatch: declaredTotal === null ? null : roundScore(calculatedTotal - declaredTotal),
     note: item.note ?? null,
+    submittedByEmail: cleanText(item.submittedByEmail) || "-",
+    createdAt: validIsoDate(item.createdAt) || validIsoDate(item.updatedAt) || now,
+    updatedAt: validIsoDate(item.updatedAt) || validIsoDate(item.createdAt) || now,
   } satisfies CommitteeScoreRecord;
+}
+
+function validIsoDate(value: unknown) {
+  if (typeof value !== "string") return "";
+  return Number.isFinite(new Date(value).getTime()) ? value : "";
 }

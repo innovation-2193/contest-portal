@@ -23,7 +23,10 @@ export const dynamic = "force-dynamic";
 export default async function AdminOcrScoresPage() {
   const session = await requireSuperAdminPage();
   const requestHeaders = await headers();
-  const [submissions, records] = await Promise.all([listSubmissions(), listCommitteeScoreRecords()]);
+  const [submissions, records] = await Promise.all([
+    withOcrPageFallback("submissions", listSubmissions(), []),
+    withOcrPageFallback("committee score records", listCommitteeScoreRecords(), []),
+  ]);
   const orderedSubmissions = submissions
     .slice()
     .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
@@ -112,7 +115,7 @@ function scoreText(score: number | null | undefined) {
 }
 
 function CommitteeScoreRecordsPanel({ records }: { records: CommitteeScoreRecord[] }) {
-  const ordered = records.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.submissionOrder - b.submissionOrder);
+  const ordered = records.slice().sort((a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt) || a.submissionOrder - b.submissionOrder);
   return <section className="admin-panel committee-records-panel">
     <header className="admin-section-head">
       <FileScan/>
@@ -200,10 +203,25 @@ function nullableScore(value: FormDataEntryValue | null) {
   return Number.isFinite(score) ? score : null;
 }
 
+async function withOcrPageFallback<T>(label: string, promise: Promise<T>, fallback: T) {
+  try {
+    return await promise;
+  } catch (error) {
+    console.error(`admin OCR page ${label} failed`, error);
+    return fallback;
+  }
+}
+
+function safeTime(value: string | null | undefined) {
+  const time = new Date(value ?? "").getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 function localSafeAdminHref(requestHeaders: Headers, pathname: string) {
   const host = requestHeaders.get("host") ?? "";
   const cleanPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
   if (!host.startsWith("0.0.0.0")) return cleanPath;
-  const port = host.includes(":") ? `:${host.split(":").at(-1)}` : "";
+  const parts = host.split(":");
+  const port = host.includes(":") ? `:${parts[parts.length - 1]}` : "";
   return `http://localhost${port}${cleanPath}`;
 }

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   }
 
   const [submissions, records] = await Promise.all([listSubmissions(), listCommitteeScoreRecords()]);
-  const rows = buildCommitteeScoreboard(submissions, records);
+  const rows = buildCommitteeScoreboard(submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)), records);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "committee_score.scoreboard_pdf",
@@ -56,7 +56,7 @@ async function buildPdf(rows: CommitteeScoreSummaryRow[]) {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
-  const perPage = 12;
+  const perPage = 10;
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
 
   for (let page = 0; page < pages; page += 1) {
@@ -78,7 +78,7 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
     title: "การพิจารณาผลคะแนนของคณะกรรมการรอบที่ 1",
     subtitle: `Paper Screening • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     metaLabel: "รายการ",
-    metaValue: rows.length ? `${rows[0].rank}-${rows.at(-1)?.rank}` : "0",
+    metaValue: rows.length ? `${rows[0].rank}-${rows[rows.length - 1]?.rank}` : "0",
     showLogo: false,
     fonts,
   });
@@ -93,8 +93,10 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
     ["จำนวน", 48],
   ] as const;
   const x = 24;
-  const y = 130;
-  const rowHeight = 32;
+  const legendY = 122;
+  const y = 190;
+  const rowHeight = 30;
+  drawJudgeLegend(doc, x, legendY);
   drawTableHeader(doc, x, y, columns);
   let cursorY = y + 28;
 
@@ -112,7 +114,6 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
     cursorY += rowHeight;
   });
 
-  drawJudgeLegend(doc, x, doc.page.height - 74);
   drawDocumentFooter(doc, pageNumber, totalPages, "ผลคะแนนคณะกรรมการรอบที่ 1", fonts);
 }
 
@@ -170,13 +171,22 @@ function drawTableRow(
 }
 
 function drawJudgeLegend(doc: PDFKit.PDFDocument, x: number, y: number) {
-  doc.font(fonts.bold).fontSize(7.4).fillColor(PDF_THEME.navy).text("คำย่อกรรมการ", x, y, { width: 82, lineBreak: false });
-  doc.font(fonts.regular).fontSize(7.1).fillColor(PDF_THEME.muted).text(
-    committeeJudges.map((judge) => `ก.${judge.order} ${judge.rank}${judge.name}`).join("   "),
-    x + 74,
-    y,
-    { width: 700, lineBreak: false },
-  );
+  const width = doc.page.width - x * 2;
+  doc.roundedRect(x, y, width, 52, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(fonts.bold).fontSize(8.2).fillColor(PDF_THEME.navy).text("คำอธิบายชื่อย่อกรรมการ", x + 12, y + 8, {
+    width: 132,
+    lineBreak: false,
+  });
+  const firstLine = committeeJudges.slice(0, 3).map((judge) => `ก.${judge.order} ${judge.rank}${judge.name} (${judge.role})`).join("   ");
+  const secondLine = committeeJudges.slice(3).map((judge) => `ก.${judge.order} ${judge.rank}${judge.name} (${judge.role})`).join("   ");
+  doc.font(fonts.regular).fontSize(7.6).fillColor(PDF_THEME.text).text(firstLine, x + 154, y + 8, {
+    width: width - 166,
+    lineBreak: false,
+  });
+  doc.text(secondLine, x + 154, y + 28, {
+    width: width - 166,
+    lineBreak: false,
+  });
 }
 
 function scoreText(score: number | null | undefined) {
