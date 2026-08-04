@@ -7157,6 +7157,40 @@ body:has(.prelander-page)::before {
   font-weight: 800;
 }
 
+.committee-ocr-detected {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.committee-ocr-detected span {
+  display: grid;
+  gap: 5px;
+  min-height: 66px;
+  padding: 10px 12px;
+  border: 1px solid rgba(68, 99, 145, 0.72);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.62);
+}
+
+.committee-ocr-detected b {
+  color: #aebad0;
+  font-size: 11px;
+}
+
+.committee-ocr-detected em {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .committee-ocr-detected {
+    grid-template-columns: 1fr;
+  }
+}
+
 .committee-ocr-score-table {
   display: grid;
   gap: 10px;
