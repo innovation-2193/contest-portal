@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { CheckCircle2, FileUp, Loader2, Save, Search, XCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, FileUp, Loader2, Save, Search, Trash2, XCircle } from "lucide-react";
 import { committeeJudges, committeeScoreCriteria } from "../lib/committee-score-config";
 
 export type OcrSubmissionOption = {
@@ -28,20 +28,84 @@ type SubmitState = {
   message: string;
 };
 
+type SavedScoreRecord = {
+  id: string;
+  submissionCode: string;
+  submissionTitle: string;
+  submissionOrder: number;
+  judgeName: string;
+  itemScores: Record<string, number | null>;
+  calculatedTotal: number;
+  declaredTotal: number | null;
+  totalMismatch: number | null;
+  note: string | null;
+  updatedAt: string;
+};
+
 const groupLabels = [...new Map(committeeScoreCriteria.map((item) => [item.groupId, item.groupLabel])).entries()];
 
-export function CommitteeScoreOcrClient({ submissions }: { submissions: OcrSubmissionOption[] }) {
+export function CommitteeScoreOcrClient({ submissions: initialSubmissions = [] }: { submissions?: OcrSubmissionOption[] }) {
+  const [submissions, setSubmissions] = useState(initialSubmissions);
+  const [submissionLoadMessage, setSubmissionLoadMessage] = useState(initialSubmissions.length ? "" : "กำลังโหลดรายการนวัตกรรม");
   const [judgeKey, setJudgeKey] = useState(committeeJudges[0]?.key ?? "1");
   const [pages, setPages] = useState<PreviewPage[]>([]);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState("");
   const [search, setSearch] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>({ status: "idle", message: "" });
+  const [savedRecords, setSavedRecords] = useState<SavedScoreRecord[]>([]);
+  const [recordsMessage, setRecordsMessage] = useState("กำลังโหลดรายการคะแนน OCR");
+  const [recordsRefreshKey, setRecordsRefreshKey] = useState(0);
   const filteredSubmissions = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return submissions;
     return submissions.filter((item) => `${item.order} ${item.code} ${item.title}`.toLowerCase().includes(query));
   }, [search, submissions]);
+
+  useEffect(() => {
+    if (initialSubmissions.length) return;
+    let alive = true;
+    fetch("/api/admin/committee-scores/submissions", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { ok?: boolean; submissions?: OcrSubmissionOption[]; message?: string }) => {
+        if (!alive) return;
+        if (payload.ok && Array.isArray(payload.submissions)) {
+          setSubmissions(payload.submissions);
+          setSubmissionLoadMessage(payload.submissions.length ? "" : "ยังไม่มีรายการนวัตกรรมในระบบ");
+        } else {
+          setSubmissionLoadMessage(payload.message ?? "โหลดรายการนวัตกรรมไม่สำเร็จ");
+        }
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setSubmissionLoadMessage(error instanceof Error ? error.message : "โหลดรายการนวัตกรรมไม่สำเร็จ");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [initialSubmissions.length]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/committee-scores", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: { ok?: boolean; records?: SavedScoreRecord[]; message?: string }) => {
+        if (!alive) return;
+        if (payload.ok && Array.isArray(payload.records)) {
+          setSavedRecords(payload.records.slice().sort((a, b) => safeTime(b.updatedAt) - safeTime(a.updatedAt)));
+          setRecordsMessage(payload.records.length ? "" : "ยังไม่มีคะแนน OCR ที่บันทึกไว้");
+        } else {
+          setRecordsMessage(payload.message ?? "โหลดรายการคะแนน OCR ไม่สำเร็จ");
+        }
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setRecordsMessage(error instanceof Error ? error.message : "โหลดรายการคะแนน OCR ไม่สำเร็จ");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [recordsRefreshKey]);
 
   async function handleFiles(fileList: FileList | null) {
     const files = [...(fileList ?? [])];
@@ -157,7 +221,58 @@ export function CommitteeScoreOcrClient({ submissions }: { submissions: OcrSubmi
       setSubmitState({ status: "error", message: result.message ?? "บันทึกคะแนนไม่สำเร็จ" });
       return;
     }
-    setSubmitState({ status: "saved", message: `บันทึกคะแนนแล้ว ${records.length.toLocaleString("th-TH")} หน้า` });
+    setSubmitState({ status: "saved", message: `บันทึกคะแนนแล้ว ${records.length.toLocaleString("th-TH")} หน้า โดยใช้ข้อมูลล่าสุดแทนคะแนนเดิมของโครงการ/ผู้พิจารณาเดียวกัน` });
+    setRecordsRefreshKey((value) => value + 1);
+  }
+
+  function patchSavedRecord(recordId: string, patch: Partial<SavedScoreRecord>) {
+    setSavedRecords((current) => current.map((record) => record.id === recordId ? { ...record, ...patch } : record));
+  }
+
+  function patchSavedScore(recordId: string, scoreId: string, value: string) {
+    setSavedRecords((current) => current.map((record) => record.id === recordId ? {
+      ...record,
+      itemScores: { ...record.itemScores, [scoreId]: nullableNumber(value) },
+    } : record));
+  }
+
+  async function saveSavedRecord(record: SavedScoreRecord) {
+    setRecordsMessage("กำลังบันทึกการแก้ไข");
+    const response = await fetch("/api/admin/committee-scores", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recordId: record.id,
+        itemScores: record.itemScores,
+        declaredTotal: record.declaredTotal,
+        note: record.note,
+      }),
+    });
+    const result = await response.json().catch(() => ({ ok: false, message: "ไม่สามารถอ่านผลลัพธ์จากระบบได้" }));
+    if (!response.ok || !result.ok) {
+      setRecordsMessage(result.message ?? "บันทึกการแก้ไขไม่สำเร็จ");
+      return;
+    }
+    setRecordsMessage("บันทึกการแก้ไขแล้ว");
+    setRecordsRefreshKey((value) => value + 1);
+  }
+
+  async function deleteSavedRecord(record: SavedScoreRecord) {
+    if (!window.confirm(`ยืนยันลบคะแนน OCR ของ ${record.judgeName} ในโครงการ ${record.submissionCode}?`)) return;
+    setRecordsMessage("กำลังลบคะแนน");
+    const response = await fetch("/api/admin/committee-scores", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordId: record.id }),
+    });
+    const result = await response.json().catch(() => ({ ok: false, message: "ไม่สามารถอ่านผลลัพธ์จากระบบได้" }));
+    if (!response.ok || !result.ok) {
+      setRecordsMessage(result.message ?? "ลบคะแนนไม่สำเร็จ");
+      return;
+    }
+    setSavedRecords((current) => current.filter((item) => item.id !== record.id));
+    setRecordsMessage("ลบคะแนนแล้ว");
+    setRecordsRefreshKey((value) => value + 1);
   }
 
   return <div className="committee-ocr-workspace">
@@ -166,7 +281,7 @@ export function CommitteeScoreOcrClient({ submissions }: { submissions: OcrSubmi
         <FileUp/>
         <div>
           <h2>OCR คะแนน</h2>
-          <p>อัปโหลดไฟล์แบบฟอร์มที่กรรมการเขียนคะแนนแล้ว ระบบจะอ่านคะแนนรายข้อและให้ตรวจทานก่อนบันทึก</p>
+          <p>อัปโหลดไฟล์แบบฟอร์มที่กรรมการเขียนคะแนนแล้ว ระบบจะอ่านคะแนนรายข้อและให้ตรวจทานก่อนบันทึก หากอัปโหลดซ้ำโครงการเดิมของผู้พิจารณาคนเดิม ระบบจะใช้ข้อมูลล่าสุด</p>
         </div>
       </header>
       <div className="audit-filter-form committee-ocr-form">
@@ -184,7 +299,7 @@ export function CommitteeScoreOcrClient({ submissions }: { submissions: OcrSubmi
         <div className="audit-filter-actions">
           <button className="primary" type="button" disabled={processing || !pages.length} onClick={submitScores}><Save/>{submitState.status === "saving" ? "กำลังบันทึก" : "บันทึกผล OCR"}</button>
         </div>
-        <p>{processing ? <Loader2 className="spin-icon"/> : <CheckCircle2/>}{processing ? progress || "กำลัง OCR" : "ระบบจะแยก preview ตามไฟล์/หน้า และตรวจผลรวมกับช่องสรุปคะแนนให้อัตโนมัติ"}</p>
+        <p>{processing ? <Loader2 className="spin-icon"/> : <CheckCircle2/>}{processing ? progress || "กำลัง OCR" : submissionLoadMessage || "ระบบจะแยก preview ตามไฟล์/หน้า และตรวจผลรวมกับช่องสรุปคะแนนให้อัตโนมัติ"}</p>
       </div>
       {submitState.message && <div className={`committee-ocr-alert ${submitState.status}`}>{submitState.status === "error" ? <XCircle/> : <CheckCircle2/>}{submitState.message}</div>}
     </section>
@@ -197,7 +312,70 @@ export function CommitteeScoreOcrClient({ submissions }: { submissions: OcrSubmi
       updatePage={updatePage}
       updateScore={updateScore}
     />)}
+
+    <SavedRecordsPanel
+      records={savedRecords}
+      message={recordsMessage}
+      patchRecord={patchSavedRecord}
+      patchScore={patchSavedScore}
+      saveRecord={saveSavedRecord}
+      deleteRecord={deleteSavedRecord}
+    />
   </div>;
+}
+
+function SavedRecordsPanel({
+  records,
+  message,
+  patchRecord,
+  patchScore,
+  saveRecord,
+  deleteRecord,
+}: {
+  records: SavedScoreRecord[];
+  message: string;
+  patchRecord: (recordId: string, patch: Partial<SavedScoreRecord>) => void;
+  patchScore: (recordId: string, scoreId: string, value: string) => void;
+  saveRecord: (record: SavedScoreRecord) => void;
+  deleteRecord: (record: SavedScoreRecord) => void;
+}) {
+  return <section className="admin-panel committee-records-panel">
+    <header className="admin-section-head">
+      <FileUp/>
+      <div>
+        <h2>รายการคะแนน OCR ที่บันทึกแล้ว</h2>
+        <p>แก้ไขคะแนนรายข้อ สรุปคะแนน หมายเหตุ หรือลบคะแนนของผู้พิจารณาแต่ละท่านได้</p>
+      </div>
+      <span className="status-pill">{records.length.toLocaleString("th-TH")} รายการ</span>
+    </header>
+    {message ? <div className="committee-ocr-alert saved"><CheckCircle2/>{message}</div> : null}
+    <div className="committee-record-list">
+      {records.length ? records.map((record) => <details className="committee-record-card" key={record.id}>
+        <summary>
+          <span><b>{record.submissionTitle}</b><small>{record.submissionCode} • รายการที่ {record.submissionOrder.toLocaleString("th-TH")} • {record.judgeName}</small></span>
+          <em className={`status-pill ${record.totalMismatch ? "cancelled" : "attended"}`}>{record.calculatedTotal.toFixed(2)}/100</em>
+        </summary>
+        <div className="committee-record-form">
+          <div className="committee-record-score-grid">
+            {committeeScoreCriteria.map((criterion) => <label key={criterion.id}>
+              <span>{criterion.id}<small>เต็ม {criterion.max}</small></span>
+              <input type="number" min={0} max={criterion.max} step="0.5" value={scoreInputValue(record.itemScores[criterion.id])} onChange={(event) => patchScore(record.id, criterion.id, event.target.value)}/>
+            </label>)}
+          </div>
+          <div className="committee-record-meta-grid">
+            <label>สรุปคะแนนที่กรอกในใบ<input type="number" min={0} max={100} step="0.5" value={scoreInputValue(record.declaredTotal)} onChange={(event) => patchRecord(record.id, { declaredTotal: nullableNumber(event.target.value) })}/></label>
+            <label>ผลรวมระบบ<input readOnly value={calculatedRecordTotal(record).toFixed(2)}/></label>
+            <label>ผลต่าง<input readOnly value={record.declaredTotal === null ? "-" : (calculatedRecordTotal(record) - record.declaredTotal).toFixed(2)}/></label>
+          </div>
+          <label>หมายเหตุผู้พิจารณา<textarea rows={3} value={record.note ?? ""} onChange={(event) => patchRecord(record.id, { note: event.target.value })}/></label>
+          <div className="committee-record-actions">
+            <button className="primary" type="button" onClick={() => saveRecord(record)}><Save/>บันทึกการแก้ไข</button>
+            <button className="danger-btn" type="button" onClick={() => deleteRecord(record)}><Trash2/>ลบคะแนนรายการนี้</button>
+          </div>
+        </div>
+      </details>) : <div className="participant-empty">ยังไม่มีคะแนน OCR ที่บันทึกไว้</div>}
+    </div>
+  </section>;
 }
 
 function PreviewCard({
@@ -367,4 +545,17 @@ function nullableNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function scoreInputValue(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+}
+
+function calculatedRecordTotal(record: Pick<SavedScoreRecord, "itemScores">) {
+  return committeeScoreCriteria.reduce((sum, criterion) => sum + (record.itemScores[criterion.id] ?? 0), 0);
+}
+
+function safeTime(value: string | null | undefined) {
+  const time = new Date(value ?? "").getTime();
+  return Number.isFinite(time) ? time : 0;
 }

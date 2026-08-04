@@ -129,7 +129,8 @@ export function findCommitteeJudge(key: string) {
 
 export async function listCommitteeScoreRecords() {
   const store = await readStore();
-  return store.records.sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
+  return latestCommitteeScoreRecords(store.records)
+    .sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
 }
 
 export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]) {
@@ -137,7 +138,7 @@ export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]) {
   return writeQueued(async () => {
     const store = await readStore();
     const now = new Date().toISOString();
-    const existing = new Map(store.records.map((record) => [`${record.submissionCode}:${record.judgeKey}`, record]));
+    const existing = new Map(latestCommitteeScoreRecords(store.records).map((record) => [`${record.submissionCode}:${record.judgeKey}`, record]));
     const saved: CommitteeScoreRecord[] = [];
 
     for (const item of normalized) {
@@ -215,7 +216,7 @@ export async function deleteCommitteeScoreRecord(recordId: string) {
 
 export function buildCommitteeScoreboard(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]): CommitteeScoreSummaryRow[] {
   const bySubmission = new Map<string, CommitteeScoreRecord[]>();
-  for (const record of records) {
+  for (const record of latestCommitteeScoreRecords(records)) {
     const list = bySubmission.get(record.submissionCode) ?? [];
     list.push(record);
     bySubmission.set(record.submissionCode, list);
@@ -226,6 +227,10 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
     const judgeScores = Object.fromEntries(committeeJudges.map((judge) => [judge.key, null])) as Record<string, number | null>;
     for (const record of scoreRecords) judgeScores[record.judgeKey] = record.calculatedTotal;
     const totals = Object.values(judgeScores).filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+    const latestUpdatedAt = scoreRecords.reduce((latest, record) => {
+      if (!latest || safeTime(record.updatedAt) > safeTime(latest)) return record.updatedAt;
+      return latest;
+    }, null as string | null);
     const averageScore = totals.length ? roundScore(totals.reduce((sum, value) => sum + value, 0) / totals.length) : null;
     return {
       rank: 0,
@@ -237,13 +242,25 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
       judgeScores,
       judgeCount: totals.length,
       averageScore,
-      latestUpdatedAt: scoreRecords.map((record) => record.updatedAt).sort().at(-1) ?? null,
+      latestUpdatedAt,
     };
   }).sort((a, b) => {
     const aScore = a.averageScore ?? -1;
     const bScore = b.averageScore ?? -1;
     return bScore - aScore || b.judgeCount - a.judgeCount || a.submissionOrder - b.submissionOrder;
   }).map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+export function latestCommitteeScoreRecords(records: CommitteeScoreRecord[]) {
+  const latest = new Map<string, CommitteeScoreRecord>();
+  for (const record of records) {
+    const key = `${record.submissionCode}:${record.judgeKey}`;
+    const previous = latest.get(key);
+    if (!previous || safeTime(record.updatedAt) >= safeTime(previous.updatedAt)) {
+      latest.set(key, record);
+    }
+  }
+  return [...latest.values()];
 }
 
 function normalizeCommitteeScoreInput(input: CommitteeScoreInput): CommitteeScoreRecord {
@@ -309,7 +326,8 @@ async function readStore(): Promise<CommitteeScoreStore> {
   try {
     const raw = await readFile(storePath, "utf8");
     const parsed = JSON.parse(raw) as Partial<CommitteeScoreStore>;
-    return { records: Array.isArray(parsed.records) ? parsed.records.map(hydrateRecord).filter(Boolean) as CommitteeScoreRecord[] : [] };
+    const records = Array.isArray(parsed.records) ? parsed.records.map(hydrateRecord).filter(Boolean) as CommitteeScoreRecord[] : [];
+    return { records: latestCommitteeScoreRecords(records) };
   } catch {
     return { records: [] };
   }
@@ -374,4 +392,9 @@ function hydrateRecord(record: unknown) {
 function validIsoDate(value: unknown) {
   if (typeof value !== "string") return "";
   return Number.isFinite(new Date(value).getTime()) ? value : "";
+}
+
+function safeTime(value: string | null | undefined) {
+  const time = new Date(value ?? "").getTime();
+  return Number.isFinite(time) ? time : 0;
 }
