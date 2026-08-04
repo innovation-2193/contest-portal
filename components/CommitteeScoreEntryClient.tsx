@@ -41,6 +41,7 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
   const [query, setQuery] = useState("");
   const [state, setState] = useState<SubmitState>({ status: "loading", message: "กำลังโหลดข้อมูลคะแนน" });
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -249,6 +250,34 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
     }
   }
 
+  async function downloadTemplate() {
+    setDownloadingTemplate(true);
+    setState({ status: "loading", message: "กำลังสร้างไฟล์ Template Excel" });
+
+    try {
+      const response = await fetch("/api/admin/committee-scores/template", { cache: "no-store" });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({ message: "" }));
+        throw new Error(result.message || "ดาวน์โหลด Template Excel ไม่สำเร็จ");
+      }
+      const blob = await response.blob();
+      const fileName = contentDispositionFileName(response.headers.get("content-disposition")) || `committee-score-template-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setState({ status: "saved", message: "ดาวน์โหลด Template Excel แล้ว" });
+    } catch (error) {
+      setState({ status: "error", message: error instanceof Error ? error.message : "ดาวน์โหลด Template Excel ไม่สำเร็จ" });
+    } finally {
+      setDownloadingTemplate(false);
+    }
+  }
+
   function clearAllDirty() {
     setScores((current) => {
       const next = { ...current };
@@ -284,26 +313,35 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
           <span><b>{stats.completeRows.toLocaleString("th-TH")}</b><small>ครบ 5 กรรมการ</small></span>
           <span><b>{dirtyCells.size.toLocaleString("th-TH")}</b><small>รอบันทึก</small></span>
         </div>
-        <form className="committee-score-import-form" onSubmit={importScores}>
-          <a className="secondary" href="/api/admin/committee-scores/template" target="_blank" rel="noreferrer"><FileSpreadsheet/>Template Excel</a>
-          <label>ไฟล์ Excel
-            <input
-              type="file"
-              accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-              onChange={(event) => setImportFile(event.currentTarget.files?.[0] ?? null)}
-            />
-          </label>
-          <button className="secondary" type="submit" disabled={state.status === "saving" || !importFile}>
-            {state.status === "saving" ? <Loader2 className="spin-icon"/> : <Upload/>}
-            Import
-          </button>
-        </form>
-        <div className="audit-filter-actions">
-          <button className="secondary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={clearAllDirty}><Trash2/>ยกเลิก</button>
-          <button className="primary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={saveScores}>
-            {state.status === "saving" ? <Loader2 className="spin-icon"/> : <Save/>}
-            {state.status === "saving" ? "กำลังบันทึก" : "บันทึกคะแนน"}
-          </button>
+        <div className="committee-score-action-row">
+          <form className="committee-score-import-form" onSubmit={importScores}>
+            <button className="secondary" type="button" onClick={downloadTemplate} disabled={downloadingTemplate || state.status === "saving"}>
+              {downloadingTemplate ? <Loader2 className="spin-icon"/> : <FileSpreadsheet/>}
+              Template Excel
+            </button>
+            <label className="committee-score-file-picker">ไฟล์ Excel
+              <span className="committee-score-file-control">
+                <FileSpreadsheet/>
+                <span>{importFile?.name ?? "เลือกไฟล์ .xlsx หรือ .csv"}</span>
+              </span>
+              <input
+                type="file"
+                accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                onChange={(event) => setImportFile(event.currentTarget.files?.[0] ?? null)}
+              />
+            </label>
+            <button className="secondary" type="submit" disabled={state.status === "saving" || !importFile}>
+              {state.status === "saving" ? <Loader2 className="spin-icon"/> : <Upload/>}
+              Import
+            </button>
+          </form>
+          <div className="audit-filter-actions committee-score-save-actions">
+            <button className="secondary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={clearAllDirty}><Trash2/>ยกเลิก</button>
+            <button className="primary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={saveScores}>
+              {state.status === "saving" ? <Loader2 className="spin-icon"/> : <Save/>}
+              {state.status === "saving" ? "กำลังบันทึก" : "บันทึกคะแนน"}
+            </button>
+          </div>
         </div>
       </div>
       {state.message ? <div className={`committee-score-alert ${state.status}`}>
@@ -394,4 +432,11 @@ function cellKey(submissionCode: string, judgeKey: string) {
 
 function normalizeSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function contentDispositionFileName(value: string | null) {
+  if (!value) return "";
+  const encoded = value.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) return decodeURIComponent(encoded);
+  return value.match(/filename="([^"]+)"/i)?.[1] ?? "";
 }
