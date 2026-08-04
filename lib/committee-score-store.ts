@@ -1,6 +1,9 @@
 import { randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
+import { db, transaction } from "./db";
+import { ensureDatabaseSchema } from "./db-schema";
+import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { SubmissionListItem } from "./admin-store";
 
 export type CommitteeJudge = {
@@ -116,6 +119,30 @@ type CommitteeScoreStore = {
   records: CommitteeScoreRecord[];
 };
 
+type CommitteeScoreDbRow = {
+  id: string;
+  submission_code: string;
+  submission_title: string;
+  submission_order: number | string;
+  judge_key: string;
+  judge_name: string;
+  source_file_name: string | null;
+  source_page: number | string;
+  item_scores: string | Record<string, number | null> | null;
+  rules_score: number | string;
+  problem_score: number | string;
+  innovation_score: number | string;
+  evidence_score: number | string;
+  impact_score: number | string;
+  calculated_total: number | string;
+  declared_total: number | string | null;
+  total_mismatch: number | string | null;
+  note: string | null;
+  submitted_by_email: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const storePath = path.join(storageDir, "committee-paper-screening-scores.json");
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -129,14 +156,41 @@ export function findCommitteeJudge(key: string) {
   return committeeJudges.find((judge) => judge.key === normalized || judge.fileLabel === normalized || committeeJudgeLabel(judge) === normalized) ?? null;
 }
 
-export async function listCommitteeScoreRecords() {
+export async function listCommitteeScoreRecords(): Promise<CommitteeScoreRecord[]> {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT id,submission_code,submission_title,submission_order,judge_key,judge_name,source_file_name,source_page,item_scores,
+        rules_score,problem_score,innovation_score,evidence_score,impact_score,calculated_total,declared_total,total_mismatch,note,
+        submitted_by_email,created_at,updated_at
+       FROM committee_scores
+       ORDER BY submission_order ASC,judge_key ASC`,
+    );
+    return latestCommitteeScoreRecords((rows as CommitteeScoreDbRow[]).map(dbRowToCommitteeScoreRecord).filter(Boolean) as CommitteeScoreRecord[])
+      .sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    return listCommitteeScoreRecordsLocal();
+  }
+}
+
+export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]): Promise<CommitteeScoreRecord[]> {
+  const normalized = inputs.map(normalizeCommitteeScoreInput);
+  try {
+    return await saveCommitteeScoreRecordsDb(normalized);
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    return saveCommitteeScoreRecordsLocal(normalized);
+  }
+}
+
+async function listCommitteeScoreRecordsLocal(): Promise<CommitteeScoreRecord[]> {
   const store = await readStore();
   return latestCommitteeScoreRecords(store.records)
     .sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
 }
 
-export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]) {
-  const normalized = inputs.map(normalizeCommitteeScoreInput);
+async function saveCommitteeScoreRecordsLocal(normalized: CommitteeScoreRecord[]): Promise<CommitteeScoreRecord[]> {
   return writeQueued(async () => {
     const store = await readStore();
     const now = new Date().toISOString();
@@ -162,9 +216,50 @@ export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]) {
   });
 }
 
-export async function updateCommitteeScoreRecord(input: CommitteeScoreUpdateInput) {
+export async function updateCommitteeScoreRecord(input: CommitteeScoreUpdateInput): Promise<CommitteeScoreRecord> {
   const recordId = input.recordId.trim();
   if (!recordId) throw Object.assign(new Error("recordId is required"), { code: "INVALID_INPUT" });
+  try {
+    await ensureDatabaseSchema();
+    const target = await findCommitteeScoreRecordByIdDb(recordId);
+    if (!target) throw Object.assign(new Error("committee score record not found"), { code: "NOT_FOUND" });
+    const normalized = normalizeCommitteeScoreInput({
+      submissionCode: target.submissionCode,
+      submissionTitle: target.submissionTitle,
+      submissionOrder: target.submissionOrder,
+      judgeKey: target.judgeKey,
+      sourceFileName: target.sourceFileName,
+      sourcePage: target.sourcePage,
+      itemScores: input.itemScores,
+      totalScore: input.totalScore,
+      declaredTotal: input.declaredTotal,
+      note: input.note,
+      submittedByEmail: input.submittedByEmail,
+    });
+    const updated: CommitteeScoreRecord = {
+      ...target,
+      itemScores: normalized.itemScores,
+      rulesScore: normalized.rulesScore,
+      problemScore: normalized.problemScore,
+      innovationScore: normalized.innovationScore,
+      evidenceScore: normalized.evidenceScore,
+      impactScore: normalized.impactScore,
+      calculatedTotal: normalized.calculatedTotal,
+      declaredTotal: normalized.declaredTotal,
+      totalMismatch: normalized.totalMismatch,
+      note: normalized.note,
+      submittedByEmail: normalized.submittedByEmail,
+      updatedAt: new Date().toISOString(),
+    };
+    await updateCommitteeScoreRecordDb(updated);
+    return updated;
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    return updateCommitteeScoreRecordLocal(input, recordId);
+  }
+}
+
+async function updateCommitteeScoreRecordLocal(input: CommitteeScoreUpdateInput, recordId: string): Promise<CommitteeScoreRecord> {
   return writeQueued(async () => {
     const store = await readStore();
     const target = store.records.find((record) => record.id === recordId);
@@ -205,9 +300,22 @@ export async function updateCommitteeScoreRecord(input: CommitteeScoreUpdateInpu
   });
 }
 
-export async function deleteCommitteeScoreRecord(recordId: string) {
+export async function deleteCommitteeScoreRecord(recordId: string): Promise<CommitteeScoreRecord | null> {
   const id = recordId.trim();
   if (!id) return null;
+  try {
+    await ensureDatabaseSchema();
+    const target = await findCommitteeScoreRecordByIdDb(id);
+    if (!target) return null;
+    await db.execute("DELETE FROM committee_scores WHERE id=?", [id]);
+    return target;
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    return deleteCommitteeScoreRecordLocal(id);
+  }
+}
+
+async function deleteCommitteeScoreRecordLocal(id: string): Promise<CommitteeScoreRecord | null> {
   return writeQueued(async () => {
     const store = await readStore();
     const target = store.records.find((record) => record.id === id) ?? null;
@@ -215,6 +323,164 @@ export async function deleteCommitteeScoreRecord(recordId: string) {
     await writeStore({ records: store.records.filter((record) => record.id !== id) });
     return target;
   });
+}
+
+async function saveCommitteeScoreRecordsDb(records: CommitteeScoreRecord[]): Promise<CommitteeScoreRecord[]> {
+  if (!records.length) return [];
+  const now = new Date().toISOString();
+  const saved = records.map((record) => ({
+    ...record,
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  }));
+  await ensureDatabaseSchema();
+  await transaction(async (connection) => {
+    for (const record of saved) {
+      await connection.execute(
+        `INSERT INTO committee_scores (
+          id,submission_code,submission_title,submission_order,judge_key,judge_name,source_file_name,source_page,item_scores,
+          rules_score,problem_score,innovation_score,evidence_score,impact_score,calculated_total,declared_total,total_mismatch,note,
+          submitted_by_email,created_at,updated_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE
+          submission_title=VALUES(submission_title),
+          submission_order=VALUES(submission_order),
+          judge_name=VALUES(judge_name),
+          source_file_name=VALUES(source_file_name),
+          source_page=VALUES(source_page),
+          item_scores=VALUES(item_scores),
+          rules_score=VALUES(rules_score),
+          problem_score=VALUES(problem_score),
+          innovation_score=VALUES(innovation_score),
+          evidence_score=VALUES(evidence_score),
+          impact_score=VALUES(impact_score),
+          calculated_total=VALUES(calculated_total),
+          declared_total=VALUES(declared_total),
+          total_mismatch=VALUES(total_mismatch),
+          note=VALUES(note),
+          submitted_by_email=VALUES(submitted_by_email),
+          updated_at=VALUES(updated_at)`,
+        committeeScoreDbParams(record),
+      );
+    }
+  });
+  return saved;
+}
+
+async function findCommitteeScoreRecordByIdDb(recordId: string): Promise<CommitteeScoreRecord | null> {
+  const [rows] = await db.execute(
+    `SELECT id,submission_code,submission_title,submission_order,judge_key,judge_name,source_file_name,source_page,item_scores,
+      rules_score,problem_score,innovation_score,evidence_score,impact_score,calculated_total,declared_total,total_mismatch,note,
+      submitted_by_email,created_at,updated_at
+     FROM committee_scores
+     WHERE id=?
+     LIMIT 1`,
+    [recordId],
+  );
+  return dbRowToCommitteeScoreRecord((rows as CommitteeScoreDbRow[])[0]);
+}
+
+async function updateCommitteeScoreRecordDb(record: CommitteeScoreRecord) {
+  await db.execute(
+    `UPDATE committee_scores SET
+      item_scores=?,
+      rules_score=?,
+      problem_score=?,
+      innovation_score=?,
+      evidence_score=?,
+      impact_score=?,
+      calculated_total=?,
+      declared_total=?,
+      total_mismatch=?,
+      note=?,
+      submitted_by_email=?,
+      updated_at=?
+     WHERE id=?`,
+    [
+      JSON.stringify(record.itemScores),
+      record.rulesScore,
+      record.problemScore,
+      record.innovationScore,
+      record.evidenceScore,
+      record.impactScore,
+      record.calculatedTotal,
+      record.declaredTotal,
+      record.totalMismatch,
+      record.note,
+      record.submittedByEmail,
+      record.updatedAt,
+      record.id,
+    ],
+  );
+}
+
+function committeeScoreDbParams(record: CommitteeScoreRecord) {
+  return [
+    record.id,
+    record.submissionCode,
+    record.submissionTitle,
+    record.submissionOrder,
+    record.judgeKey,
+    record.judgeName,
+    record.sourceFileName,
+    record.sourcePage,
+    JSON.stringify(record.itemScores),
+    record.rulesScore,
+    record.problemScore,
+    record.innovationScore,
+    record.evidenceScore,
+    record.impactScore,
+    record.calculatedTotal,
+    record.declaredTotal,
+    record.totalMismatch,
+    record.note,
+    record.submittedByEmail,
+    record.createdAt,
+    record.updatedAt,
+  ];
+}
+
+function dbRowToCommitteeScoreRecord(row: CommitteeScoreDbRow | undefined): CommitteeScoreRecord | null {
+  if (!row) return null;
+  return hydrateRecord({
+    id: row.id,
+    submissionCode: row.submission_code,
+    submissionTitle: row.submission_title,
+    submissionOrder: row.submission_order,
+    judgeKey: row.judge_key,
+    judgeName: row.judge_name,
+    sourceFileName: row.source_file_name,
+    sourcePage: row.source_page,
+    itemScores: parseDbItemScores(row.item_scores),
+    rulesScore: row.rules_score,
+    problemScore: row.problem_score,
+    innovationScore: row.innovation_score,
+    evidenceScore: row.evidence_score,
+    impactScore: row.impact_score,
+    calculatedTotal: row.calculated_total,
+    declaredTotal: row.declared_total,
+    totalMismatch: row.total_mismatch,
+    note: row.note,
+    submittedByEmail: row.submitted_by_email,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+}
+
+function parseDbItemScores(value: CommitteeScoreDbRow["item_scores"]) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed as Record<string, number | null> : {};
+  } catch {
+    return {};
+  }
+}
+
+function shouldUseLocalCommitteeScoreStore(error: unknown) {
+  return isDatabaseUnavailable(error) || isDatabaseSchemaFallback(error);
 }
 
 export function buildCommitteeScoreboard(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]): CommitteeScoreSummaryRow[] {

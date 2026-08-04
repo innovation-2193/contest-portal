@@ -29,6 +29,7 @@ async function runSchemaRepair() {
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
   await ensureParkingReservationsTable();
+  await ensureCommitteeScoresTable();
 }
 
 async function ensureUserColumns() {
@@ -220,6 +221,37 @@ async function ensureParkingReservationsTable() {
       CONSTRAINT fk_parking_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
       INDEX idx_parking_registration (registration_code),
       INDEX idx_parking_created (created_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureCommitteeScoresTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS committee_scores (
+      id CHAR(36) PRIMARY KEY,
+      submission_code VARCHAR(32) NOT NULL,
+      submission_title VARCHAR(255) NOT NULL,
+      submission_order INT UNSIGNED NOT NULL DEFAULT 1,
+      judge_key VARCHAR(16) NOT NULL,
+      judge_name VARCHAR(255) NOT NULL,
+      source_file_name VARCHAR(255) NULL,
+      source_page INT UNSIGNED NOT NULL DEFAULT 1,
+      item_scores JSON NULL,
+      rules_score DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      problem_score DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      innovation_score DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      evidence_score DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      impact_score DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      calculated_total DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      declared_total DECIMAL(5,2) UNSIGNED NULL,
+      total_mismatch DECIMAL(6,2) NULL,
+      note VARCHAR(1000) NULL,
+      submitted_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL,
+      UNIQUE KEY uq_committee_scores_submission_judge (submission_code, judge_key),
+      INDEX idx_committee_scores_submission_order (submission_order),
+      INDEX idx_committee_scores_updated_at (updated_at)
     ) ENGINE=InnoDB
   `);
 }

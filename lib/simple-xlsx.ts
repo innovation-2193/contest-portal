@@ -50,7 +50,7 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
-    <sheet name="${escapeXml(options.sheetName).slice(0, 31)}" sheetId="1" r:id="rId1"/>
+    <sheet name="${escapeXml(safeSheetName(options.sheetName))}" sheetId="1" r:id="rId1"/>
   </sheets>
 </workbook>`,
     },
@@ -124,8 +124,20 @@ function cellRef(columnIndex: number, rowIndex: number) {
 
 function escapeXml(value: string) {
   return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function safeSheetName(value: string) {
+  const text = String(value ?? "")
+    .replace(/[\u0000-\u001F\uFFFE\uFFFF]/g, "")
+    .replace(/[:\\/?*\[\]]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 31);
+  return text || "Sheet1";
 }

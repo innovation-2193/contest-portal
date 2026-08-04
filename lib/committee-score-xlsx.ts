@@ -20,8 +20,23 @@ const summaryHeaders = ["เฉลี่ย", "จำนวนกรรมกา
 const maxImportRows = 600;
 
 export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
+  const rows = committeeScoreTemplateRows(submissions, records);
+  return createSimpleXlsx({
+    sheetName: "Committee Scores",
+    title: "Committee total score import template",
+    rows,
+    columnWidths: [10, 18, 56, 28, 34, 18, 18, 18, 18, 18, 14, 18],
+  });
+}
+
+export function createCommitteeScoreTemplateCsv(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
+  const rows = committeeScoreTemplateRows(submissions, records);
+  return Buffer.from(`\uFEFF${rows.map(csvRow).join("\r\n")}\r\n`, "utf8");
+}
+
+function committeeScoreTemplateRows(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
   const latest = recordsBySubmissionAndJudge(records);
-  const rows = [
+  return [
     [
       ...baseHeaders,
       ...committeeJudges.map((judge) => `ก.${judge.order} ${judge.rank}${judge.name}`),
@@ -34,23 +49,16 @@ export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem
       const average = filled.length ? roundScore(filled.reduce((sum, score) => sum + score, 0) / filled.length) : null;
       return [
         String(index + 1),
-        submission.submission_code,
-        submission.title_th,
-        `${submission.first_name} ${submission.last_name}`.trim(),
-        submission.division || submission.bureau || "",
+        templateText(submission.submission_code),
+        templateText(submission.title_th),
+        templateText(`${submission.first_name} ${submission.last_name}`.trim()),
+        templateText(submission.division || submission.bureau || ""),
         ...scores.map(scoreText),
         average === null ? "" : average.toFixed(2),
         `${filled.length}/5`,
       ];
     }),
   ];
-
-  return createSimpleXlsx({
-    sheetName: "Committee Scores",
-    title: "Committee total score import template",
-    rows,
-    columnWidths: [10, 18, 56, 28, 34, 18, 18, 18, 18, 18, 14, 18],
-  });
 }
 
 export async function parseCommitteeScoreImportFile(
@@ -190,7 +198,7 @@ function normalizeSubmissionCode(value: string) {
 }
 
 function normalizeCell(value: string) {
-  return String(value ?? "").replace(/^\uFEFF/, "").trim().replace(/\s+/g, " ");
+  return String(value ?? "").replace(/^\uFEFF/, "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "").trim().replace(/\s+/g, " ");
 }
 
 function normalizeHeader(value: string) {
@@ -211,4 +219,18 @@ function scoreText(score: number | null | undefined) {
 
 function roundScore(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function templateText(value: unknown) {
+  return String(value ?? "")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function csvRow(row: string[]) {
+  return row.map((value) => {
+    const text = templateText(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, "\"\"")}"` : text;
+  }).join(",");
 }
