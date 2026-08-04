@@ -10,7 +10,7 @@ import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { createParticipant, deleteParticipants, findExistingUserEmails, listParticipants } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
-import { participantRoles, type ParticipantRole } from "../../../lib/local-registrations";
+import { participantRoles, type ParticipantRole, type RegistrationRecord } from "../../../lib/local-registrations";
 import { parseParticipantBulkFile } from "../../../lib/participant-bulk-import";
 import { participantRoleClass } from "../../../lib/participant-role-style";
 import { isThaiCitizenId } from "../../../lib/validation";
@@ -138,19 +138,18 @@ async function bulkCreateParticipantsAction(formData: FormData) {
 
   const duplicateNamesInFile = findDuplicateParticipantNames(rows);
   if (duplicateNamesInFile.length) {
-    redirect(participantBulkErrorPath(formatDuplicateParticipantNames("ชื่อและนามสกุลซ้ำกันในไฟล์เดียวกัน กรุณาตรวจสอบ", duplicateNamesInFile)));
+    redirect(participantBulkErrorPath(formatDuplicateParticipantNamesInFile("ชื่อและนามสกุลซ้ำกันในไฟล์เดียวกัน กรุณาตรวจสอบ", duplicateNamesInFile)));
   }
 
-  const existingNameKeys = new Map<string, string>();
+  const existingNameKeys = new Map<string, RegistrationRecord[]>();
   existingParticipants.forEach((participant) => {
     const key = participantNameKey(participant.first_name, participant.last_name);
-    if (key) existingNameKeys.set(key, participantNameText(participant.first_name, participant.last_name));
+    if (!key) return;
+    existingNameKeys.set(key, [...(existingNameKeys.get(key) ?? []), participant]);
   });
-  const existingDuplicateNames = uniqueValues(rows
-    .filter((row) => existingNameKeys.has(participantNameKey(row.firstName, row.lastName)))
-    .map((row) => participantNameText(row.firstName, row.lastName)));
+  const existingDuplicateNames = findExistingParticipantNameMatches(rows, existingNameKeys);
   if (existingDuplicateNames.length) {
-    redirect(participantBulkErrorPath(formatDuplicateParticipantNames("ชื่อและนามสกุลตรงกับข้อมูลที่มีในระบบแล้ว ไม่สามารถนำเข้า bulk file ได้ กรุณาตรวจสอบ", existingDuplicateNames)));
+    redirect(participantBulkErrorPath(formatExistingParticipantNameMatches("ชื่อและนามสกุลตรงกับข้อมูลที่มีในระบบแล้ว ไม่สามารถนำเข้า bulk file ได้ กรุณาตรวจสอบ", existingDuplicateNames)));
   }
   const createdCodes: string[] = [];
 
@@ -267,17 +266,54 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถนำเข้ารายชื่อได้ กรุณาตรวจสอบไฟล์อีกครั้ง";
 }
 
+type DuplicateNameInFile = {
+  name: string;
+  rows: number[];
+};
+
+type ExistingNameMatch = {
+  importedName: string;
+  rowNumber: number;
+  existingName: string;
+  registrationCode: string;
+};
+
 function findDuplicateParticipantNames(rows: Array<{ firstName: string; lastName: string }>) {
-  const seen = new Map<string, string>();
-  const duplicates = new Set<string>();
-  rows.forEach((row) => {
+  const occurrences = new Map<string, DuplicateNameInFile>();
+  rows.forEach((row, index) => {
     const key = participantNameKey(row.firstName, row.lastName);
     if (!key) return;
     const name = participantNameText(row.firstName, row.lastName);
-    if (seen.has(key)) duplicates.add(name);
-    seen.set(key, name);
+    const current = occurrences.get(key);
+    if (current) {
+      current.rows.push(index + 2);
+    } else {
+      occurrences.set(key, { name, rows: [index + 2] });
+    }
   });
-  return [...duplicates];
+  return [...occurrences.values()].filter((item) => item.rows.length > 1);
+}
+
+function findExistingParticipantNameMatches(
+  rows: Array<{ firstName: string; lastName: string }>,
+  existingNameKeys: Map<string, RegistrationRecord[]>,
+) {
+  const matches: ExistingNameMatch[] = [];
+  rows.forEach((row, index) => {
+    const key = participantNameKey(row.firstName, row.lastName);
+    if (!key) return;
+    const existing = existingNameKeys.get(key);
+    if (!existing?.length) return;
+    existing.forEach((participant) => {
+      matches.push({
+        importedName: participantNameText(row.firstName, row.lastName),
+        rowNumber: index + 2,
+        existingName: participantFullName(participant),
+        registrationCode: participant.registration_code,
+      });
+    });
+  });
+  return matches;
 }
 
 function participantNameKey(firstName: string, lastName: string) {
@@ -295,15 +331,26 @@ function participantNameText(firstName: string, lastName: string) {
   return `${firstName} ${lastName}`.replace(/\s+/g, " ").trim();
 }
 
-function uniqueValues(values: string[]) {
-  return [...new Set(values.filter(Boolean))];
+function participantFullName(participant: Pick<RegistrationRecord, "title" | "first_name" | "last_name">) {
+  return `${participant.title}${participant.first_name} ${participant.last_name}`.replace(/\s+/g, " ").trim();
 }
 
-function formatDuplicateParticipantNames(prefix: string, names: string[]) {
-  const visibleNames = names.slice(0, 10);
-  const remaining = names.length - visibleNames.length;
+function formatDuplicateParticipantNamesInFile(prefix: string, duplicates: DuplicateNameInFile[]) {
+  const visibleItems = duplicates.slice(0, 10).map((item) =>
+    `${item.name} (แถว ${item.rows.map((row) => row.toLocaleString("th-TH")).join(", ")})`,
+  );
+  const remaining = duplicates.length - visibleItems.length;
   const suffix = remaining > 0 ? ` และอีก ${remaining.toLocaleString("th-TH")} รายชื่อ` : "";
-  return `${prefix}: ${visibleNames.join(", ")}${suffix}`;
+  return `${prefix}: ${visibleItems.join(", ")}${suffix}`;
+}
+
+function formatExistingParticipantNameMatches(prefix: string, matches: ExistingNameMatch[]) {
+  const visibleItems = matches.slice(0, 10).map((match) =>
+    `แถวที่ ${match.rowNumber.toLocaleString("th-TH")} ${match.importedName} ตรงกับ ${match.registrationCode} ${match.existingName}`,
+  );
+  const remaining = matches.length - visibleItems.length;
+  const suffix = remaining > 0 ? ` และอีก ${remaining.toLocaleString("th-TH")} รายการ` : "";
+  return `${prefix}: ${visibleItems.join("; ")}${suffix}`;
 }
 
 function filterRecords<T>(records: T[], query: string, pickFields: (record: T) => Array<string | null | undefined>) {
