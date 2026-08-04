@@ -113,9 +113,9 @@ const PRINT = {
   white: "#ffffff",
 } as const;
 
-const scoreHeaderHeight = 17;
-const scoreGroupRowHeight = 11.6;
-const scoreItemRowHeight = 11.2;
+const scoreHeaderHeight = 20;
+const scoreGroupRowHeight = 14.8;
+const scoreItemRowHeight = 15.4;
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();
@@ -191,10 +191,10 @@ function drawScoreSheet(
     return;
   }
 
-  drawProjectInfo(doc, submission, 28, 88);
-  drawScoreTable(doc, 28, 146);
-  drawSummaryBoxes(doc, 656, 146, 158);
-  drawJudgeSignature(doc, judge, 656, 440, 158);
+  drawProjectInfo(doc, submission, 22, 80);
+  drawScoreTable(doc, 22, 135);
+  drawSummaryBoxes(doc, 596, 135, 223);
+  drawJudgeSignature(doc, judge, 596, 444, 223);
   drawDocumentFooter(doc, pageNumber, totalPages, `${submission.submission_code} • ${judge.rank}${judge.name}`, fonts);
 }
 
@@ -205,9 +205,9 @@ function drawPrintHeader(
   generatedAt: Date,
   submissionCount: number,
 ) {
-  const margin = 28;
+  const margin = 22;
   const width = doc.page.width - margin * 2;
-  doc.font(fonts.bold).fontSize(15).fillColor(PRINT.black).text("แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 1 (Paper Screening)", margin, 22, {
+  doc.font(fonts.bold).fontSize(15.6).fillColor(PRINT.black).text("แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 1 (Paper Screening)", margin, 19, {
     width,
     align: "center",
     lineBreak: false,
@@ -215,14 +215,14 @@ function drawPrintHeader(
   doc.font(fonts.regular).fontSize(8.4).fillColor(PRINT.text).text(
     `${judge.role} • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     margin,
-    45,
+    43,
     { width, align: "center", lineBreak: false },
   );
-  doc.moveTo(margin, 66).lineTo(doc.page.width - margin, 66).lineWidth(0.8).stroke(PRINT.line);
+  doc.moveTo(margin, 62).lineTo(doc.page.width - margin, 62).lineWidth(0.8).stroke(PRINT.line);
   doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text(
     submission ? `รหัสโครงการ: ${submission.submission_code}` : `จำนวนโครงการ: ${submissionCount.toLocaleString("th-TH")}`,
     margin,
-    72,
+    68,
     { width, align: "right", lineBreak: false },
   );
 }
@@ -252,16 +252,16 @@ function drawProjectInfo(doc: PDFKit.PDFDocument, submission: SubmissionListItem
 
 function drawScoreTable(doc: PDFKit.PDFDocument, x: number, y: number) {
   const columns = [
-    ["ข้อ", 38],
-    ["รายการพิจารณา", 424],
-    ["เต็ม", 48],
-    ["คะแนน", 100],
+    ["ข้อ", 40],
+    ["รายการพิจารณา", 360],
+    ["เต็ม", 52],
+    ["คะแนน", 108],
   ] as const;
   const tableWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   let cursorY = y;
 
   doc.rect(x, cursorY, tableWidth, scoreHeaderHeight).fillAndStroke(PRINT.white, PRINT.black);
-  doc.font(fonts.bold).fontSize(7.4).fillColor(PRINT.black);
+  doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black);
   let cursorX = x;
   for (const [label, width] of columns) {
     if (cursorX > x) doc.moveTo(cursorX, cursorY).lineTo(cursorX, cursorY + scoreHeaderHeight).lineWidth(0.5).stroke(PRINT.line);
@@ -276,13 +276,13 @@ function drawScoreTable(doc: PDFKit.PDFDocument, x: number, y: number) {
 
   for (const group of scoreGroups) {
     doc.rect(x, cursorY, tableWidth, scoreGroupRowHeight).fillAndStroke(PRINT.white, PRINT.black);
-    doc.font(fonts.bold).fontSize(7).fillColor(PRINT.black).text(
+    doc.font(fonts.bold).fontSize(8.4).fillColor(PRINT.black).text(
       `${group.no}. ${group.title}`,
       x + 8,
-      cursorY + 2.8,
-      { width: 420, lineBreak: false },
+      cursorY + 3.8,
+      { width: tableWidth - 130, lineBreak: false },
     );
-    doc.text(`${group.max} คะแนน`, x + tableWidth - 116, cursorY + 2.8, { width: 106, align: "right", lineBreak: false });
+    doc.text(`${group.max} คะแนน`, x + tableWidth - 116, cursorY + 3.8, { width: 106, align: "right", lineBreak: false });
     cursorY += scoreGroupRowHeight;
 
     for (const [no, label, max] of group.items) {
@@ -310,54 +310,54 @@ function drawCriterionRow(
     cursorX += width;
   });
 
-  doc.font(fonts.bold).fontSize(6.5).fillColor(PRINT.black).text(no, x + 6, y + 3.2, {
+  doc.font(fonts.bold).fontSize(8.2).fillColor(PRINT.black).text(no, x + 6, y + 4.1, {
     width: columns[0][1] - 12,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(6.4).fillColor(PRINT.text).text(label, x + columns[0][1] + 7, y + 3.2, {
+  doc.font(fonts.regular).fontSize(8.1).fillColor(PRINT.text).text(label, x + columns[0][1] + 8, y + 4, {
     width: columns[1][1] - 14,
-    height: 7.8,
+    height: 10.5,
     ellipsis: true,
   });
-  doc.font(fonts.bold).fontSize(6.5).fillColor(PRINT.text).text(String(max), x + columns[0][1] + columns[1][1] + 5, y + 3.2, {
+  doc.font(fonts.bold).fontSize(8.2).fillColor(PRINT.text).text(String(max), x + columns[0][1] + columns[1][1] + 5, y + 4.1, {
     width: columns[2][1] - 10,
     align: "center",
     lineBreak: false,
   });
-  drawScoreBox(doc, x + columns[0][1] + columns[1][1] + columns[2][1] + 12, y + 2.1, 70, 7.8);
+  drawScoreBox(doc, x + columns[0][1] + columns[1][1] + columns[2][1] + 14, y + 3, 80, 9.8);
 }
 
 function drawSummaryBoxes(doc: PDFKit.PDFDocument, x: number, y: number, width: number) {
-  doc.rect(x, y, width, 82).fillAndStroke(PRINT.white, PRINT.line);
-  doc.font(fonts.bold).fontSize(9.4).fillColor(PRINT.black).text("สรุปคะแนน", x + 12, y + 11, { width: width - 24, align: "center", lineBreak: false });
-  drawScoreBox(doc, x + 24, y + 38, width - 48, 24);
-  doc.font(fonts.bold).fontSize(8.4).fillColor(PRINT.black).text("/ 100", x + 24, y + 65, { width: width - 48, align: "center", lineBreak: false });
+  doc.rect(x, y, width, 74).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(10.5).fillColor(PRINT.black).text("สรุปคะแนน", x + 12, y + 10, { width: width - 24, align: "center", lineBreak: false });
+  drawScoreBox(doc, x + 40, y + 35, 98, 24);
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PRINT.black).text("/ 100", x + 144, y + 42, { width: 48, lineBreak: false });
 
-  const noteY = y + 94;
-  const noteHeight = 190;
+  const noteY = y + 86;
+  const noteHeight = 210;
   doc.rect(x, noteY, width, noteHeight).fillAndStroke(PRINT.white, PRINT.line);
-  doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text("หมายเหตุผู้ตรวจ", x + 12, noteY + 11, { width: width - 24, lineBreak: false });
-  for (let line = 0; line < 6; line += 1) {
-    const lineY = noteY + 44 + line * 22;
+  doc.font(fonts.bold).fontSize(10).fillColor(PRINT.black).text("หมายเหตุผู้ตรวจ", x + 14, noteY + 12, { width: width - 28, lineBreak: false });
+  for (let line = 0; line < 7; line += 1) {
+    const lineY = noteY + 46 + line * 21;
     doc.moveTo(x + 14, lineY).lineTo(x + width - 14, lineY).lineWidth(0.45).stroke(PRINT.line);
   }
 }
 
 function drawJudgeSignature(doc: PDFKit.PDFDocument, judge: CommitteeSignatory, x: number, y: number, width: number) {
-  doc.rect(x, y, width, 88).fillAndStroke(PRINT.white, PRINT.line);
-  doc.font(fonts.bold).fontSize(8).fillColor(PRINT.black).text("ลงนามผู้ตรวจ (ตรวจแล้ว)", x + 12, y + 12, {
+  doc.rect(x, y, width, 106).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text("ลงนามผู้ตรวจ (ตรวจแล้ว)", x + 12, y + 13, {
     width: width - 24,
     align: "center",
     lineBreak: false,
   });
-  doc.moveTo(x + 18, y + 44).lineTo(x + width - 18, y + 44).lineWidth(0.55).stroke(PRINT.line);
-  doc.font(fonts.bold).fontSize(8).fillColor(PRINT.black).text(`${judge.rank}${judge.name}`, x + 10, y + 54, {
+  doc.moveTo(x + 18, y + 55).lineTo(x + width - 18, y + 55).lineWidth(0.55).stroke(PRINT.line);
+  doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text(`${judge.rank}${judge.name}`, x + 10, y + 68, {
     width: width - 20,
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(6.8).fillColor(PRINT.text).text(`${judge.unit} / ${judge.role}`, x + 10, y + 68, {
+  doc.font(fonts.regular).fontSize(7.2).fillColor(PRINT.text).text(`${judge.unit} / ${judge.role}`, x + 10, y + 84, {
     width: width - 20,
     align: "center",
     lineBreak: false,
