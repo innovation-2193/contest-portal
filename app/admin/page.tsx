@@ -62,6 +62,12 @@ import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluati
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
+import {
+  buildCommitteeScoreboard,
+  committeeJudges,
+  listCommitteeScoreRecords,
+  type CommitteeScoreSummaryRow,
+} from "../../lib/committee-score-store";
 
 export const dynamic = "force-dynamic";
 
@@ -85,7 +91,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
 
-  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
+  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations, committeeScoreRecords } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
@@ -150,10 +156,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
   const showAllParkingReservations = params.parkingAll === "1";
   const currentAdminPath = adminDashboardHref(params);
+  const requestHeaders = await headers();
+  const ocrScoresHref = localSafeAdminHref(requestHeaders, "/admin/ocr-scores");
+  const committeeScoreExportHref = localSafeAdminHref(requestHeaders, "/api/admin/committee-scores/export");
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
   const scoreBoard = sortScoreboardSubmissions(submissions);
+  const committeeScoreBoard = isSuperAdmin
+    ? buildCommitteeScoreboard(
+      submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
+      committeeScoreRecords,
+    ).filter((row) => row.averageScore !== null)
+    : [];
   const awardedSubmissionKeys = new Set(winners.map((winner) => winner.submissionCode || winnerFallbackKey(winner.projectTitle, winner.ownerName, winner.division)));
   const availableWinnerSubmissions = submissions.filter((submission) => {
     const key = winnerFallbackKey(submission.title_th, submissionOwnerName(submission), submissionDivision(submission));
@@ -177,7 +192,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
       <div className="admin-checkin-copy"><FileScan/><div><span className="eyebrow">Super Admin Only</span><h2>OCR คะแนน</h2><p>นำคะแนนจากแบบฟอร์มกรรมการ 5 ท่านเข้า preview ตรวจทาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
-      <div className="admin-actions admin-report-actions"><Link className="primary" href="/admin/ocr-scores"><FileScan/>เปิด OCR คะแนน</Link><a className="secondary" href="/api/admin/committee-scores/export" target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
+      <div className="admin-actions admin-report-actions"><a className="primary" href={ocrScoresHref}><FileScan/>เปิด OCR คะแนน</a><a className="secondary" href={committeeScoreExportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
@@ -202,6 +217,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length} returnPath={currentAdminPath}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
+    {isSuperAdmin && <CommitteeScoreBoardPanel rows={committeeScoreBoard.slice(0, dashboardLimit)} total={committeeScoreBoard.length} exportHref={committeeScoreExportHref}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการที่ผ่านเข้าสู่ 10 ทีมสุดท้าย ระบบจะแสดงเป็นรายชื่อเดียว และรอบถัดไปเริ่มนับคะแนนใหม่</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
@@ -266,7 +282,7 @@ const emptyEvaluationSummary: EvaluationSummary = {
 
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
-  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations] = await Promise.all([
+  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations, committeeScoreRecords] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
     withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
@@ -276,9 +292,10 @@ async function loadAdminPageData(session: AdminSession) {
     isSuperAdmin ? withAdminFallback("admin accounts", listAdminAccounts(), []) : Promise.resolve([]),
     isSuperAdmin ? withAdminFallback("audit events", listAuditEvents({ limit: 10 }), emptyAuditEvents) : Promise.resolve(emptyAuditEvents),
     isSuperAdmin ? withAdminFallback("parking reservations", listParkingReservations(), []) : Promise.resolve([]),
+    isSuperAdmin ? withAdminFallback("committee score records", listCommitteeScoreRecords(), []) : Promise.resolve([]),
   ]);
   const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
-  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations };
+  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations, committeeScoreRecords };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -602,7 +619,7 @@ function ReviewAssignmentPanel({ submissions, admins, total, returnPath }: { sub
 
 function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnType<typeof listSubmissions>>; total: number }) {
   return <section className="admin-panel">
-    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก</h2><p>จัดอันดับผู้สมัครจากคะแนน Paper Screening รวม 100 คะแนน</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/scoreboard/top10" target="_blank" rel="noreferrer"><Download/>Export Top 10 PDF</a><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ PDF</a><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board รอบแรก (เจ้าหน้าที่ตรวจเอกสาร)</h2><p>จัดอันดับจากคะแนน Paper Screening ของเจ้าหน้าที่ตรวจเอกสาร รวม 100 คะแนน แยกจากคะแนนคณะกรรมการ</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/scoreboard/top10" target="_blank" rel="noreferrer"><Download/>Export Top 10 PDF</a><a className="primary" href="/api/admin/scoreboard" target="_blank" rel="noreferrer"><Printer/>พิมพ์ PDF</a><Link className="secondary" href="/admin/submissions"><Eye/>ดูทั้งหมด</Link></div></header>
     <div className="scoreboard-list">
       {submissions.length ? submissions.map((submission, index) => <article className="scoreboard-row" key={submission.submission_code}>
         <b>#{index + 1}</b>
@@ -619,6 +636,24 @@ function ScoreBoardPanel({ submissions, total }: { submissions: Awaited<ReturnTy
       </article>) : <div className="participant-empty">ยังไม่มีคะแนนที่ส่งเข้ามา</div>}
     </div>
     <CardMore total={total} shown={submissions.length} href="/admin/submissions"/>
+  </section>;
+}
+
+function CommitteeScoreBoardPanel({ rows, total, exportHref }: { rows: CommitteeScoreSummaryRow[]; total: number; exportHref: string }) {
+  return <section className="admin-panel">
+    <header className="admin-section-head"><Trophy/><div><h2>Score Board คณะกรรมการรอบที่ 1</h2><p>จัดอันดับจากคะแนนเฉลี่ยของกรรมการ 5 ท่านเท่านั้น ไม่รวมกับคะแนนเจ้าหน้าที่ตรวจเอกสาร</p></div><div className="admin-actions"><a className="primary" href={exportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a><Link className="secondary" href="/admin/ocr-scores"><FileScan/>เปิด OCR คะแนน</Link></div></header>
+    <div className="scoreboard-list committee-dashboard-scoreboard">
+      {rows.length ? rows.map((row) => <article className="scoreboard-row" key={row.submissionCode}>
+        <b>#{row.rank}</b>
+        <div><strong>{row.submissionTitle}</strong><small>{row.submissionCode} • ลำดับนวัตกรรม {row.submissionOrder.toLocaleString("th-TH")} • {row.ownerName}</small></div>
+        <span>{row.averageScore?.toFixed(2) ?? "-"}/100</span>
+        <div className="scoreboard-actions committee-score-mini">
+          {committeeJudges.map((judge) => <em key={judge.key} className={`status-pill ${row.judgeScores[judge.key] === null ? "registered" : "attended"}`}>ก.{judge.order}: {row.judgeScores[judge.key] ?? "-"}</em>)}
+          <Link className="secondary small-action" href="/admin/ocr-scores"><Eye/>ดูรายละเอียด</Link>
+        </div>
+      </article>) : <div className="participant-empty">ยังไม่มีคะแนนคณะกรรมการจาก OCR</div>}
+    </div>
+    <CardMore total={total} shown={rows.length} href="/admin/ocr-scores"/>
   </section>;
 }
 
@@ -696,6 +731,14 @@ function adminDashboardHref(params: AdminPageSearchParams) {
   }
   const nextQuery = query.toString();
   return nextQuery ? `/admin?${nextQuery}` : "/admin";
+}
+
+function localSafeAdminHref(requestHeaders: Headers, pathname: string) {
+  const host = requestHeaders.get("host") ?? "";
+  const cleanPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  if (!host.startsWith("0.0.0.0")) return cleanPath;
+  const port = host.includes(":") ? `:${host.split(":").at(-1)}` : "";
+  return `http://localhost${port}${cleanPath}`;
 }
 
 function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<typeof listParticipants>> }) {
@@ -1358,6 +1401,8 @@ function auditActionLabel(action: string) {
   if (action === "submission.committee_score_form_zip") return "Export ZIP แบบฟอร์มให้คะแนนกรรมการ";
   if (action === "submission.committee_score_form_custom_pdf") return "Export แบบฟอร์มให้คะแนนกรรมการ 2";
   if (action === "committee_score.ocr_submitted") return "บันทึกคะแนน OCR คณะกรรมการ";
+  if (action === "committee_score.ocr_updated") return "แก้ไขคะแนน OCR คณะกรรมการ";
+  if (action === "committee_score.ocr_deleted") return "ลบคะแนน OCR คณะกรรมการ";
   if (action === "committee_score.scoreboard_pdf") return "Export ผลคะแนนคณะกรรมการ";
   if (action === "submission.review_packets_zip") return "Export ZIP PDF ใบสมัคร";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";

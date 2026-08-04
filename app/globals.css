@@ -5035,6 +5035,8 @@ body:has(.prelander-page)::before {
 }
 
 .admin-report-actions {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(2, minmax(160px, 1fr));
   min-width: min(100%, 430px);
@@ -7198,6 +7200,111 @@ body:has(.prelander-page)::before {
   gap: 10px;
 }
 
+.committee-record-list {
+  display: grid;
+  gap: 12px;
+}
+
+.committee-record-card {
+  border: 1px solid rgba(64, 89, 128, 0.5);
+  border-radius: 12px;
+  background: rgba(2, 11, 27, 0.44);
+  overflow: hidden;
+}
+
+.committee-record-card summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.committee-record-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.committee-record-card summary b,
+.committee-record-card summary small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.committee-record-card summary b {
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.committee-record-card summary small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.committee-record-form,
+.committee-record-delete-form {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+.committee-record-score-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 8px;
+}
+
+.committee-record-score-grid label,
+.committee-record-meta-grid label,
+.committee-record-form > label {
+  display: grid;
+  gap: 6px;
+  color: #dce4f3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.committee-record-score-grid label span {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.committee-record-score-grid label small {
+  color: var(--muted);
+}
+
+.committee-record-form :is(input, textarea) {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(68, 99, 145, 0.88);
+  border-radius: 9px;
+  background: rgba(1, 9, 22, 0.88);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.committee-record-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.committee-record-actions,
+.committee-record-delete-form {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.committee-record-delete-form {
+  padding-top: 0;
+  border-top: 1px solid rgba(64, 89, 128, 0.34);
+}
+
 .spin-icon {
   animation: spin 1s linear infinite;
 }
@@ -7291,6 +7398,20 @@ body:has(.prelander-page)::before {
 .scoreboard-actions .small-action {
   min-height: 38px;
   white-space: nowrap;
+}
+
+.committee-dashboard-scoreboard .scoreboard-row {
+  grid-template-columns: 54px minmax(0, 1fr) 96px minmax(240px, 0.7fr);
+}
+
+.committee-score-mini {
+  align-items: stretch;
+}
+
+.committee-score-mini .status-pill {
+  min-height: 34px;
+  padding-inline: 9px;
+  font-size: 12px;
 }
 
 .scoreboard-row.progress1-scoreboard-disclosure {

@@ -58,6 +58,14 @@ export type CommitteeScoreInput = {
   submittedByEmail: string;
 };
 
+export type CommitteeScoreUpdateInput = {
+  recordId: string;
+  itemScores: Record<string, number | null | undefined>;
+  declaredTotal?: number | null;
+  note?: string | null;
+  submittedByEmail: string;
+};
+
 export type CommitteeScoreSummaryRow = {
   rank: number;
   submissionCode: string;
@@ -148,6 +156,60 @@ export async function saveCommitteeScoreRecords(inputs: CommitteeScoreInput[]) {
     const records = [...existing.values()].sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
     await writeStore({ records });
     return saved;
+  });
+}
+
+export async function updateCommitteeScoreRecord(input: CommitteeScoreUpdateInput) {
+  const recordId = input.recordId.trim();
+  if (!recordId) throw Object.assign(new Error("recordId is required"), { code: "INVALID_INPUT" });
+  return writeQueued(async () => {
+    const store = await readStore();
+    const target = store.records.find((record) => record.id === recordId);
+    if (!target) throw Object.assign(new Error("committee score record not found"), { code: "NOT_FOUND" });
+    const normalized = normalizeCommitteeScoreInput({
+      submissionCode: target.submissionCode,
+      submissionTitle: target.submissionTitle,
+      submissionOrder: target.submissionOrder,
+      judgeKey: target.judgeKey,
+      sourceFileName: target.sourceFileName,
+      sourcePage: target.sourcePage,
+      itemScores: input.itemScores,
+      declaredTotal: input.declaredTotal,
+      note: input.note,
+      submittedByEmail: input.submittedByEmail,
+    });
+    const updated: CommitteeScoreRecord = {
+      ...target,
+      itemScores: normalized.itemScores,
+      rulesScore: normalized.rulesScore,
+      problemScore: normalized.problemScore,
+      innovationScore: normalized.innovationScore,
+      evidenceScore: normalized.evidenceScore,
+      impactScore: normalized.impactScore,
+      calculatedTotal: normalized.calculatedTotal,
+      declaredTotal: normalized.declaredTotal,
+      totalMismatch: normalized.totalMismatch,
+      note: normalized.note,
+      submittedByEmail: normalized.submittedByEmail,
+      updatedAt: new Date().toISOString(),
+    };
+    const records = store.records
+      .map((record) => record.id === recordId ? updated : record)
+      .sort((a, b) => a.submissionOrder - b.submissionOrder || a.judgeKey.localeCompare(b.judgeKey));
+    await writeStore({ records });
+    return updated;
+  });
+}
+
+export async function deleteCommitteeScoreRecord(recordId: string) {
+  const id = recordId.trim();
+  if (!id) return null;
+  return writeQueued(async () => {
+    const store = await readStore();
+    const target = store.records.find((record) => record.id === id) ?? null;
+    if (!target) return null;
+    await writeStore({ records: store.records.filter((record) => record.id !== id) });
+    return target;
   });
 }
 

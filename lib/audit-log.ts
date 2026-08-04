@@ -82,6 +82,8 @@ const allowedAuditActions = new Set([
   "submission.committee_score_form_zip",
   "submission.committee_score_form_custom_pdf",
   "committee_score.ocr_submitted",
+  "committee_score.ocr_updated",
+  "committee_score.ocr_deleted",
   "committee_score.scoreboard_pdf",
   "admin.settings.updated",
   "admin_user.created",
