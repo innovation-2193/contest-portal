@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ArrowLeft, CheckCircle2, Clock3, Eye, Gauge, RefreshCw, ShieldCheck, Star, Trophy, UserCheck, UsersRound } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock3, Eye, FileSpreadsheet, Gauge, RefreshCw, ShieldCheck, Star, Trophy, UserCheck, UsersRound } from "lucide-react";
 import { ProgressAutoRefresh } from "../../components/ProgressAutoRefresh";
 import { ProgressScoreboardPanel } from "../../components/ProgressScoreboard";
 import { ProgressTabbedSections } from "../../components/ProgressTabbedSections";
@@ -72,6 +72,7 @@ export default async function Progress1Page({ searchParams }: { searchParams: Pr
         </div>
         <div className="admin-actions">
           <span className="progress1-live-badge"><RefreshCw/>อัปเดตอัตโนมัติทุก 1 นาที</span>
+          <a className="secondary" href="/api/progress1/export"><FileSpreadsheet/>Export Excel</a>
           <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
         </div>
       </div>

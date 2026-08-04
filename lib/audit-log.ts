@@ -75,6 +75,7 @@ const allowedAuditActions = new Set([
   "submission.video_export_pdf",
   "submission.review.assigned",
   "submission.score.submitted",
+  "submission.progress1_export_xlsx",
   "submission.scoreboard_pdf",
   "submission.scoreboard_top10_pdf",
   "admin.settings.updated",
@@ -628,6 +629,7 @@ function isAdminAuditAction(action: string) {
     action === "submission.print_packet" ||
     action === "submission.review.assigned" ||
     action === "submission.score.submitted" ||
+    action === "submission.progress1_export_xlsx" ||
     action === "submission.scoreboard_pdf" ||
     action === "submission.scoreboard_top10_pdf" ||
     action.startsWith("news.") ||
