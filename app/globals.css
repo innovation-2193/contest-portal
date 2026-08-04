@@ -7071,7 +7071,8 @@ body:has(.prelander-page)::before {
 }
 
 .committee-score-toolbar {
-  grid-template-columns: minmax(260px, 1fr) minmax(300px, 0.85fr) minmax(360px, 1.15fr) auto;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 0.9fr);
+  align-items: end;
 }
 
 .input-with-icon {
@@ -7159,25 +7160,77 @@ body:has(.prelander-page)::before {
 
 .committee-score-import-form {
   display: grid;
-  grid-template-columns: auto minmax(150px, 1fr) auto;
+  grid-template-columns: minmax(170px, max-content) minmax(260px, 1fr) minmax(120px, max-content);
   gap: 10px;
   align-items: end;
   min-width: 0;
 }
 
-.committee-score-import-form label {
-  margin: 0;
+.committee-score-action-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 12px;
+  align-items: end;
+  min-width: 0;
 }
 
-.committee-score-import-form input[type="file"] {
-  width: 100%;
+.committee-score-import-form label,
+.committee-score-file-picker {
+  margin: 0;
+  min-width: 0;
+}
+
+.committee-score-file-picker {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+
+.committee-score-file-picker input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.committee-score-file-control {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
   min-height: 44px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: 1px solid rgba(68, 99, 145, 0.92);
   border-radius: 10px;
   background: rgba(1, 9, 22, 0.88);
   color: var(--text);
   font-weight: 800;
+}
+
+.committee-score-file-control svg {
+  width: 18px;
+  height: 18px;
+  color: var(--gold);
+}
+
+.committee-score-file-control span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.committee-score-import-form .secondary,
+.committee-score-save-actions .primary,
+.committee-score-save-actions .secondary {
+  justify-content: center;
+  min-height: 44px;
+}
+
+.committee-score-save-actions {
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .committee-score-alert.saved,
@@ -7244,6 +7297,19 @@ body:has(.prelander-page)::before {
 
   .committee-score-import-form {
     grid-template-columns: 1fr;
+  }
+
+  .committee-score-action-row {
+    grid-template-columns: 1fr;
+  }
+
+  .committee-score-save-actions {
+    justify-content: stretch;
+  }
+
+  .committee-score-save-actions .primary,
+  .committee-score-save-actions .secondary {
+    flex: 1 1 0;
   }
 }
 

@@ -58,9 +58,8 @@ export async function submissionPrintPacketPdf(submission: AdminSubmissionDetail
       missingAttachments.push(`${documentLabels[type]} (${file.original_name})`);
       continue;
     }
-    try {
-      await appendPdf(merged, bytes);
-    } catch {
+    const appended = await appendPdfWithFallback(merged, bytes, file.original_name);
+    if (!appended) {
       missingAttachments.push(`${documentLabels[type]} (${file.original_name})`);
     }
   }
@@ -89,6 +88,73 @@ async function appendPdf(target: PdfLibDocument, sourceBytes: Uint8Array | Buffe
   const source = await PdfLibDocument.load(sourceBytes, { ignoreEncryption: true });
   const pages = await target.copyPages(source, source.getPageIndices());
   pages.forEach((page) => target.addPage(page));
+}
+
+async function appendPdfWithFallback(target: PdfLibDocument, sourceBytes: Uint8Array | Buffer, label: string) {
+  try {
+    await appendPdf(target, sourceBytes);
+    return true;
+  } catch (error) {
+    console.error("pdf-lib attachment merge failed, trying raster fallback", { label, error });
+  }
+
+  try {
+    await appendPdfAsImages(target, sourceBytes);
+    return true;
+  } catch (error) {
+    console.error("PDF raster fallback failed", { label, error });
+    return false;
+  }
+}
+
+async function appendPdfAsImages(target: PdfLibDocument, sourceBytes: Uint8Array | Buffer) {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const { createRequire } = await import("node:module");
+  const runtimeRequire = createRequire(import.meta.url);
+  const { createCanvas } = runtimeRequire("@napi-rs/canvas") as {
+    createCanvas: (width: number, height: number) => {
+      width: number;
+      height: number;
+      getContext: (contextId: "2d") => {
+        fillStyle: string;
+        fillRect: (x: number, y: number, width: number, height: number) => void;
+      };
+      toBuffer: (mimeType: "image/png") => Buffer;
+    };
+  };
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(sourceBytes),
+    disableFontFace: true,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  });
+  const source = await loadingTask.promise;
+
+  try {
+    for (let pageNumber = 1; pageNumber <= source.numPages; pageNumber += 1) {
+      const sourcePage = await source.getPage(pageNumber);
+      const pageSize = sourcePage.getViewport({ scale: 1 });
+      const renderScale = Math.min(1.55, Math.max(1.2, 1200 / Math.max(pageSize.width, pageSize.height)));
+      const viewport = sourcePage.getViewport({ scale: renderScale });
+      const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await sourcePage.render({ canvasContext: context, viewport } as any).promise;
+
+      const image = await target.embedPng(canvas.toBuffer("image/png"));
+      const page = target.addPage([pageSize.width, pageSize.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: pageSize.width,
+        height: pageSize.height,
+      });
+      sourcePage.cleanup();
+    }
+  } finally {
+    await source.destroy();
+  }
 }
 
 async function submissionDetailPdf(submission: AdminSubmissionDetail, options: SubmissionPrintPacketOptions) {
