@@ -7,7 +7,6 @@ import { adminUnauthorizedResponse } from "../../../../../lib/admin-api-response
 import { listSubmissions, type SubmissionListItem } from "../../../../../lib/admin-store";
 import {
   drawDocumentFooter,
-  formatPdfThaiDateTime,
   pdfFontBold,
   pdfFontRegular,
   type PdfFontSet,
@@ -194,7 +193,6 @@ type CommitteeScoreFormPdfOptions = {
 async function committeeScoreFormPdf(submissions: SubmissionListItem[], judge: CommitteeSignatory, options: CommitteeScoreFormPdfOptions = {}) {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
-  const generatedAt = new Date();
   const rows = submissions.length ? submissions : [null];
   const totalPages = rows.length;
   const totalSubmissionCount = options.totalSubmissionCount ?? submissions.length;
@@ -205,7 +203,7 @@ async function committeeScoreFormPdf(submissions: SubmissionListItem[], judge: C
 
   rows.forEach((submission, index) => {
     if (index > 0) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
-    drawScoreSheet(doc, submission, judge, generatedAt, index + 1, totalPages, totalSubmissionCount, options.itemNumbers?.[index] ?? index + 1);
+    drawScoreSheet(doc, submission, judge, index + 1, totalPages, totalSubmissionCount, options.itemNumbers?.[index] ?? index + 1);
   });
 
   doc.end();
@@ -216,14 +214,13 @@ function drawScoreSheet(
   doc: PDFKit.PDFDocument,
   submission: SubmissionListItem | null,
   judge: CommitteeSignatory,
-  generatedAt: Date,
   pageNumber: number,
   totalPages: number,
   submissionCount: number,
   itemNumber: number,
 ) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
-  drawPrintHeader(doc, submission, judge, generatedAt, submissionCount);
+  drawPrintHeader(doc, submission, submissionCount);
 
   if (!submission) {
     drawEmptyState(doc, judge, pageNumber, totalPages);
@@ -241,8 +238,8 @@ function drawScoreSheet(
 function drawWatermark(doc: PDFKit.PDFDocument) {
   doc.save();
   doc.rotate(-38, { origin: [doc.page.width / 2, doc.page.height / 2] });
-  doc.font(fonts.bold).fontSize(38).fillColor(PRINT.watermark).fillOpacity(0.18).text(
-    "Police innovation contest 2026",
+  doc.font(fonts.bold).fontSize(38).fillColor(PRINT.watermark).fillOpacity(0.22).text(
+    "Police Innovation Contest 2026",
     -80,
     doc.page.height / 2 - 18,
     {
@@ -257,8 +254,6 @@ function drawWatermark(doc: PDFKit.PDFDocument) {
 function drawPrintHeader(
   doc: PDFKit.PDFDocument,
   submission: SubmissionListItem | null,
-  judge: CommitteeSignatory,
-  generatedAt: Date,
   submissionCount: number,
 ) {
   const margin = 24;
@@ -275,12 +270,6 @@ function drawPrintHeader(
     { width, align: "center", lineBreak: false },
   );
   doc.moveTo(margin, 70).lineTo(doc.page.width - margin, 70).lineWidth(0.8).stroke(PRINT.line);
-  doc.font(fonts.regular).fontSize(7.4).fillColor(PRINT.muted).text(
-    `${judge.role} • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    margin,
-    74,
-    { width, align: "right", lineBreak: false },
-  );
 }
 
 function drawProjectInfo(
