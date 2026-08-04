@@ -1,17 +1,22 @@
 import { Download, FileText } from "lucide-react";
 import { ContestVideoButton } from "../../components/ContestVideoButton";
 import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
+import { checkVideoLink } from "../../lib/video-link-status";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type ContestRow = {
+  hasUsableVideoLink: boolean;
   submission: SubmissionListItem;
 };
 
 export default async function ContestPage() {
   const submissions = (await listSubmissions()).sort(compareSubmittedAt);
-  const rows = submissions.map((submission) => ({ submission } satisfies ContestRow));
+  const rows = await Promise.all(submissions.map(async (submission) => ({
+    hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
+    submission,
+  } satisfies ContestRow)));
 
   return <div className="contest-public-page">
     <div className="wide contest-public-shell">
@@ -46,7 +51,7 @@ export default async function ContestPage() {
                 <td data-label="ชื่อนวัตกรรม"><b>{row.submission.title_th}</b></td>
                 <td data-label="Link Video">
                   <ContestVideoButton
-                    hasVideoLink={Boolean(row.submission.video_url?.trim())}
+                    hasVideoLink={row.hasUsableVideoLink}
                     submissionCode={row.submission.submission_code}
                   />
                 </td>

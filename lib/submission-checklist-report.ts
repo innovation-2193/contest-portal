@@ -1,5 +1,6 @@
 import { type SubmissionChecklistRow } from "./admin-store";
 import { formatApplicantName } from "./thai-rank-title";
+import { checkVideoLink, type VideoLinkStatus, videoStatusLabel } from "./video-link-status";
 
 export const checklistDocuments = [
   ["ownership", "3.1 หลักฐานความเป็นเจ้าของผลงาน"],
@@ -9,8 +10,6 @@ export const checklistDocuments = [
 ] as const;
 
 export type ChecklistDocumentKey = typeof checklistDocuments[number][0];
-
-export type VideoLinkStatus = "ok" | "missing" | "invalid" | "unreachable";
 
 export type SubmissionChecklistReportRow = SubmissionChecklistRow & {
   ownerName: string;
@@ -42,49 +41,6 @@ export async function buildSubmissionChecklistReport(rows: SubmissionChecklistRo
 
 export function videoProblemRows(rows: SubmissionChecklistReportRow[]) {
   return rows.filter((row) => row.videoStatus !== "ok");
-}
-
-export function videoStatusLabel(status: VideoLinkStatus) {
-  if (status === "ok") return "เปิดได้";
-  if (status === "missing") return "ไม่แนบลิงก์";
-  if (status === "invalid") return "รูปแบบลิงก์ไม่ถูกต้อง";
-  return "เปิดไม่ได้";
-}
-
-async function checkVideoLink(value?: string | null): Promise<VideoLinkStatus> {
-  const urlText = value?.trim();
-  if (!urlText) return "missing";
-  let url: URL;
-  try {
-    url = new URL(urlText);
-  } catch {
-    return "invalid";
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return "invalid";
-
-  const head = await tryFetch(url, "HEAD");
-  if (head === "ok") return "ok";
-  const get = await tryFetch(url, "GET");
-  return get === "ok" ? "ok" : "unreachable";
-}
-
-async function tryFetch(url: URL, method: "HEAD" | "GET") {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4500);
-  try {
-    const response = await fetch(url, {
-      method,
-      redirect: "follow",
-      cache: "no-store",
-      signal: controller.signal,
-      headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
-    });
-    return response.status >= 200 && response.status < 400 ? "ok" : "failed";
-  } catch {
-    return "failed";
-  } finally {
-    clearTimeout(timeout);
-  }
 }
 
 async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>) {
