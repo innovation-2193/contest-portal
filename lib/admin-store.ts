@@ -125,6 +125,7 @@ export type SubmissionListItem = {
   submission_type: string;
   team_name: string | null;
   title_th: string;
+  video_url: string | null;
   work_category: WorkCategory;
   hashtags: string[];
   status: string;
@@ -943,7 +944,7 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     await ensureDatabaseSchema();
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.position,m.division,m.bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,s.title_en,s.summary,s.hashtags,s.work_category,s.video_url,s.status,s.review_assigned_admin_email,s.review_assigned_at,s.review_scored_by_email,s.review_rules_score,s.review_problem_score,s.review_innovation_score,s.review_evidence_score,s.review_impact_score,s.review_total_score,s.review_note,s.review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,m.position,m.division,m.bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -1741,7 +1742,7 @@ async function listSubmissionsCompat(options?: { assignedAdminEmail?: string | n
   try {
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,NULL AS work_category,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
+      `SELECT s.submission_code,s.submission_type,s.team_name,s.title_th,'' AS hashtags,NULL AS work_category,NULL AS video_url,s.status,NULL AS review_assigned_admin_email,NULL AS review_assigned_at,NULL AS review_scored_by_email,NULL AS review_rules_score,NULL AS review_problem_score,NULL AS review_innovation_score,NULL AS review_evidence_score,NULL AS review_impact_score,NULL AS review_total_score,NULL AS review_note,NULL AS review_submitted_at,s.submitted_at,u.email,m.title,m.first_name,m.last_name,'' AS position,'' AS division,'' AS bureau
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
@@ -1819,6 +1820,7 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
     submission_type: local.submission_type,
     team_name: local.team_name,
     title_th: local.title_th,
+    video_url: local.video_url || null,
     work_category: normalizeWorkCategory(local.work_category) ?? inferSubmissionWorkCategory({ titleTh: local.title_th, titleEn: local.title_en, summary: local.summary, hashtags }),
     hashtags,
     status: local.status,

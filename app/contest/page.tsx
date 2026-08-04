@@ -1,4 +1,5 @@
 import { Download, FileText } from "lucide-react";
+import { ContestVideoButton } from "../../components/ContestVideoButton";
 import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,7 @@ export default async function ContestPage() {
               <tr>
                 <th>ลำดับ</th>
                 <th>ชื่อนวัตกรรม</th>
+                <th>Link Video</th>
                 <th>ดาวน์โหลดเอกสาร</th>
               </tr>
             </thead>
@@ -42,12 +44,13 @@ export default async function ContestPage() {
               {rows.length ? rows.map((row, index) => <tr key={row.submission.submission_code}>
                 <td data-label="ลำดับ">{(index + 1).toLocaleString("th-TH")}</td>
                 <td data-label="ชื่อนวัตกรรม"><b>{row.submission.title_th}</b></td>
+                <td data-label="Link Video"><ContestVideoButton submissionCode={row.submission.submission_code}/></td>
                 <td data-label="ดาวน์โหลดเอกสาร">
                   <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
                     <Download/>ดาวน์โหลดเอกสาร
                   </a>
                 </td>
-              </tr>) : <tr><td colSpan={3}>ยังไม่มีรายการสมัครประกวด</td></tr>}
+              </tr>) : <tr><td colSpan={4}>ยังไม่มีรายการสมัครประกวด</td></tr>}
             </tbody>
           </table>
         </div>
