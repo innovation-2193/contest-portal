@@ -17873,6 +17873,94 @@ footer {
   white-space: nowrap;
 }
 
+.contest-public-filter-form {
+  align-items: end;
+  border-bottom: 1px solid rgba(195, 211, 233, 0.12);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(220px, 0.8fr) minmax(190px, 0.7fr) auto;
+  padding: 18px 26px;
+}
+
+.contest-public-filter-form label {
+  color: #fff0a8;
+  display: grid;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 8px;
+}
+
+.contest-public-filter-form input,
+.contest-public-filter-form select {
+  background: #061226;
+  border: 1px solid rgba(143, 166, 202, 0.48);
+  border-radius: 8px;
+  color: #eef4ff;
+  font: inherit;
+  font-size: 14px;
+  min-height: 44px;
+  outline: none;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.contest-public-filter-form input:focus,
+.contest-public-filter-form select:focus {
+  border-color: rgba(113, 215, 212, 0.86);
+  box-shadow: 0 0 0 3px rgba(113, 215, 212, 0.12);
+}
+
+.contest-public-search > div {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+}
+
+.contest-public-search svg {
+  color: #8fd8d7;
+  height: 18px;
+  justify-self: center;
+  margin-right: -32px;
+  pointer-events: none;
+  width: 18px;
+  z-index: 1;
+}
+
+.contest-public-search input {
+  padding-left: 38px;
+}
+
+.contest-public-filter-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.contest-public-filter-actions button,
+.contest-public-filter-actions a {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.contest-public-filter-actions button {
+  background: #edca3b;
+  border: 1px solid #f5dc73;
+  color: #07142b;
+  cursor: pointer;
+}
+
+.contest-public-filter-actions a {
+  border: 1px solid rgba(216, 182, 47, 0.42);
+  color: #fff0a8;
+}
+
 .contest-public-table-wrap {
   overflow-x: auto;
 }
@@ -18048,6 +18136,21 @@ footer {
 
   .contest-public-panel h2 {
     font-size: 20px;
+  }
+
+  .contest-public-filter-form {
+    grid-template-columns: 1fr;
+    padding: 16px 18px;
+  }
+
+  .contest-public-filter-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .contest-public-filter-actions button,
+  .contest-public-filter-actions a {
+    width: 100%;
   }
 
   .contest-public-table-wrap {
