@@ -18,10 +18,13 @@ export default async function ContestPage() {
     listSubmissions(),
     listAdminAccounts(),
   ]);
-  const reviewerNames = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.name || admin.email]));
+  const reviewerContacts = new Map(admins.map((admin) => [
+    admin.email.toLowerCase(),
+    { name: admin.name || admin.email, phone: admin.phone },
+  ]));
   const rows = await Promise.all(submissions.map(async (submission) => ({
     hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
-    reviewerName: reviewerName(submission, reviewerNames),
+    reviewerName: reviewerName(submission, reviewerContacts),
     submission,
   } satisfies ContestRow))).then((items) => items.sort((left, right) => compareSubmittedAt(left.submission, right.submission)));
 
@@ -86,8 +89,10 @@ function compareSubmittedAt(left: SubmissionListItem, right: SubmissionListItem)
   return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
 
-function reviewerName(submission: SubmissionListItem, reviewerNames: Map<string, string>) {
+function reviewerName(submission: SubmissionListItem, reviewerContacts: Map<string, { name: string; phone: string }>) {
   const email = submission.review_assigned_admin_email?.trim().toLowerCase();
   if (!email) return "ยังไม่ระบุ";
-  return reviewerNames.get(email) || submission.review_assigned_admin_email || "ยังไม่ระบุ";
+  const contact = reviewerContacts.get(email);
+  if (!contact) return submission.review_assigned_admin_email || "ยังไม่ระบุ";
+  return contact.phone ? `${contact.name} (${contact.phone})` : contact.name;
 }

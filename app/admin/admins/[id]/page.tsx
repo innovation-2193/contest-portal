@@ -55,6 +55,7 @@ export default async function AdminAccountDetail({ params, searchParams }: { par
           <dl className="admin-detail-list">
             <Detail label="อีเมล" value={account.email}/>
             <Detail label="ชื่อ" value={account.name || "-"}/>
+            <Detail label="เบอร์ติดต่อ" value={account.phone || "-"}/>
             <Detail label="Role" value="Admin"/>
             <Detail label="สถานะ" value={account.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}/>
             <Detail label="รหัสผ่าน" value={account.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}/>
@@ -93,6 +94,7 @@ function AdminAccountEditForm({ account }: { account: AdminAccount }) {
     <div className="form-grid compact-grid">
       <label>ชื่อ<input name="name" defaultValue={account.name} placeholder="ชื่อหรือหน้าที่ของแอดมิน"/></label>
       <label>อีเมล<input type="email" name="email" defaultValue={account.email} required/></label>
+      <label>เบอร์ติดต่อ<input type="tel" name="phone" defaultValue={account.phone} placeholder="เช่น 08x-xxx-xxxx" maxLength={40}/></label>
       <label className="inline-check"><input type="checkbox" name="disabled" defaultChecked={account.disabled}/> ปิดใช้งานแอดมินนี้</label>
     </div>
     <button className="primary" type="submit"><Mail/>บันทึกข้อมูลแอดมิน</button>
@@ -111,6 +113,7 @@ async function updateAccountAction(formData: FormData) {
   const account = await updateAdminAccount(id, {
     name: text(formData, "name"),
     email: text(formData, "email"),
+    phone: text(formData, "phone"),
     disabled: formData.get("disabled") === "on",
   });
   await recordAuditEvent({
@@ -123,6 +126,7 @@ async function updateAccountAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath(`/admin/admins/${encodeURIComponent(id)}`);
+  revalidatePath("/contest");
   redirect(adminNoticePath(`/admin/admins/${encodeURIComponent(id)}`, "admin_saved"));
 }
 

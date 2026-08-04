@@ -136,6 +136,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const filteredAdminAccounts = sortAdminAccounts(filterRecords(adminAccounts, adminSearch, (item) => [
     item.email,
     item.name,
+    item.phone,
     item.disabled ? "ปิดใช้งาน disabled" : "ใช้งาน active",
     item.passwordHash ? "ตั้งรหัสผ่านแล้ว password set" : "รอตั้งรหัสผ่าน pending",
   ]));
@@ -536,6 +537,7 @@ function AdminManagementPanel({ admins, search, total }: { admins: Awaited<Retur
     <form action={addAdminAction} className="admin-form admin-user-form">
       <label>ชื่อแอดมิน<input name="name" placeholder="เช่น ฝ่ายประสานงาน" maxLength={120}/></label>
       <label>อีเมล<input type="email" name="email" placeholder="admin@example.com" required/></label>
+      <label>เบอร์ติดต่อ<input type="tel" name="phone" placeholder="เช่น 08x-xxx-xxxx" maxLength={40}/></label>
       <button className="primary" type="submit"><Mail/>เพิ่มและส่งลิงก์ตั้งรหัสผ่าน</button>
     </form>
     <SearchBox name="adminSearch" value={search} label="ค้นหาแอดมิน" placeholder="ชื่อ อีเมล สถานะ หรือรหัสผ่าน"/>
@@ -622,14 +624,15 @@ function HashtagPills({ tags }: { tags: string[] }) {
 }
 
 function AdminAccountsTable({ admins }: { admins: Awaited<ReturnType<typeof listAdminAccounts>> }) {
-  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{admins.length ? admins.map((admin) => <tr key={admin.id}>
+  return <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>เบอร์ติดต่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{admins.length ? admins.map((admin) => <tr key={admin.id}>
     <td data-label="อีเมล"><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
     <td data-label="ชื่อ">{admin.name || "-"}</td>
+    <td data-label="เบอร์ติดต่อ">{admin.phone || "-"}</td>
     <td data-label="สถานะ"><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
     <td data-label="รหัสผ่าน"><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
     <td data-label="อัปเดตล่าสุด">{formatAdminDate(admin.updatedAt)}</td>
     <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
-  </tr>) : <tr><td colSpan={6}>ยังไม่มีแอดมินหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
+  </tr>) : <tr><td colSpan={7}>ยังไม่มีแอดมินหรือไม่พบผลการค้นหา</td></tr>}</tbody></table></div>;
 }
 
 function AdminTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
@@ -1202,6 +1205,7 @@ async function addAdminAction(formData: FormData) {
   const account = await createAdminAccount({
     name: String(formData.get("name") ?? "").trim(),
     email: String(formData.get("email") ?? "").trim(),
+    phone: String(formData.get("phone") ?? "").trim(),
   });
   await createAdminPasswordLink(account.id);
   await recordAuditEvent({
@@ -1212,6 +1216,7 @@ async function addAdminAction(formData: FormData) {
     summary: `เพิ่มแอดมิน ${account.email}`,
   }, requestHeaders);
   revalidatePath("/admin");
+  revalidatePath("/contest");
   redirect(adminNoticePath(`/admin/admins/${encodeURIComponent(account.id)}`, "admin_added"));
 }
 

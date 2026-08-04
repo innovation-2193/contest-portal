@@ -23,6 +23,7 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
   const searched = filterRecords(await listAdminAccounts(), q, (item) => [
     item.email,
     item.name,
+    item.phone,
     item.disabled ? "ปิดใช้งาน disabled" : "ใช้งาน active",
     item.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน",
   ]);
@@ -44,7 +45,7 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
       <section className="admin-panel">
         <header className="admin-section-head"><UserPlus/><div><h2>รายการแอดมิน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
-          <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล หรือสถานะ"/></div></label>
+          <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล เบอร์ติดต่อ หรือสถานะ"/></div></label>
           <label>สถานะรหัสผ่าน<select name="passwordStatus" defaultValue={passwordStatus}>
             <option value="all">รหัสผ่านทั้งหมด</option>
             <option value="set">ตั้งรหัสผ่านแล้ว</option>
@@ -52,14 +53,15 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
           </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/admins">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{items.length ? items.map((admin) => <tr key={admin.id}>
+        <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>เบอร์ติดต่อ</th><th>สถานะ</th><th>รหัสผ่าน</th><th>อัปเดตล่าสุด</th><th></th></tr></thead><tbody>{items.length ? items.map((admin) => <tr key={admin.id}>
           <td data-label="อีเมล"><b>{admin.email}</b><small>สร้างเมื่อ {formatAdminDate(admin.createdAt)}</small></td>
           <td data-label="ชื่อ">{admin.name || "-"}</td>
+          <td data-label="เบอร์ติดต่อ">{admin.phone || "-"}</td>
           <td data-label="สถานะ"><span className={`status-pill ${admin.disabled ? "cancelled" : "attended"}`}>{admin.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}</span></td>
           <td data-label="รหัสผ่าน"><span className={`status-pill ${admin.passwordHash ? "attended" : "registered"}`}>{admin.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td>
           <td data-label="อัปเดตล่าสุด">{formatAdminDate(admin.updatedAt)}</td>
           <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/admins/${encodeURIComponent(admin.id)}`}><Eye/>ดูข้อมูล</Link></td>
-        </tr>) : <tr><td colSpan={6}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
+        </tr>) : <tr><td colSpan={7}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         <Pagination basePath="/admin/admins" q={q} passwordStatus={passwordStatus} page={currentPage} totalPages={totalPages}/>
       </section>
     </div>

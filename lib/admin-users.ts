@@ -14,6 +14,7 @@ export type AdminAccount = {
   id: string;
   email: string;
   name: string;
+  phone: string;
   role: Extract<AdminRole, "admin">;
   passwordHash: string | null;
   resetTokenHash: string | null;
@@ -26,6 +27,7 @@ export type AdminAccount = {
 export type AdminAccountInput = {
   email: string;
   name: string;
+  phone?: string;
   disabled?: boolean;
 };
 
@@ -69,6 +71,7 @@ export async function createAdminAccount(input: AdminAccountInput) {
       id: randomUUID(),
       email,
       name: input.name.trim(),
+      phone: textValue(input.phone),
       role: "admin",
       passwordHash: null,
       resetTokenHash: null,
@@ -95,6 +98,7 @@ export async function updateAdminAccount(id: string, input: AdminAccountInput) {
       ...accounts[targetIndex],
       email,
       name: input.name.trim(),
+      phone: textValue(input.phone),
       disabled: Boolean(input.disabled),
       updatedAt: new Date().toISOString(),
     };
@@ -250,6 +254,7 @@ function normalizeAdminAccount(value: unknown) {
     id,
     email,
     name: textValue(raw.name),
+    phone: textValue(raw.phone),
     role: "admin" as const,
     passwordHash: nullableText(raw.passwordHash),
     resetTokenHash: nullableText(raw.resetTokenHash),
