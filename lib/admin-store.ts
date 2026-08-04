@@ -166,6 +166,24 @@ export type SubmissionApplicantExportRow = {
   submitted_at: string;
 };
 
+export type SubmissionChecklistRow = {
+  submission_code: string;
+  title_th: string;
+  submission_type: string;
+  team_name: string | null;
+  video_url: string | null;
+  submitted_at: string;
+  email: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  position: string;
+  division: string;
+  bureau: string;
+  files: Record<"ownership" | "concept" | "prototype" | "implementation", boolean>;
+};
+
 export type SubmissionMemberDetail = {
   member_order: number;
   title: string;
@@ -958,6 +976,29 @@ export async function listSubmissionApplicantsForExport(): Promise<SubmissionApp
     if (isDatabaseSchemaFallback(error)) return listSubmissionApplicantsForExportCompat();
     if (!isDatabaseUnavailable(error)) throw error;
     return listLocalSubmissionApplicantsForExport();
+  }
+}
+
+export async function listSubmissionChecklistRows(): Promise<SubmissionChecklistRow[]> {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      `SELECT s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.submitted_at,
+        u.email,m.title,m.first_name,m.last_name,m.phone,m.position,m.division,m.bureau,
+        GROUP_CONCAT(f.document_type ORDER BY FIELD(f.document_type,'ownership','concept','prototype','implementation') SEPARATOR ',') AS file_types
+       FROM submissions s
+       JOIN users u ON u.id=s.user_id
+       JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
+       LEFT JOIN submission_files f ON f.submission_id=s.id
+       GROUP BY s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.submitted_at,
+        u.email,m.title,m.first_name,m.last_name,m.phone,m.position,m.division,m.bureau
+       ORDER BY s.submitted_at DESC
+       LIMIT 1000`,
+    );
+    return (rows as Array<Omit<SubmissionChecklistRow, "files"> & { file_types: string | null }>).map(checklistRowToItem);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    return (await listLocalSubmissions()).map(localSubmissionToChecklistRow);
   }
 }
 
@@ -1802,6 +1843,27 @@ function localSubmissionToListItem(local: LocalSubmissionRecord): SubmissionList
   };
 }
 
+function localSubmissionToChecklistRow(local: LocalSubmissionRecord): SubmissionChecklistRow {
+  const primary = local.members[0];
+  return {
+    submission_code: local.submission_code,
+    title_th: local.title_th,
+    submission_type: local.submission_type,
+    team_name: local.team_name,
+    video_url: local.video_url || null,
+    submitted_at: local.submitted_at,
+    email: local.email,
+    title: primary?.title ?? local.title,
+    first_name: primary?.first_name ?? local.first_name,
+    last_name: primary?.last_name ?? local.last_name,
+    phone: primary?.phone ?? local.phone,
+    position: primary?.position ?? local.position,
+    division: primary?.division ?? local.division,
+    bureau: primary?.bureau ?? local.bureau,
+    files: filePresence(local.files.map((file) => file.document_type)),
+  };
+}
+
 function localSubmissionToAdminDetail(local: LocalSubmissionRecord): AdminSubmissionDetail {
   const primary = local.members[0];
   const hashtags = parseSubmissionHashtags(local.hashtags, { titleTh: local.title_th, titleEn: local.title_en, summary: local.summary });
@@ -1863,6 +1925,36 @@ function submissionListRowToItem(row: Omit<SubmissionListItem, "hashtags" | "wor
       summary: row.summary,
       hashtags,
     }),
+  };
+}
+
+function checklistRowToItem(row: Omit<SubmissionChecklistRow, "files"> & { file_types: string | null }): SubmissionChecklistRow {
+  return {
+    submission_code: row.submission_code,
+    title_th: row.title_th,
+    submission_type: row.submission_type,
+    team_name: row.team_name,
+    video_url: row.video_url,
+    submitted_at: row.submitted_at,
+    email: row.email,
+    title: row.title,
+    first_name: row.first_name,
+    last_name: row.last_name,
+    phone: row.phone,
+    position: row.position,
+    division: row.division,
+    bureau: row.bureau,
+    files: filePresence(row.file_types?.split(",") ?? []),
+  };
+}
+
+function filePresence(types: string[]): SubmissionChecklistRow["files"] {
+  const set = new Set(types.map((type) => type.trim()).filter(Boolean));
+  return {
+    ownership: set.has("ownership"),
+    concept: set.has("concept"),
+    prototype: set.has("prototype"),
+    implementation: set.has("implementation"),
   };
 }
 

@@ -170,6 +170,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
+      <div><ClipboardList/><div><span className="eyebrow">Super Admin Only</span><h2>รายงานไฟล์แนบและวิดีโอ</h2><p>ตรวจไฟล์ 3.1-3.4 พร้อมสถานะลิงก์วิดีโอ และแยกรายการที่ต้องให้เจ้าหน้าที่โทรประสาน</p></div></div>
+      <div className="admin-actions"><Link className="secondary" href="/video"><Phone/>รายการต้องประสาน</Link><Link className="primary" href="/checklist"><ClipboardList/>เปิด Checklist</Link></div>
+    </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
