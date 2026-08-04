@@ -1,6 +1,7 @@
 import { Download, FileText } from "lucide-react";
 import { ContestVideoButton } from "../../components/ContestVideoButton";
 import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
+import { listAdminAccounts } from "../../lib/admin-users";
 import { checkVideoLink } from "../../lib/video-link-status";
 
 export const dynamic = "force-dynamic";
@@ -8,15 +9,21 @@ export const revalidate = 0;
 
 type ContestRow = {
   hasUsableVideoLink: boolean;
+  reviewerName: string;
   submission: SubmissionListItem;
 };
 
 export default async function ContestPage() {
-  const submissions = (await listSubmissions()).sort(compareSubmittedAt);
+  const [submissions, admins] = await Promise.all([
+    listSubmissions(),
+    listAdminAccounts(),
+  ]);
+  const reviewerNames = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.name || admin.email]));
   const rows = await Promise.all(submissions.map(async (submission) => ({
     hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
+    reviewerName: reviewerName(submission, reviewerNames),
     submission,
-  } satisfies ContestRow)));
+  } satisfies ContestRow))).then((items) => items.sort((left, right) => compareSubmittedAt(left.submission, right.submission)));
 
   return <div className="contest-public-page">
     <div className="wide contest-public-shell">
@@ -48,7 +55,13 @@ export default async function ContestPage() {
             <tbody>
               {rows.length ? rows.map((row, index) => <tr key={row.submission.submission_code}>
                 <td data-label="ลำดับ">{(index + 1).toLocaleString("th-TH")}</td>
-                <td data-label="ชื่อนวัตกรรม"><b>{row.submission.title_th}</b></td>
+                <td data-label="ชื่อนวัตกรรม">
+                  <div className="contest-title-cell">
+                    <b>{row.submission.title_th}</b>
+                    {row.submission.title_en?.trim() && <small>{row.submission.title_en.trim()}</small>}
+                    <em>ผู้ตรวจเอกสารเบื้องต้น: {row.reviewerName}</em>
+                  </div>
+                </td>
                 <td data-label="Link Video">
                   <ContestVideoButton
                     hasVideoLink={row.hasUsableVideoLink}
@@ -71,4 +84,10 @@ export default async function ContestPage() {
 
 function compareSubmittedAt(left: SubmissionListItem, right: SubmissionListItem) {
   return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
+}
+
+function reviewerName(submission: SubmissionListItem, reviewerNames: Map<string, string>) {
+  const email = submission.review_assigned_admin_email?.trim().toLowerCase();
+  if (!email) return "ยังไม่ระบุ";
+  return reviewerNames.get(email) || submission.review_assigned_admin_email || "ยังไม่ระบุ";
 }

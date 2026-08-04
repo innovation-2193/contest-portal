@@ -17928,6 +17928,31 @@ footer {
   line-height: 1.55;
 }
 
+.contest-title-cell {
+  display: grid;
+  gap: 5px;
+  max-width: 980px;
+}
+
+.contest-title-cell small,
+.contest-title-cell em {
+  display: block;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+.contest-title-cell small {
+  color: #b9c7dc;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.contest-title-cell em {
+  color: #8fd8d7;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .contest-public-table tbody tr:nth-child(even) {
   background: rgba(180, 205, 236, 0.055);
 }
@@ -18074,6 +18099,14 @@ footer {
 
   .contest-public-table td b {
     font-size: 17px;
+  }
+
+  .contest-title-cell small {
+    font-size: 13px;
+  }
+
+  .contest-title-cell em {
+    font-size: 12px;
   }
 
   .contest-download-button,
