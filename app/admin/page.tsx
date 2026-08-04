@@ -163,16 +163,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1>{isSuperAdmin && <p>Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน</p>}<small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
     <AdminNotice code={params.notice}/>
     {showCheckInShortcut && <section className="admin-panel admin-checkin-cta">
-      <div><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
+      <div className="admin-checkin-copy"><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
       <Link className="primary" href="/admin/scan"><UserCheck/>เปิดหน้าเช็คอิน</Link>
     </section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
-      <div><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
+      <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
-    {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
-      <div><ClipboardList/><div><span className="eyebrow">Super Admin Only</span><h2>รายงานไฟล์แนบและวิดีโอ</h2><p>ตรวจไฟล์ 3.1-3.4 พร้อมสถานะลิงก์วิดีโอ และแยกรายการที่ต้องให้เจ้าหน้าที่โทรประสาน</p></div></div>
-      <div className="admin-actions"><Link className="secondary" href="/video"><Phone/>รายการต้องประสาน</Link><Link className="primary" href="/checklist"><ClipboardList/>เปิด Checklist</Link></div>
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
+      <div className="admin-checkin-copy"><ClipboardList/><div><span className="eyebrow">Super Admin Only</span><h2>รายงานไฟล์แนบและวิดีโอ</h2><p>ตรวจไฟล์ 3.1-3.4 พร้อมสถานะลิงก์วิดีโอ และแยกรายการที่ต้องให้เจ้าหน้าที่โทรประสาน</p></div></div>
+      <div className="admin-actions admin-report-actions"><Link className="secondary" href="/video"><Phone/>รายการต้องประสาน</Link><Link className="primary" href="/checklist"><ClipboardList/>เปิด Checklist</Link></div>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>

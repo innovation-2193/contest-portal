@@ -66,15 +66,15 @@ function drawChecklistPage(
 ) {
   const columns = [
     ["ลำดับ", 34],
-    ["รหัส", 68],
-    ["ชื่อนวัตกรรม", 164],
-    ["ผู้สมัคร", 98],
-    ["3.1", 40],
-    ["3.2", 40],
-    ["3.3", 40],
-    ["3.4", 40],
-    ["วิดีโอ", 80],
-    ["หมายเหตุ", 162],
+    ["รหัส", 70],
+    ["ชื่อนวัตกรรม", 210],
+    ["ผู้สมัคร", 150],
+    ["3.1", 34],
+    ["3.2", 34],
+    ["3.3", 34],
+    ["3.4", 34],
+    ["วิดีโอ", 68],
+    ["หมายเหตุ", 98],
   ] as const;
   const tableX = 38;
   const tableY = 136;
@@ -177,7 +177,7 @@ function drawChecklistRow(
     row.videoStatusLabel,
     note,
   ];
-  drawGenericRow(doc, x, y, height, columns, values, index, [2, 3, 8, 9]);
+  drawGenericRow(doc, x, y, height, columns, values, index, [2, 8, 9], { singleLineIndexes: [3] });
 }
 
 function drawVideoRow(
@@ -210,6 +210,7 @@ function drawGenericRow(
   values: string[],
   index: number,
   multilineIndexes: number[],
+  options: { singleLineIndexes?: number[] } = {},
 ) {
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   doc.rect(x, y, totalWidth, height).fill(index % 2 === 0 ? PDF_THEME.white : PDF_THEME.paleBlue);
@@ -219,16 +220,17 @@ function drawGenericRow(
   values.forEach((value, valueIndex) => {
     if (valueIndex > 0) doc.moveTo(cursor, y + 5).lineTo(cursor, y + height - 5).lineWidth(0.25).stroke("#e3e9f2");
     const centered = valueIndex >= 4 && valueIndex <= 8 && values.length > 6;
+    const singleLine = options.singleLineIndexes?.includes(valueIndex) ?? false;
     drawCellText(
       doc,
       clean(value),
       cursor + 5,
       y + 6,
       columns[valueIndex][1] - 10,
-      centered ? 7.2 : 7.4,
+      singleLine ? 7 : centered ? 7.2 : 7.4,
       valueIndex === 0 || valueIndex === 1 ? fonts.bold : fonts.regular,
       value.includes("ขาด") || value.includes("ไม่ได้") || value.includes("ไม่แนบ") || value.includes("ไม่ถูกต้อง") ? PDF_THEME.red : PDF_THEME.text,
-      multilineIndexes.includes(valueIndex) ? 2 : 1,
+      singleLine ? 1 : multilineIndexes.includes(valueIndex) ? 2 : 1,
       centered ? "center" : "left",
     );
     cursor += columns[valueIndex][1];
@@ -263,38 +265,67 @@ function drawEmptyState(doc: PDFKit.PDFDocument, text: string, tableY: number) {
 }
 
 function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number, maxLines: number) {
-  const graphemes = Array.from(
-    new Intl.Segmenter("th", { granularity: "grapheme" }).segment(value),
-    (item) => item.segment,
-  );
+  const segments = textSegments(value);
   const lines: string[] = [];
   let current = "";
-  let index = 0;
 
-  while (index < graphemes.length && lines.length < maxLines) {
-    const next = `${current}${graphemes[index]}`;
-    if (!current || doc.widthOfString(next) <= width) {
+  for (const rawSegment of segments) {
+    if (lines.length >= maxLines) break;
+    const segment = current ? rawSegment : rawSegment.trimStart();
+    if (!segment && !current) continue;
+    const next = `${current}${segment}`;
+    if (doc.widthOfString(next) <= width) {
       current = next;
-      index += 1;
       continue;
     }
-    lines.push(current.trimEnd());
-    current = "";
-  }
-  if (current && lines.length < maxLines) lines.push(current.trimEnd());
 
-  if (index < graphemes.length && lines.length) {
+    if (current) {
+      lines.push(current.trimEnd());
+      if (lines.length >= maxLines) break;
+    }
+    current = "";
+
+    if (doc.widthOfString(segment) <= width) {
+      current = segment.trimStart();
+      continue;
+    }
+
+    for (const grapheme of graphemeSegments(segment.trimStart())) {
+      if (lines.length >= maxLines) break;
+      const graphemeNext = `${current}${grapheme}`;
+      if (!current || doc.widthOfString(graphemeNext) <= width) {
+        current = graphemeNext;
+        continue;
+      }
+      lines.push(current.trimEnd());
+      current = grapheme;
+    }
+  }
+  if (current.trim() && lines.length < maxLines) lines.push(current.trimEnd());
+
+  if (lines.join("").length < value.replace(/\s+/g, "").length && lines.length) {
     const ellipsis = "…";
     let last = lines[lines.length - 1];
     while (last && doc.widthOfString(`${last}${ellipsis}`) > width) {
-      last = Array.from(
-        new Intl.Segmenter("th", { granularity: "grapheme" }).segment(last),
-        (item) => item.segment,
-      ).slice(0, -1).join("");
+      last = graphemeSegments(last).slice(0, -1).join("");
     }
     lines[lines.length - 1] = `${last}${ellipsis}`;
   }
   return lines.length ? lines : ["-"];
+}
+
+function textSegments(value: string) {
+  return Array.from(
+    new Intl.Segmenter("th", { granularity: "word" }).segment(value),
+    (item) => item.segment,
+  );
+}
+
+function graphemeSegments(value: string) {
+  return Array.from(
+    new Intl.Segmenter("th", { granularity: "grapheme" }).segment(value),
+    (item) => item.segment,
+  );
 }
 
 function clean(value: string) {

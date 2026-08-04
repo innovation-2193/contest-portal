@@ -4998,14 +4998,14 @@ body:has(.prelander-page)::before {
     linear-gradient(135deg, rgba(7, 38, 32, 0.82), rgba(2, 11, 27, 0.92));
 }
 
-.admin-checkin-cta > div {
+.admin-checkin-copy {
   display: grid;
   grid-template-columns: 46px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
 }
 
-.admin-checkin-cta > div > svg {
+.admin-checkin-copy > svg {
   width: 30px;
   height: 30px;
   color: #68e59a;
@@ -5028,6 +5028,25 @@ body:has(.prelander-page)::before {
   min-height: 58px;
   padding-inline: 22px;
   font-size: 16px;
+}
+
+.admin-report-cta {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, auto);
+}
+
+.admin-report-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  min-width: min(100%, 430px);
+  margin-left: 0;
+  justify-content: stretch;
+}
+
+.admin-report-actions :is(a, button) {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
 }
 
 .admin-lucky-draw-cta {
@@ -7913,6 +7932,18 @@ body:has(.prelander-page)::before {
   width: fit-content;
   text-decoration: none;
   white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .progress2-page .progress2-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .progress2-page .progress1-reviewer-panel,
+  .progress2-page .admin-table tr {
+    overflow: visible;
+  }
 }
 
 .progress1-reviewer-list {
@@ -13977,6 +14008,13 @@ body:has(.report-page) .brand b {
     grid-template-columns: 1fr;
     align-items: stretch;
   }
+  .admin-report-cta {
+    grid-template-columns: 1fr;
+  }
+  .admin-report-actions {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
   .admin-checkin-cta .primary {
     width: 100%;
     justify-content: center;
@@ -15380,7 +15418,7 @@ body:has(.report-page) .brand b {
     gap: 16px;
   }
 
-  .admin-checkin-cta > div {
+  .admin-checkin-copy {
     grid-template-columns: 38px minmax(0, 1fr);
     gap: 12px;
   }
@@ -15757,12 +15795,12 @@ body:has(.report-page) .brand b {
     padding: 16px;
   }
 
-  .admin-checkin-cta > div {
+  .admin-checkin-copy {
     grid-template-columns: 32px minmax(0, 1fr);
     gap: 10px;
   }
 
-  .admin-checkin-cta > div > svg {
+  .admin-checkin-copy > svg {
     width: 25px;
     height: 25px;
   }
