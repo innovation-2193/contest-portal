@@ -14,6 +14,7 @@ import {
 } from "../../../../../lib/pdf-theme";
 import { drawPdfKitIpWatermark, exportWatermarkFromRequest, type PdfExportWatermark } from "../../../../../lib/pdf-watermark";
 import { sortScoreboardSubmissions } from "../../../../../lib/scoreboard-ranking";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -144,7 +145,7 @@ function scoreRowHeight(doc: PDFKit.PDFDocument, item: SubmissionListItem, revie
 }
 
 function ownerName(submission: SubmissionListItem) {
-  return `${submission.first_name} ${submission.last_name}`.replace(/\s+/g, " ").trim() || "-";
+  return formatApplicantName(submission);
 }
 
 function reviewerName(submission: SubmissionListItem, reviewerNames: Map<string, string>) {

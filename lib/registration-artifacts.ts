@@ -14,6 +14,7 @@ import {
   pdfFontRegular,
 } from "./pdf-theme";
 import { publicBaseUrl } from "./public-url";
+import { formatApplicantName } from "./thai-rank-title";
 
 type MailStatus = "sent" | "outbox" | "skipped" | "failed";
 
@@ -71,7 +72,7 @@ export async function registrationTicketPdf(record: RegistrationRecord) {
   doc.roundedRect(257, cardY, 302, 304, 9).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   drawStatusPill(doc, record.status, 277, cardY + 18);
   doc.font(pdfFontBold).fontSize(19).fillColor(PDF_THEME.navy).text(
-    `${record.title}${record.first_name} ${record.last_name}`,
+    formatApplicantName(record),
     277,
     cardY + 52,
     { width: 262, height: 52, ellipsis: true, lineGap: 1 },
@@ -173,10 +174,11 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
 
 function confirmationHtml(record: RegistrationRecord) {
   const detailUrl = `${publicBaseUrl()}/profile/login`;
+  const recipientName = formatApplicantName(record);
   return brandedEmailHtml({
     heading: "ยืนยันการลงทะเบียนเข้าร่วมงาน",
     subtitle: `${record.registration_code} · บันทึกข้อมูลเรียบร้อยแล้ว`,
-    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(record.title)}${escapeHtml(record.first_name)} ${escapeHtml(record.last_name)}</p>
+    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(recipientName)}</p>
         <p style="margin:0 0 22px">ระบบได้รับการลงทะเบียนเข้าร่วมงาน Police Innovation Contest 2026 เรียบร้อยแล้ว</p>
         <p style="margin:0 0 22px">
           เลขลงทะเบียน: <strong>${escapeHtml(record.registration_code)}</strong><br>
@@ -198,7 +200,7 @@ function confirmationHtml(record: RegistrationRecord) {
 function confirmationText(record: RegistrationRecord) {
   return `ยืนยันการลงทะเบียนเข้าร่วมงาน Police Innovation Contest 2026
 เลขลงทะเบียน: ${record.registration_code}
-ชื่อ: ${record.title}${record.first_name} ${record.last_name}
+ชื่อ: ${formatApplicantName(record)}
 หน่วยงาน: ${record.bureau || record.division || "-"}
 ตำแหน่ง: ${record.position || "-"}
 เบอร์ติดต่อ: ${record.phone || "-"}

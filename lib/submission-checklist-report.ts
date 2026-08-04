@@ -1,4 +1,5 @@
 import { type SubmissionChecklistRow } from "./admin-store";
+import { formatApplicantName } from "./thai-rank-title";
 
 export const checklistDocuments = [
   ["ownership", "3.1 หลักฐานความเป็นเจ้าของผลงาน"],
@@ -101,5 +102,5 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item
 }
 
 function ownerName(row: Pick<SubmissionChecklistRow, "title" | "first_name" | "last_name">) {
-  return `${row.title}${row.first_name} ${row.last_name}`.replace(/\s+/g, " ").trim() || "-";
+  return formatApplicantName(row);
 }

@@ -6,6 +6,7 @@ import { db, transaction } from "./db";
 import { ensureDatabaseSchema } from "./db-schema";
 import { evaluationQuestionCount, evaluationQuestionLabels } from "./evaluation-form";
 import { findLocalRegistrationByCode, isDatabaseUnavailable } from "./local-registrations";
+import { formatApplicantName } from "./thai-rank-title";
 
 export type EvaluationRecord = {
   id: string;
@@ -92,7 +93,7 @@ export async function findEvaluationByRegistrationCode(registrationCode: string)
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+      `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
        FROM satisfaction_evaluations e
        JOIN registrations r ON r.registration_code=e.registration_code
        JOIN users u ON u.id=r.user_id
@@ -155,7 +156,7 @@ export async function getEvaluationSummary(): Promise<EvaluationSummary> {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+      `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
        FROM satisfaction_evaluations e
        JOIN registrations r ON r.registration_code=e.registration_code
        JOIN users u ON u.id=r.user_id
@@ -173,7 +174,7 @@ export async function listEvaluationRespondents(): Promise<EvaluationRespondent[
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+      `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
        FROM satisfaction_evaluations e
        JOIN registrations r ON r.registration_code=e.registration_code
        JOIN users u ON u.id=r.user_id
@@ -216,16 +217,20 @@ export async function listLuckyDrawCandidates(): Promise<LuckyDrawCandidate[]> {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT e.registration_code,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+      `SELECT e.registration_code,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
        FROM satisfaction_evaluations e
        JOIN registrations r ON r.registration_code=e.registration_code
        JOIN users u ON u.id=r.user_id
        WHERE r.status='attended' AND r.checked_in_at IS NOT NULL AND e.lucky_draw_prize IS NULL
        ORDER BY r.first_name,r.last_name,e.registration_code`,
     );
-    return (rows as Array<{ registration_code: string; participant_name: string; email: string }>).map((row) => ({
+    return (rows as Array<{ registration_code: string; participant_title: string; participant_first_name: string; participant_last_name: string; email: string }>).map((row) => ({
       registrationCode: row.registration_code,
-      name: row.participant_name,
+      name: formatApplicantName({
+        title: row.participant_title,
+        first_name: row.participant_first_name,
+        last_name: row.participant_last_name,
+      }),
       email: row.email,
     }));
   } catch (error) {
@@ -248,7 +253,7 @@ export async function drawLuckyWinner(prize: number, actorEmail: string) {
     await ensureDatabaseSchema();
     return transaction(async (connection) => {
       const [existingRows] = await connection.execute(
-        `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+        `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
          FROM satisfaction_evaluations e
          JOIN registrations r ON r.registration_code=e.registration_code
          JOIN users u ON u.id=r.user_id
@@ -283,7 +288,7 @@ export async function drawLuckyWinner(prize: number, actorEmail: string) {
       }
 
       const [winnerRows] = await connection.execute(
-        `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+        `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
          FROM satisfaction_evaluations e
          JOIN registrations r ON r.registration_code=e.registration_code
          JOIN users u ON u.id=r.user_id
@@ -309,7 +314,7 @@ export async function resetLuckyDraw(actorEmail: string): Promise<LuckyDrawReset
     await ensureDatabaseSchema();
     return transaction(async (connection) => {
       const [winnerRows] = await connection.execute(
-        `SELECT e.*,CONCAT(r.title,r.first_name,' ',r.last_name) AS participant_name,u.email
+        `SELECT e.*,r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name,u.email
          FROM satisfaction_evaluations e
          JOIN registrations r ON r.registration_code=e.registration_code
          JOIN users u ON u.id=r.user_id
@@ -446,11 +451,26 @@ function validateEvaluationInput(input: EvaluationInput) {
   }
 }
 
-type EvaluationRow = Omit<EvaluationRecord, "scores"> & Record<`q${number}`, number>;
+type EvaluationRow = Omit<EvaluationRecord, "scores"> & Record<`q${number}`, number> & {
+  participant_title?: string | null;
+  participant_first_name?: string | null;
+  participant_last_name?: string | null;
+};
 
 function rowToRecord(row: EvaluationRow): EvaluationRecord {
+  const {
+    participant_title: participantTitle,
+    participant_first_name: participantFirstName,
+    participant_last_name: participantLastName,
+    ...record
+  } = row;
   return {
-    ...row,
+    ...record,
+    participant_name: record.participant_name ?? formatApplicantName({
+      title: participantTitle,
+      first_name: participantFirstName,
+      last_name: participantLastName,
+    }),
     scores: questionColumns.map((column) => Number(row[column as `q${number}`] ?? 0)),
     lucky_draw_prize: row.lucky_draw_prize === null ? null : Number(row.lucky_draw_prize),
   };
@@ -602,7 +622,7 @@ async function enrichLocalEvaluationRecord(record: EvaluationRecord) {
   if (!registration) return record;
   return {
     ...record,
-    participant_name: `${registration.title}${registration.first_name} ${registration.last_name}`.trim(),
+    participant_name: formatApplicantName(registration),
     email: registration.email,
   };
 }

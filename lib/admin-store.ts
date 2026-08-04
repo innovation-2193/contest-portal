@@ -41,6 +41,7 @@ import {
   normalizeWorkCategory,
   type WorkCategory,
 } from "./work-categories";
+import { formatApplicantName } from "./thai-rank-title";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -1533,7 +1534,7 @@ function parkingReservationDbRowToRecord(row: ParkingReservationDbRow): ParkingR
     id: row.id,
     registrationCode: row.registration_code,
     participantRole: normalizeParkingRole(row.participant_role),
-    participantName: `${row.title}${row.first_name} ${row.last_name}`.replace(/\s+/g, " ").trim(),
+    participantName: formatApplicantName(row),
     phone: row.phone,
     email: row.email,
     position: row.position,

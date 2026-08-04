@@ -14,6 +14,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
+import { abbreviateThaiRankTitle } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -179,7 +180,7 @@ function drawApplicantRow(
     String(runningNumber),
     item.submission_code,
     item.title_th,
-    item.title,
+    abbreviateThaiRankTitle(item.title),
     item.first_name,
     item.last_name,
     item.citizen_id,

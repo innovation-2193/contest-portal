@@ -14,6 +14,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -330,9 +331,7 @@ function drawSignatureSlot(
 }
 
 function ownerName(item: SubmissionListItem) {
-  const title = clean(item.title);
-  const separator = title !== "-" && (title.endsWith(".") || /[A-Za-z]/.test(title)) ? " " : "";
-  return `${title === "-" ? "" : `${title}${separator}`}${item.first_name} ${item.last_name}`.replace(/\s+/g, " ").trim() || "-";
+  return formatApplicantName(item);
 }
 
 function compareSubmittedAt(left: SubmissionListItem, right: SubmissionListItem) {

@@ -15,6 +15,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -151,7 +152,7 @@ function drawParticipantRow(
 
   const values = [
     item.registration_code,
-    `${item.title}${item.first_name} ${item.last_name}`,
+    formatApplicantName(item),
     item.participant_role,
     item.citizen_id,
     item.phone,

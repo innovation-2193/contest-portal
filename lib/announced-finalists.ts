@@ -14,17 +14,14 @@ export function buildAnnouncedFinalistSources(
       const submission = winner.submissionCode ? submissionsByCode.get(winner.submissionCode) : undefined;
       if (submission) return submission;
 
-      const ownerNameParts = winner.ownerName.trim().split(/\s+/).filter(Boolean);
-      const firstName = ownerNameParts.shift() ?? winner.ownerName;
-      const lastName = ownerNameParts.join(" ");
-
       return {
         submission_code: winner.submissionCode ?? winner.id,
         title_th: winner.projectTitle,
         review_total_score: null,
         email: "",
-        first_name: firstName,
-        last_name: lastName,
+        title: "",
+        first_name: winner.ownerName,
+        last_name: "",
         position: "",
         division: winner.division,
         bureau: "",

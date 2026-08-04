@@ -17,6 +17,7 @@ import {
   readSubmissionPdfFile,
   submissionDocumentTypes,
 } from "./submission-file-reader";
+import { formatApplicantName } from "./thai-rank-title";
 
 const documentLabels: Record<string, string> = {
   ownership: "3.1 หลักฐานความเป็นเจ้าของผลงาน",
@@ -438,7 +439,7 @@ function drawReviewCommentCard(
 function memberCardHeight(doc: PDFKit.PDFDocument, member: AdminSubmissionDetail["members"][number]) {
   const nameWidth = 527 - 146;
   doc.font(pdfFontBold).fontSize(14);
-  const nameHeight = doc.heightOfString(`${member.title}${member.first_name} ${member.last_name}`, { width: nameWidth, lineGap: 1 });
+  const nameHeight = doc.heightOfString(formatApplicantName(member), { width: nameWidth, lineGap: 1 });
   const details = memberDetails(member);
   const detailWidth = (527 - 146 - 12) / 2;
   const detailRows = chunkPairs(details).map((pair) => Math.max(...pair.map(([, value]) => tinyDetailHeight(doc, value, detailWidth))));
@@ -462,7 +463,7 @@ function drawMemberCard(
     lineBreak: false,
   });
   doc.font(pdfFontBold).fontSize(14).fillColor(PDF_THEME.navy).text(
-    `${member.title}${member.first_name} ${member.last_name}`,
+    formatApplicantName(member),
     x + 124,
     y + 14,
     { width: width - 146, lineGap: 1 },

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
 import { listParticipants } from "../../../../../../lib/admin-store";
+import { abbreviateThaiRankTitle } from "../../../../../../lib/thai-rank-title";
 import type { RegistrationRecord } from "../../../../../../lib/local-registrations";
 
 export const runtime = "nodejs";
@@ -57,7 +58,7 @@ function participantsWorkbook(participants: RegistrationRecord[]) {
   ];
   const rows = participants.map((item) => [
     item.registration_code,
-    item.title,
+    abbreviateThaiRankTitle(item.title),
     item.first_name,
     item.last_name,
     item.participant_role,

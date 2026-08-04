@@ -15,6 +15,7 @@ import {
   type PdfFontSet,
 } from "../../../../lib/pdf-theme";
 import { sortScoreboardSubmissions } from "../../../../lib/scoreboard-ranking";
+import { formatApplicantName } from "../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -160,7 +161,7 @@ function scoreRowValues(item: SubmissionListItem, index: number) {
     `#${index + 1}`,
     item.submission_code,
     item.title_th,
-    `${item.first_name} ${item.last_name}`,
+    formatApplicantName(item),
     item.review_assigned_admin_email || item.review_scored_by_email || "-",
     `${item.review_total_score ?? "-"}`,
     "ส่งแล้ว",

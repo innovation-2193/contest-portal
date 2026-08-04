@@ -14,6 +14,7 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -225,7 +226,7 @@ function buildWinnerSummaryRows(winners: WinnerRecord[], submissions: Submission
     .map(({ winner, submission }, index) => ({
       no: index + 1,
       projectTitle: submission?.title_th || winner.projectTitle,
-      ownerName: submission ? primaryOwnerName(submission) : winner.ownerName,
+      ownerName: submission ? primaryOwnerName(submission) : formatApplicantName({ first_name: winner.ownerName }),
       score: submission?.review_total_score !== null && submission?.review_total_score !== undefined
         ? `${submission.review_total_score}/100`
         : "-",
@@ -233,14 +234,14 @@ function buildWinnerSummaryRows(winners: WinnerRecord[], submissions: Submission
     }));
 }
 
-function submissionOwnerName(submission: Pick<SubmissionListItem, "submission_type" | "team_name" | "first_name" | "last_name">) {
+function submissionOwnerName(submission: Pick<SubmissionListItem, "submission_type" | "team_name" | "title" | "first_name" | "last_name">) {
   return submission.submission_type === "team" && submission.team_name
     ? `ทีม ${submission.team_name}`
-    : `${submission.first_name} ${submission.last_name}`.trim();
+    : formatApplicantName(submission);
 }
 
-function primaryOwnerName(submission: Pick<SubmissionListItem, "first_name" | "last_name">) {
-  return `${submission.first_name} ${submission.last_name}`.trim();
+function primaryOwnerName(submission: Pick<SubmissionListItem, "title" | "first_name" | "last_name">) {
+  return formatApplicantName(submission);
 }
 
 function submissionDivision(submission: Pick<SubmissionListItem, "division" | "bureau">) {

@@ -21,6 +21,7 @@ import {
 } from "../../../../lib/pdf-theme";
 import { drawPdfKitIpWatermark, exportWatermarkFromRequest, type PdfExportWatermark } from "../../../../lib/pdf-watermark";
 import { getSiteStats, type SiteDailyStat, type SiteStats } from "../../../../lib/site-analytics";
+import { formatApplicantName } from "../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -412,7 +413,7 @@ function drawAllSubmissionsTable(
       item.submission_code,
       item.title_th,
       item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว",
-      `${item.first_name} ${item.last_name}`,
+      formatApplicantName(item),
       compactOrg(item),
       statusLabel(item.status),
     ];

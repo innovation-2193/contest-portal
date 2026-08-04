@@ -3,6 +3,7 @@ import path from "path";
 import nodemailer from "nodemailer";
 import { brandedEmailHtml, brandedEmailLogoAttachment } from "./email-theme";
 import { publicBaseUrl } from "./public-url";
+import { formatApplicantName } from "./thai-rank-title";
 
 type MailStatus = "sent" | "outbox" | "skipped" | "failed";
 
@@ -68,10 +69,11 @@ export async function sendSubmissionConfirmation(record: SubmissionEmailRecord) 
 function confirmationHtml(record: SubmissionEmailRecord) {
   const detailUrl = `${publicBaseUrl()}/profile/login`;
   const submissionType = record.submission_type === "team" ? "ส่งแบบกลุ่ม" : "ส่งเดี่ยว";
+  const recipientName = formatApplicantName(record);
   return brandedEmailHtml({
     heading: "ยืนยันการสมัครประกวดนวัตกรรม",
     subtitle: `${record.submission_code} · ระบบได้รับผลงานเรียบร้อยแล้ว`,
-    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(record.title)}${escapeHtml(record.first_name)} ${escapeHtml(record.last_name)}</p>
+    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(recipientName)}</p>
         <p style="margin:0 0 22px">ระบบได้รับข้อมูลสมัครประกวดนวัตกรรมเรียบร้อยแล้ว</p>
         <p style="margin:0 0 22px">
           เลขที่สมัคร: <strong>${escapeHtml(record.submission_code)}</strong><br>

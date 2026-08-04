@@ -1,5 +1,6 @@
 import type { RegistrationRecord } from "./local-registrations";
 import { participantRoleClass } from "./participant-role-style";
+import { formatApplicantName } from "./thai-rank-title";
 
 export type ParticipantTypeKey = "vip" | "competitor" | "policeAttendee" | "generalAttendee" | "educationExhibitor" | "companyExhibitor" | "staff";
 
@@ -8,6 +9,7 @@ export type CompetitorSource = {
   title_th: string;
   review_total_score: number | null;
   email: string;
+  title?: string | null;
   first_name: string;
   last_name: string;
   position: string;
@@ -172,7 +174,7 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
     competitorCodes.add(submission.submission_code);
     byKey.get("competitor")?.people.push({
       registrationCode: submission.submission_code,
-      name: `${submission.first_name} ${submission.last_name}`,
+      name: formatApplicantName(submission),
       role: "ผู้สมัครประกวด",
       roleClassName: participantRoleClass("Competitor"),
       organization: compactOrg(submission.division, submission.bureau),
@@ -185,7 +187,7 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
     if (key === "competitor") continue;
     byKey.get(key)?.people.push({
       registrationCode: participant.registration_code,
-      name: `${participant.title}${participant.first_name} ${participant.last_name}`,
+      name: formatApplicantName(participant),
       role: participant.participant_role,
       roleClassName: participantRoleClass(participant.participant_role),
       organization: compactParticipantOrg(participant),

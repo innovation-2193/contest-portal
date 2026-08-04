@@ -15,6 +15,7 @@ import {
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
 import { sortScoreboardSubmissions } from "../../../../../lib/scoreboard-ranking";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -304,7 +305,7 @@ function scoreRows(submission: AdminSubmissionDetail): Array<[string, string]> {
 
 function memberCardHeight(doc: PDFKit.PDFDocument, member: AdminSubmissionDetail["members"][number]) {
   const details = memberRows(member);
-  const nameHeight = textHeight(doc, `${member.title}${member.first_name} ${member.last_name}`, 354, fonts.bold, 13.2, 1);
+  const nameHeight = textHeight(doc, formatApplicantName(member), 354, fonts.bold, 13.2, 1);
   const detailHeight = details.reduce((sum, [, value]) => sum + Math.max(16, textHeight(doc, value, 254, fonts.regular, 8.8, 1) + 8), 0);
   return Math.max(92, 42 + nameHeight + detailHeight);
 }
@@ -319,7 +320,7 @@ function drawMemberCard(doc: PDFKit.PDFDocument, title: string, member: AdminSub
     lineBreak: false,
   });
   doc.font(fonts.bold).fontSize(13.2).fillColor(PDF_THEME.navy).text(
-    `${member.title}${member.first_name} ${member.last_name}`,
+    formatApplicantName(member),
     marginX + 124,
     y + 13,
     { width: 354, lineGap: 1 },
@@ -352,7 +353,7 @@ function memberRows(member: AdminSubmissionDetail["members"][number]): Array<[st
 }
 
 function ownerName(submission: AdminSubmissionDetail) {
-  return `${submission.first_name} ${submission.last_name}`.replace(/\s+/g, " ").trim() || "-";
+  return formatApplicantName(submission);
 }
 
 function textHeight(doc: PDFKit.PDFDocument, value: string, width: number, font: string, size: number, lineGap = 1) {
