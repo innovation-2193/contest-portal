@@ -8,6 +8,14 @@ export type CommitteeJudge = {
   fileLabel: string;
 };
 
+export type CommitteeJudgeProfile = {
+  judgeKey: string;
+  prefix: string;
+  firstName: string;
+  lastName: string;
+  position: string;
+};
+
 export type CommitteeScoreCriterion = {
   id: string;
   groupId: "rules" | "problem" | "innovation" | "evidence" | "impact";
@@ -23,6 +31,23 @@ export const committeeJudges: CommitteeJudge[] = [
   { key: "4", order: 4, rank: "พล.ต.ต.", name: "ไพโรจน์ หมื่นกล้าหาญ", unit: "ผบก.ศทก.", role: "กรรมการ", fileLabel: "04-Pairoj-Muenklaharn" },
   { key: "5", order: 5, rank: "พล.ต.ต.", name: "กัมพล ลีลาประภาภรณ์", unit: "ผบก.สสท.", role: "กรรมการและเลขานุการ", fileLabel: "05-Kampol-Leelaprapaporn" },
 ];
+
+export function defaultCommitteeJudgeProfiles(): CommitteeJudgeProfile[] {
+  return committeeJudges.map((judge) => {
+    const nameParts = judge.name.trim().split(/\s+/);
+    return {
+      judgeKey: judge.key,
+      prefix: judge.rank,
+      firstName: nameParts.slice(0, -1).join(" ") || nameParts[0] || judge.name,
+      lastName: nameParts.slice(-1).join("") || "",
+      position: `${judge.unit} / ${judge.role}`,
+    };
+  });
+}
+
+export function formatCommitteeJudgeProfile(profile: CommitteeJudgeProfile) {
+  return [profile.prefix, profile.firstName, profile.lastName].filter(Boolean).join(" ") || `กรรมการ ก.${profile.judgeKey}`;
+}
 
 export const committeeScoreCriteria: CommitteeScoreCriterion[] = [
   { id: "1.1", groupId: "rules", groupLabel: "1. ความเป็นผลงานของตำรวจ", label: "ที่มาและแรงบันดาลใจของผลงาน", max: 6 },

@@ -152,7 +152,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const showAllParkingReservations = params.parkingAll === "1";
   const currentAdminPath = adminDashboardHref(params);
   const requestHeaders = await headers();
-  const committeeScoresHref = localSafeAdminHref(requestHeaders, "/admin/committee-scores");
   const committeeScoreExportHref = localSafeAdminHref(requestHeaders, "/api/admin/committee-scores/export");
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
@@ -174,10 +173,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
-    </section>}
-    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-report-cta">
-      <div className="admin-checkin-copy"><Pencil/><div><span className="eyebrow">Super Admin Only</span><h2>กรอกคะแนนรวม</h2><p>กรอกคะแนนรวมของกรรมการ 5 ท่านต่อผลงาน แล้วจัด Score Board รอบที่ 1 จากคะแนนเฉลี่ย</p></div></div>
-      <div className="admin-actions admin-report-actions"><a className="primary" href={committeeScoresHref}><Pencil/>กรอกคะแนนรวม</a><a className="secondary" href={committeeScoreExportHref} target="_blank" rel="noreferrer"><Download/>Export ผลคะแนน</a></div>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>

@@ -38,6 +38,11 @@ async function runSchemaRepair() {
     // A missing optional scoring table must not hide submissions from the rest of the admin.
     console.warn("committee score schema repair skipped", error);
   }
+  try {
+    await ensureCommitteeJudgeProfilesTable();
+  } catch (error) {
+    console.warn("committee judge profile schema repair skipped", error);
+  }
 }
 
 async function ensureUserColumns() {
@@ -260,6 +265,20 @@ async function ensureCommitteeScoresTable() {
       UNIQUE KEY uq_committee_scores_submission_judge (submission_code, judge_key),
       INDEX idx_committee_scores_submission_order (submission_order),
       INDEX idx_committee_scores_updated_at (updated_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureCommitteeJudgeProfilesTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS committee_judge_profiles (
+      judge_key VARCHAR(16) PRIMARY KEY,
+      prefix VARCHAR(120) NOT NULL DEFAULT '',
+      first_name VARCHAR(255) NOT NULL DEFAULT '',
+      last_name VARCHAR(255) NOT NULL DEFAULT '',
+      position VARCHAR(500) NOT NULL DEFAULT '',
+      updated_by_email VARCHAR(255) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL
     ) ENGINE=InnoDB
   `);
 }

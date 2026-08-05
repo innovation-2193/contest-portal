@@ -5,6 +5,11 @@ import { db, transaction } from "./db";
 import { ensureDatabaseSchema } from "./db-schema";
 import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { SubmissionListItem } from "./admin-store";
+import {
+  defaultCommitteeJudgeProfiles,
+  type CommitteeJudgeProfile,
+  formatCommitteeJudgeProfile,
+} from "./committee-score-config";
 
 export type CommitteeJudge = {
   key: string;
@@ -84,6 +89,8 @@ export type CommitteeScoreSummaryRow = {
   latestUpdatedAt: string | null;
 };
 
+export type CommitteeJudgeProfileInput = CommitteeJudgeProfile;
+
 export const committeeJudges: CommitteeJudge[] = [
   { key: "1", order: 1, rank: "พล.ต.ท.", name: "ไพบูลย์ น้อยหุ่น", unit: "ผบช.สทส.", role: "ประธานกรรมการ", fileLabel: "01-Paiboon-Noihun" },
   { key: "2", order: 2, rank: "พล.ต.ต.", name: "ฐากูร นิ่มสมบุญ", unit: "รอง ผบช.สทส.", role: "รองประธานกรรมการ", fileLabel: "02-Thakoon-Nimsomboon" },
@@ -119,6 +126,14 @@ type CommitteeScoreStore = {
   records: CommitteeScoreRecord[];
 };
 
+type CommitteeJudgeProfileDbRow = {
+  judge_key: string;
+  prefix: string;
+  first_name: string;
+  last_name: string;
+  position: string;
+};
+
 type CommitteeScoreDbRow = {
   id: string;
   submission_code: string;
@@ -145,7 +160,75 @@ type CommitteeScoreDbRow = {
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const storePath = path.join(storageDir, "committee-paper-screening-scores.json");
+const profileStorePath = path.join(storageDir, "committee-judge-profiles.json");
 let writeQueue: Promise<unknown> = Promise.resolve();
+
+export async function listCommitteeJudgeProfiles(): Promise<CommitteeJudgeProfile[]> {
+  const defaults = defaultCommitteeJudgeProfiles();
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      "SELECT judge_key,prefix,first_name,last_name,position FROM committee_judge_profiles ORDER BY judge_key ASC",
+    );
+    return mergeCommitteeJudgeProfiles(defaults, rows as CommitteeJudgeProfileDbRow[]);
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    try {
+      const raw = await readFile(profileStorePath, "utf8");
+      const parsed = JSON.parse(raw) as { profiles?: unknown };
+      const profiles = Array.isArray(parsed.profiles) ? parsed.profiles as CommitteeJudgeProfile[] : [];
+      return mergeCommitteeJudgeProfiles(defaults, profiles.map((profile) => ({
+        judge_key: profile.judgeKey,
+        prefix: profile.prefix,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        position: profile.position,
+      })));
+    } catch {
+      return defaults;
+    }
+  }
+}
+
+export async function saveCommitteeJudgeProfiles(inputs: CommitteeJudgeProfileInput[], submittedByEmail: string) {
+  const profiles = normalizeCommitteeJudgeProfiles(inputs);
+  if (!profiles.length) return listCommitteeJudgeProfiles();
+  try {
+    await ensureDatabaseSchema();
+    await transaction(async (connection) => {
+      for (const profile of profiles) {
+        await connection.execute(
+          `INSERT INTO committee_judge_profiles (judge_key,prefix,first_name,last_name,position,updated_by_email,updated_at)
+           VALUES (?,?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE prefix=VALUES(prefix),first_name=VALUES(first_name),last_name=VALUES(last_name),position=VALUES(position),updated_by_email=VALUES(updated_by_email),updated_at=VALUES(updated_at)`,
+          [profile.judgeKey, profile.prefix, profile.firstName, profile.lastName, profile.position, submittedByEmail, new Date().toISOString()],
+        );
+      }
+    });
+    return listCommitteeJudgeProfiles();
+  } catch (error) {
+    if (!shouldUseLocalCommitteeScoreStore(error)) throw error;
+    return writeQueued(async () => {
+      await mkdir(storageDir, { recursive: true });
+      const current = await listCommitteeJudgeProfiles();
+      const merged = mergeCommitteeJudgeProfiles(current, profiles.map((profile) => ({
+        judge_key: profile.judgeKey,
+        prefix: profile.prefix,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        position: profile.position,
+      })));
+      const tempPath = `${profileStorePath}.${process.pid}.${Date.now()}.tmp`;
+      await writeFile(tempPath, JSON.stringify({ profiles: merged }, null, 2), "utf8");
+      await rename(tempPath, profileStorePath);
+      return merged;
+    });
+  }
+}
+
+export function committeeJudgeProfileLabel(profile: CommitteeJudgeProfile) {
+  return `${formatCommitteeJudgeProfile(profile)}${profile.position ? ` (${profile.position})` : ""}`;
+}
 
 export function committeeJudgeLabel(judge: CommitteeJudge) {
   return `${judge.rank}${judge.name} • ${judge.unit} / ${judge.role}`;
@@ -481,6 +564,45 @@ function parseDbItemScores(value: CommitteeScoreDbRow["item_scores"]) {
 
 function shouldUseLocalCommitteeScoreStore(error: unknown) {
   return isDatabaseUnavailable(error) || isDatabaseSchemaFallback(error);
+}
+
+function normalizeCommitteeJudgeProfiles(inputs: CommitteeJudgeProfileInput[]) {
+  const defaults = new Map(defaultCommitteeJudgeProfiles().map((profile) => [profile.judgeKey, profile]));
+  const profiles: CommitteeJudgeProfile[] = [];
+  for (const input of inputs) {
+    const judgeKey = String(input?.judgeKey ?? "").trim();
+    const fallback = defaults.get(judgeKey);
+    if (!fallback) continue;
+    profiles.push({
+      judgeKey,
+      prefix: cleanText(input.prefix),
+      firstName: cleanText(input.firstName),
+      lastName: cleanText(input.lastName),
+      position: cleanText(input.position),
+    });
+  }
+  return profiles;
+}
+
+function mergeCommitteeJudgeProfiles(defaults: CommitteeJudgeProfile[], overrides: Array<CommitteeJudgeProfile | CommitteeJudgeProfileDbRow>) {
+  const byKey = new Map(defaults.map((profile) => [profile.judgeKey, profile]));
+  for (const override of overrides) {
+    const judgeKey = "judgeKey" in override ? String(override.judgeKey) : String(override.judge_key);
+    if (!byKey.has(judgeKey)) continue;
+    const base = byKey.get(judgeKey)!;
+    const prefix = "judgeKey" in override ? override.prefix : override.prefix;
+    const firstName = "judgeKey" in override ? override.firstName : override.first_name;
+    const lastName = "judgeKey" in override ? override.lastName : override.last_name;
+    const position = override.position;
+    byKey.set(judgeKey, {
+      judgeKey,
+      prefix: cleanText(prefix) || base.prefix,
+      firstName: cleanText(firstName) || base.firstName,
+      lastName: cleanText(lastName) || base.lastName,
+      position: cleanText(position),
+    });
+  }
+  return committeeJudges.map((judge) => byKey.get(judge.key)!).filter(Boolean);
 }
 
 export function buildCommitteeScoreboard(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]): CommitteeScoreSummaryRow[] {

@@ -4,10 +4,13 @@ import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-l
 import { requireSuperAdminRequest } from "../../../../lib/admin-guard";
 import {
   deleteCommitteeScoreRecord,
+  listCommitteeJudgeProfiles,
   listCommitteeScoreRecords,
+  saveCommitteeJudgeProfiles,
   saveCommitteeScoreRecords,
   updateCommitteeScoreRecord,
   type CommitteeScoreInput,
+  type CommitteeJudgeProfileInput,
 } from "../../../../lib/committee-score-store";
 
 export const runtime = "nodejs";
@@ -19,8 +22,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const records = await listCommitteeScoreRecords();
-    return NextResponse.json({ ok: true, records });
+    const [records, judgeProfiles] = await Promise.all([listCommitteeScoreRecords(), listCommitteeJudgeProfiles()]);
+    return NextResponse.json({ ok: true, records, judgeProfiles });
   } catch (error) {
     console.error("committee score records failed", error);
     return NextResponse.json({ ok: false, message: "โหลดรายการคะแนนคณะกรรมการไม่สำเร็จ", records: [] }, { status: 200 });
@@ -33,7 +36,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
   }
 
-  let payload: { records?: CommitteeScoreInput[] };
+  let payload: { records?: CommitteeScoreInput[]; judgeProfiles?: CommitteeJudgeProfileInput[] };
   try {
     payload = await request.json();
   } catch {
@@ -41,26 +44,39 @@ export async function POST(request: Request) {
   }
 
   const records = Array.isArray(payload.records) ? payload.records : [];
-  if (!records.length) {
-    return NextResponse.json({ ok: false, message: "ยังไม่มีรายการคะแนนสำหรับบันทึก" }, { status: 400 });
+  const judgeProfiles = Array.isArray(payload.judgeProfiles) ? payload.judgeProfiles : [];
+  if (!records.length && !judgeProfiles.length) {
+    return NextResponse.json({ ok: false, message: "ยังไม่มีข้อมูลสำหรับบันทึก" }, { status: 400 });
   }
 
   try {
-    const saved = await saveCommitteeScoreRecords(records.map((record) => ({
+    const saved = records.length ? await saveCommitteeScoreRecords(records.map((record) => ({
       ...record,
       submittedByEmail: session.email,
-    })));
-    await recordAuditEvent({
-      actor: actorFromAdminSession(session),
-      action: "committee_score.total_submitted",
-      entityType: "committee_score",
-      summary: `บันทึกคะแนนรวมคณะกรรมการ ${saved.length.toLocaleString("th-TH")} รายการ`,
-      payload: { count: saved.length, submissions: saved.map((record) => record.submissionCode), judges: [...new Set(saved.map((record) => record.judgeKey))] },
-    }, request.headers);
+    }))) : [];
+    const savedProfiles = judgeProfiles.length ? await saveCommitteeJudgeProfiles(judgeProfiles, session.email) : [];
+    if (saved.length) {
+      await recordAuditEvent({
+        actor: actorFromAdminSession(session),
+        action: "committee_score.total_submitted",
+        entityType: "committee_score",
+        summary: `บันทึกคะแนนรวมคณะกรรมการ ${saved.length.toLocaleString("th-TH")} รายการ`,
+        payload: { count: saved.length, submissions: saved.map((record) => record.submissionCode), judges: [...new Set(saved.map((record) => record.judgeKey))] },
+      }, request.headers);
+    }
+    if (judgeProfiles.length) {
+      await recordAuditEvent({
+        actor: actorFromAdminSession(session),
+        action: "committee_score.judge_profiles_updated",
+        entityType: "committee_score",
+        summary: "แก้ไขข้อมูลผู้พิจารณาสำหรับรายงานคะแนน",
+        payload: { judges: judgeProfiles.map((profile) => profile.judgeKey) },
+      }, request.headers);
+    }
     revalidatePath("/admin");
     revalidatePath("/admin/committee-scores");
     revalidatePath("/admin/ocr-scores");
-    return NextResponse.json({ ok: true, saved });
+    return NextResponse.json({ ok: true, saved, savedProfiles });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ไม่สามารถบันทึกคะแนนได้";
     return NextResponse.json({ ok: false, message }, { status: 400 });

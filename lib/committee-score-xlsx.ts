@@ -4,6 +4,7 @@ import {
   type CommitteeScoreInput,
   type CommitteeScoreRecord,
 } from "./committee-score-store";
+import { defaultCommitteeJudgeProfiles, formatCommitteeJudgeProfile, type CommitteeJudgeProfile } from "./committee-score-config";
 import { createSimpleXlsx } from "./simple-xlsx";
 import { parseTabularFileRows } from "./tabular-file-reader";
 
@@ -19,8 +20,8 @@ const baseHeaders = ["ลำดับ", "รหัสโครงการ", "�
 const summaryHeaders = ["เฉลี่ย", "จำนวนกรรมการที่กรอก"];
 const maxImportRows = 600;
 
-export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
-  const rows = committeeScoreTemplateRows(submissions, records);
+export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem[], records: CommitteeScoreRecord[], judgeProfiles = defaultCommitteeJudgeProfiles()) {
+  const rows = committeeScoreTemplateRows(submissions, records, judgeProfiles);
   return createSimpleXlsx({
     sheetName: "Committee Scores",
     title: "Committee total score import template",
@@ -29,17 +30,18 @@ export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem
   });
 }
 
-export function createCommitteeScoreTemplateCsv(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
-  const rows = committeeScoreTemplateRows(submissions, records);
+export function createCommitteeScoreTemplateCsv(submissions: SubmissionListItem[], records: CommitteeScoreRecord[], judgeProfiles = defaultCommitteeJudgeProfiles()) {
+  const rows = committeeScoreTemplateRows(submissions, records, judgeProfiles);
   return Buffer.from(`\uFEFF${rows.map(csvRow).join("\r\n")}\r\n`, "utf8");
 }
 
-function committeeScoreTemplateRows(submissions: SubmissionListItem[], records: CommitteeScoreRecord[]) {
+function committeeScoreTemplateRows(submissions: SubmissionListItem[], records: CommitteeScoreRecord[], judgeProfiles: CommitteeJudgeProfile[]) {
   const latest = recordsBySubmissionAndJudge(records);
+  const profiles = new Map(judgeProfiles.map((profile) => [profile.judgeKey, profile]));
   return [
     [
       ...baseHeaders,
-      ...committeeJudges.map((judge) => `ก.${judge.order} ${judge.rank}${judge.name}`),
+      ...committeeJudges.map((judge) => `ก.${judge.order} ${formatCommitteeJudgeProfile(profiles.get(judge.key) ?? defaultCommitteeJudgeProfiles()[judge.order - 1])}`),
       ...summaryHeaders,
     ],
     ...submissions.map((submission, index) => {

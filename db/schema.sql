@@ -196,6 +196,16 @@ CREATE TABLE IF NOT EXISTS committee_scores (
   INDEX idx_committee_scores_updated_at (updated_at)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS committee_judge_profiles (
+  judge_key VARCHAR(16) PRIMARY KEY,
+  prefix VARCHAR(120) NOT NULL DEFAULT '',
+  first_name VARCHAR(255) NOT NULL DEFAULT '',
+  last_name VARCHAR(255) NOT NULL DEFAULT '',
+  position VARCHAR(500) NOT NULL DEFAULT '',
+  updated_by_email VARCHAR(255) NOT NULL,
+  updated_at VARCHAR(40) NOT NULL
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS site_content (
   id CHAR(36) PRIMARY KEY,
   content_key VARCHAR(120) NOT NULL UNIQUE,

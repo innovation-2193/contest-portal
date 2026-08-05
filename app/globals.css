@@ -7298,6 +7298,85 @@ body:has(.prelander-page)::before {
   box-shadow: 0 0 0 2px rgba(240, 195, 62, 0.16);
 }
 
+.committee-score-judge-profiles {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(68, 99, 145, 0.72);
+  border-radius: 14px;
+  background: rgba(3, 14, 32, 0.54);
+}
+
+.committee-score-judge-profiles-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.committee-score-judge-profiles-head h3 {
+  margin: 0;
+  color: #fff0a8;
+  font-size: 18px;
+}
+
+.committee-score-judge-profiles-head p {
+  max-width: 760px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.committee-score-judge-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.committee-score-judge-profile {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(68, 99, 145, 0.74);
+  border-radius: 10px;
+}
+
+.committee-score-judge-profile.dirty {
+  border-color: rgba(240, 195, 62, 0.9);
+  box-shadow: 0 0 0 2px rgba(240, 195, 62, 0.12);
+}
+
+.committee-score-judge-profile legend {
+  padding: 0 6px;
+  color: #fff0a8;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.committee-score-judge-profile label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #dce4f3;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.committee-score-judge-profile input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px;
+}
+
+.committee-score-judge-profile-wide {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 980px) {
   .committee-score-toolbar {
     grid-template-columns: 1fr;
@@ -7324,6 +7403,10 @@ body:has(.prelander-page)::before {
   .committee-score-save-actions .secondary {
     flex: 1 1 0;
   }
+
+  .committee-score-judge-profile-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -7349,6 +7432,23 @@ body:has(.prelander-page)::before {
   .committee-score-save-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .committee-score-judge-profiles {
+    padding: 14px;
+  }
+
+  .committee-score-judge-profiles-head {
+    display: grid;
+    gap: 10px;
+  }
+
+  .committee-score-judge-profile {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .committee-score-judge-profile-wide {
+    grid-column: 1 / -1;
   }
 }
 
@@ -18270,7 +18370,7 @@ footer {
   color: #eef4ff;
   font: inherit;
   font-size: 14px;
-  min-height: 44px;
+  min-height: 56px;
   outline: none;
   padding: 0 12px;
   width: 100%;
@@ -18322,7 +18422,7 @@ footer {
   display: inline-flex;
   font-weight: 900;
   justify-content: center;
-  min-height: 44px;
+  min-height: 56px;
   padding: 0 16px;
   text-decoration: none;
   white-space: nowrap;

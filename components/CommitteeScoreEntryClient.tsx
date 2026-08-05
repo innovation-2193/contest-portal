@@ -2,7 +2,7 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Calculator, CheckCircle2, FileSpreadsheet, Loader2, Save, Search, Trash2, Upload, XCircle } from "lucide-react";
-import { committeeJudges } from "../lib/committee-score-config";
+import { committeeJudges, defaultCommitteeJudgeProfiles, type CommitteeJudgeProfile } from "../lib/committee-score-config";
 
 export type ScoreSubmissionOption = {
   code: string;
@@ -32,12 +32,16 @@ type SubmitState = {
 
 type ScoreGrid = Record<string, Record<string, string>>;
 type RecordGrid = Record<string, Record<string, ScoreRecord>>;
+type JudgeProfileGrid = Record<string, CommitteeJudgeProfile>;
 
 export function CommitteeScoreEntryClient({ submissions: initialSubmissions = [] }: { submissions?: ScoreSubmissionOption[] }) {
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [scores, setScores] = useState<ScoreGrid>({});
   const [savedRecords, setSavedRecords] = useState<RecordGrid>({});
+  const [judgeProfiles, setJudgeProfiles] = useState<JudgeProfileGrid>(() => judgeProfileGrid(defaultCommitteeJudgeProfiles()));
+  const [savedJudgeProfiles, setSavedJudgeProfiles] = useState<JudgeProfileGrid>(() => judgeProfileGrid(defaultCommitteeJudgeProfiles()));
   const [dirtyCells, setDirtyCells] = useState<Set<string>>(new Set());
+  const [dirtyJudgeProfiles, setDirtyJudgeProfiles] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [state, setState] = useState<SubmitState>({ status: "loading", message: "กำลังโหลดข้อมูลคะแนน" });
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -71,7 +75,7 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
     setState((current) => current.status === "saving" ? current : { status: "loading", message: "กำลังโหลดคะแนนที่บันทึกไว้" });
     fetch("/api/admin/committee-scores", { cache: "no-store" })
       .then((response) => response.json())
-      .then((payload: { ok?: boolean; records?: ScoreRecord[]; message?: string }) => {
+      .then((payload: { ok?: boolean; records?: ScoreRecord[]; judgeProfiles?: CommitteeJudgeProfile[]; message?: string }) => {
         if (!alive) return;
         if (!payload.ok || !Array.isArray(payload.records)) {
           setState({ status: "error", message: payload.message ?? "โหลดรายการคะแนนไม่สำเร็จ" });
@@ -88,7 +92,11 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
         }
         setScores(nextScores);
         setSavedRecords(nextRecords);
+        const nextProfiles = judgeProfileGrid(Array.isArray(payload.judgeProfiles) && payload.judgeProfiles.length ? payload.judgeProfiles : defaultCommitteeJudgeProfiles());
+        setJudgeProfiles(nextProfiles);
+        setSavedJudgeProfiles(nextProfiles);
         setDirtyCells(new Set());
+        setDirtyJudgeProfiles(new Set());
         setState({
           status: "idle",
           message: payload.records.length
@@ -150,10 +158,20 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
     setState({ status: "idle", message: "" });
   }
 
+  function updateJudgeProfile(judgeKey: string, field: keyof Omit<CommitteeJudgeProfile, "judgeKey">, value: string) {
+    setJudgeProfiles((current) => ({
+      ...current,
+      [judgeKey]: { ...(current[judgeKey] ?? defaultCommitteeJudgeProfiles().find((profile) => profile.judgeKey === judgeKey)!), judgeKey, [field]: value },
+    }));
+    setDirtyJudgeProfiles((current) => new Set(current).add(judgeKey));
+    setState({ status: "idle", message: "" });
+  }
+
   async function saveScores() {
     const dirty = [...dirtyCells];
-    if (!dirty.length) {
-      setState({ status: "idle", message: "ยังไม่มีช่องคะแนนที่เปลี่ยนแปลง" });
+    const dirtyProfiles = [...dirtyJudgeProfiles];
+    if (!dirty.length && !dirtyProfiles.length) {
+      setState({ status: "idle", message: "ยังไม่มีข้อมูลที่เปลี่ยนแปลง" });
       return;
     }
 
@@ -187,11 +205,11 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
     setState({ status: "saving", message: "กำลังบันทึกคะแนนรวม" });
 
     try {
-      if (records.length) {
+      if (records.length || dirtyProfiles.length) {
         const response = await fetch("/api/admin/committee-scores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ records }),
+          body: JSON.stringify({ records, judgeProfiles: dirtyProfiles.length ? committeeJudges.map((judge) => judgeProfiles[judge.key]).filter(Boolean) : undefined }),
         });
         const result = await response.json().catch(() => ({ ok: false, message: "ไม่สามารถอ่านผลลัพธ์จากระบบได้" }));
         if (!response.ok || !result.ok) throw new Error(result.message ?? "บันทึกคะแนนไม่สำเร็จ");
@@ -209,7 +227,7 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
 
       setState({
         status: "saved",
-        message: `บันทึกแล้ว ${records.length.toLocaleString("th-TH")} รายการ${deletes.length ? ` และลบ ${deletes.length.toLocaleString("th-TH")} รายการ` : ""}`,
+        message: `บันทึกแล้ว ${records.length.toLocaleString("th-TH")} คะแนน${dirtyProfiles.length ? ` และข้อมูลกรรมการ ${dirtyProfiles.length.toLocaleString("th-TH")} คน` : ""}${deletes.length ? ` และลบ ${deletes.length.toLocaleString("th-TH")} รายการ` : ""}`,
       });
       setRefreshKey((value) => value + 1);
     } catch (error) {
@@ -290,7 +308,15 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
       }
       return next;
     });
+    setJudgeProfiles((current) => {
+      const next = { ...current };
+      for (const judgeKey of dirtyJudgeProfiles) {
+        if (savedJudgeProfiles[judgeKey]) next[judgeKey] = savedJudgeProfiles[judgeKey];
+      }
+      return next;
+    });
     setDirtyCells(new Set());
+    setDirtyJudgeProfiles(new Set());
     setState({ status: "idle", message: "ยกเลิกการแก้ไขที่ยังไม่ได้บันทึกแล้ว" });
   }
 
@@ -311,7 +337,7 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
         <div className="committee-score-stats">
           <span><b>{submissions.length.toLocaleString("th-TH")}</b><small>ผลงานทั้งหมด</small></span>
           <span><b>{stats.completeRows.toLocaleString("th-TH")}</b><small>ครบ 5 กรรมการ</small></span>
-          <span><b>{dirtyCells.size.toLocaleString("th-TH")}</b><small>รอบันทึก</small></span>
+          <span><b>{(dirtyCells.size + dirtyJudgeProfiles.size).toLocaleString("th-TH")}</b><small>รอบันทึก</small></span>
         </div>
         <div className="committee-score-action-row">
           <form className="committee-score-import-form" onSubmit={importScores}>
@@ -336,14 +362,36 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
             </button>
           </form>
           <div className="audit-filter-actions committee-score-save-actions">
-            <button className="secondary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={clearAllDirty}><Trash2/>ยกเลิก</button>
-            <button className="primary" type="button" disabled={!dirtyCells.size || state.status === "saving"} onClick={saveScores}>
+            <button className="secondary" type="button" disabled={(!dirtyCells.size && !dirtyJudgeProfiles.size) || state.status === "saving"} onClick={clearAllDirty}><Trash2/>ยกเลิก</button>
+            <button className="primary" type="button" disabled={(!dirtyCells.size && !dirtyJudgeProfiles.size) || state.status === "saving"} onClick={saveScores}>
               {state.status === "saving" ? <Loader2 className="spin-icon"/> : <Save/>}
               {state.status === "saving" ? "กำลังบันทึก" : "บันทึกคะแนน"}
             </button>
           </div>
         </div>
       </div>
+      <section className="committee-score-judge-profiles" aria-labelledby="committee-judge-profile-heading">
+        <div className="committee-score-judge-profiles-head">
+          <div>
+            <h3 id="committee-judge-profile-heading">ข้อมูลกรรมการสำหรับรายงาน</h3>
+            <p>แก้ไขคำนำหน้า ชื่อ นามสกุล และตำแหน่งได้เอง กรณีมอบผู้แทน ข้อมูลนี้จะใช้ใน Excel Template และ PDF Report</p>
+          </div>
+          <span className="status-pill">5 คน</span>
+        </div>
+        <div className="committee-score-judge-profile-grid">
+          {committeeJudges.map((judge) => {
+            const profile = judgeProfiles[judge.key] ?? defaultCommitteeJudgeProfiles()[judge.order - 1];
+            const dirty = dirtyJudgeProfiles.has(judge.key);
+            return <fieldset className={`committee-score-judge-profile ${dirty ? "dirty" : ""}`} key={judge.key}>
+              <legend>ก.{judge.order}{dirty ? " • แก้ไขแล้ว" : ""}</legend>
+              <label>คำนำหน้า<input value={profile.prefix} onChange={(event) => updateJudgeProfile(judge.key, "prefix", event.target.value)} placeholder="เช่น พล.ต.ต." /></label>
+              <label>ชื่อ<input value={profile.firstName} onChange={(event) => updateJudgeProfile(judge.key, "firstName", event.target.value)} /></label>
+              <label>นามสกุล<input value={profile.lastName} onChange={(event) => updateJudgeProfile(judge.key, "lastName", event.target.value)} /></label>
+              <label className="committee-score-judge-profile-wide">ตำแหน่ง<input value={profile.position} onChange={(event) => updateJudgeProfile(judge.key, "position", event.target.value)} placeholder="เช่น ผู้แทนหน่วยงาน / กรรมการ" /></label>
+            </fieldset>;
+          })}
+        </div>
+      </section>
       {state.message ? <div className={`committee-score-alert ${state.status}`}>
         {state.status === "error" ? <XCircle/> : <CheckCircle2/>}
         <span>{state.message}{state.details?.length ? <small>{state.details.join(" • ")}</small> : null}</span>
@@ -402,6 +450,10 @@ export function CommitteeScoreEntryClient({ submissions: initialSubmissions = []
       {!visibleSubmissions.length ? <div className="participant-empty">ไม่พบผลงานตามคำค้นหา</div> : null}
     </section>
   </div>;
+}
+
+function judgeProfileGrid(profiles: CommitteeJudgeProfile[]) {
+  return Object.fromEntries(profiles.map((profile) => [profile.judgeKey, profile])) as JudgeProfileGrid;
 }
 
 function nullableNumber(value: string | number | null | undefined) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { listSubmissions } from "../../../../../lib/admin-store";
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
-import { listCommitteeScoreRecords, type CommitteeScoreRecord } from "../../../../../lib/committee-score-store";
+import { listCommitteeJudgeProfiles, listCommitteeScoreRecords, type CommitteeScoreRecord } from "../../../../../lib/committee-score-store";
 import {
   createCommitteeScoreTemplateCsv,
   createCommitteeScoreTemplateXlsx,
@@ -18,6 +18,10 @@ export async function GET(request: Request) {
 
   let sortedSubmissions: Awaited<ReturnType<typeof listSubmissions>> = [];
   let records: CommitteeScoreRecord[] = [];
+  let judgeProfiles = await listCommitteeJudgeProfiles().catch((error) => {
+    console.warn("committee judge profiles unavailable; using defaults", error);
+    return [];
+  });
   try {
     const submissions = await listSubmissions();
     sortedSubmissions = submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
@@ -34,7 +38,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const file = createCommitteeScoreTemplateXlsx(sortedSubmissions, records);
+    const file = createCommitteeScoreTemplateXlsx(sortedSubmissions, records, judgeProfiles);
     const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     const extension = "xlsx";
 
@@ -61,7 +65,7 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("committee score xlsx template failed, using csv fallback", error);
-    const file = createCommitteeScoreTemplateCsv(sortedSubmissions, records);
+    const file = createCommitteeScoreTemplateCsv(sortedSubmissions, records, judgeProfiles);
     await recordAuditEvent({
       actor: actorFromAdminSession(session),
       action: "committee_score.template_file",
