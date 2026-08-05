@@ -121,7 +121,16 @@ export async function GET(request: Request) {
   const custom = url.searchParams.get("custom") === "1" || Boolean(url.searchParams.get("judge") || url.searchParams.get("items") || url.searchParams.get("range"));
 
   if (custom) {
-    const judge = committeeSignatoryFromValue(url.searchParams.get("judge") ?? "");
+    const selectedJudge = committeeSignatoryFromValue(url.searchParams.get("judge") ?? "");
+    const reviewerName = cleanInput(url.searchParams.get("reviewerName") ?? "");
+    const reviewerPosition = cleanInput(url.searchParams.get("reviewerPosition") ?? "");
+    if (Boolean(reviewerName) !== Boolean(reviewerPosition)) {
+      return NextResponse.json({ error: "กรุณากรอกชื่อและตำแหน่งผู้พิจารณาให้ครบถ้วน" }, { status: 400 });
+    }
+    const customJudge = reviewerName && reviewerPosition
+      ? customCommitteeSignatory(reviewerName, reviewerPosition)
+      : null;
+    const judge = customJudge ?? selectedJudge;
     if (!judge) return NextResponse.json({ error: "กรุณาเลือกผู้พิจารณา" }, { status: 400 });
 
     const rangeText = url.searchParams.get("items") ?? url.searchParams.get("range") ?? "";
@@ -140,6 +149,9 @@ export async function GET(request: Request) {
       summary: `Export แบบฟอร์มให้คะแนนกรรมการ 2 สำหรับ ${judge.rank}${judge.name}`,
       payload: {
         judge: judge.fileLabel,
+        customReviewer: Boolean(customJudge),
+        reviewerName: customJudge?.name ?? null,
+        reviewerPosition: customJudge?.unit ?? null,
         rangeText,
         selectedCount: selectedSubmissions.length,
         submissionCount: submissions.length,
@@ -464,6 +476,25 @@ function committeeSignatoryFromValue(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return null;
   return committeeSignatories.find((judge) => judge.fileLabel.toLowerCase() === normalized || String(judge.order) === normalized) ?? null;
+}
+
+function customCommitteeSignatory(name: string, position: string): CommitteeSignatory {
+  return {
+    order: 0,
+    rank: "",
+    name,
+    unit: position,
+    role: "ผู้แทนกรรมการ",
+    fileLabel: `custom-${safeFilePart(name)}`,
+  };
+}
+
+function safeFilePart(value: string) {
+  return value.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "reviewer";
+}
+
+function cleanInput(value: string) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function parseSubmissionRange(value: string, total: number): { ok: true; indexes: number[] } | { ok: false; error: string } {

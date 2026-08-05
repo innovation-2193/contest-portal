@@ -136,12 +136,14 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
 function CommitteeScoreForm2Panel({ totalSubmissions }: { totalSubmissions: number }) {
   return <section className="admin-panel" id="committee-score-form2">
     <header className="admin-section-head"><FileText/><div><h2>แบบฟอร์มให้คะแนนกรรมการ 2</h2><p>เลือกผู้พิจารณาและช่วงลำดับนวัตกรรมก่อน export</p></div></header>
-    <form className="audit-filter-form" method="get" action="/api/admin/submissions/review-score-form" target="_blank">
+    <form className="audit-filter-form committee-score-form2-filter" method="get" action="/api/admin/submissions/review-score-form" target="_blank">
       <input type="hidden" name="custom" value="1"/>
-      <label>ผู้พิจารณา<select name="judge" required defaultValue="">
-        <option value="" disabled>เลือกผู้พิจารณา</option>
+      <label>รายชื่อกรรมการเดิม (ถ้ามี)<select name="judge" defaultValue="">
+        <option value="">กรอกผู้แทนเอง</option>
         {committeeScoreForm2Reviewers.map((reviewer) => <option key={reviewer.value} value={reviewer.value}>{reviewer.label}</option>)}
       </select></label>
+      <label>ชื่อผู้พิจารณา / ผู้แทน<input name="reviewerName" placeholder="คำนำหน้า ชื่อ นามสกุล" /></label>
+      <label>ตำแหน่งผู้พิจารณา / ผู้แทน<input name="reviewerPosition" placeholder="เช่น ผู้แทน ผบช. / กรรมการ" /></label>
       <label className="audit-filter-search">ช่วงรายการนวัตกรรม<div><Hash/><input name="items" required placeholder={`เช่น 1-14, 15, 19 จากทั้งหมด ${totalSubmissions.toLocaleString("th-TH")} รายการ`}/></div></label>
       <div className="audit-filter-actions"><button className="primary" type="submit"><FileText/>Export PDF</button></div>
     </form>

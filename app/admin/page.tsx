@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
-import { CommitteeScoreDashboardCard } from "../../components/CommitteeScoreDashboardCard";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
 import { SecretInput } from "../../components/SecretInput";
@@ -151,8 +150,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const visibleAdmins = filteredAdminAccounts.slice(0, dashboardLimit);
   const showAllParkingReservations = params.parkingAll === "1";
   const currentAdminPath = adminDashboardHref(params);
-  const requestHeaders = await headers();
-  const committeeScoreExportHref = localSafeAdminHref(requestHeaders, "/api/admin/committee-scores/export");
   const showCheckInShortcut = isSuperAdmin
     ? settings.checkInShortcutVisibleForSuperAdmin
     : settings.checkInShortcutVisibleForAdmin;
@@ -197,7 +194,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <ReviewAssignmentPanel submissions={submissions.slice(0, dashboardLimit)} admins={adminAccounts.filter((admin) => !admin.disabled)} total={submissions.length} returnPath={currentAdminPath}/>}
     {isSuperAdmin && <ScoreBoardPanel submissions={scoreBoard.slice(0, dashboardLimit)} total={scoreBoard.length}/>}
-    {isSuperAdmin && <CommitteeScoreDashboardCard exportHref={committeeScoreExportHref}/>}
     {isSuperAdmin && <section className="admin-panel">
       <header className="admin-section-head"><Trophy/><div><h2>ประกาศผลการแข่งขัน</h2><p>เลือกรายการที่ผ่านเข้าสู่ 10 ทีมสุดท้าย ระบบจะแสดงเป็นรายชื่อเดียว และรอบถัดไปเริ่มนับคะแนนใหม่</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/winners/export"><Download/>Export PDF</a></div></header>
       <form action={addWinnerAction} className="admin-form winner-form">
@@ -692,15 +688,6 @@ function adminDashboardHref(params: AdminPageSearchParams) {
   }
   const nextQuery = query.toString();
   return nextQuery ? `/admin?${nextQuery}` : "/admin";
-}
-
-function localSafeAdminHref(requestHeaders: Headers, pathname: string) {
-  const host = requestHeaders.get("host") ?? "";
-  const cleanPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  if (!host.startsWith("0.0.0.0")) return cleanPath;
-  const parts = host.split(":");
-  const port = host.includes(":") ? `:${parts[parts.length - 1]}` : "";
-  return `http://localhost${port}${cleanPath}`;
 }
 
 function ParticipantsTable({ participants }: { participants: Awaited<ReturnType<typeof listParticipants>> }) {
