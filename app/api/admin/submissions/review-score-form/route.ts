@@ -419,7 +419,7 @@ function drawCompactJudgeSignature(doc: PDFKit.PDFDocument, judge: CommitteeSign
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(7).fillColor(PRINT.text).text(`${judge.unit} / ${judge.role}`, x + 10, y + 73, {
+  doc.font(fonts.regular).fontSize(7).fillColor(PRINT.text).text(judgePositionLabel(judge), x + 10, y + 73, {
     width: width - 20,
     align: "center",
     lineBreak: false,
@@ -439,7 +439,7 @@ function drawJudgeSignature(doc: PDFKit.PDFDocument, judge: CommitteeSignatory, 
     align: "center",
     lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(7.2).fillColor(PRINT.text).text(`${judge.unit} / ${judge.role}`, x + 10, y + 84, {
+  doc.font(fonts.regular).fontSize(7.2).fillColor(PRINT.text).text(judgePositionLabel(judge), x + 10, y + 84, {
     width: width - 20,
     align: "center",
     lineBreak: false,
@@ -484,7 +484,7 @@ function customCommitteeSignatory(name: string, position: string): CommitteeSign
     rank: "",
     name,
     unit: position,
-    role: "ผู้แทนกรรมการ",
+    role: "",
     fileLabel: `custom-${safeFilePart(name)}`,
   };
 }
@@ -495,6 +495,10 @@ function safeFilePart(value: string) {
 
 function cleanInput(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function judgePositionLabel(judge: CommitteeSignatory) {
+  return [judge.unit, judge.role].filter(Boolean).join(" / ");
 }
 
 function parseSubmissionRange(value: string, total: number): { ok: true; indexes: number[] } | { ok: false; error: string } {

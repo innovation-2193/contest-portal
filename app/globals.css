@@ -5867,7 +5867,7 @@ body:has(.prelander-page)::before {
 }
 
 .committee-score-form2-filter {
-  grid-template-columns: minmax(170px, 0.9fr) minmax(170px, 0.9fr) minmax(170px, 0.9fr) minmax(250px, 1.2fr) minmax(150px, max-content);
+  grid-template-columns: minmax(200px, 0.9fr) minmax(200px, 0.9fr) minmax(250px, 1.2fr) minmax(150px, max-content);
 }
 
 .audit-filter-form label {

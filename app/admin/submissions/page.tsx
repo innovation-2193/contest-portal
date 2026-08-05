@@ -18,14 +18,6 @@ const pageSize = 20;
 type SubmissionSort = "oldest" | "newest";
 type ReviewFilter = "all" | "unassigned" | "assigned" | "pending" | "scored";
 
-const committeeScoreForm2Reviewers = [
-  { value: "1", label: "พล.ต.ท.ไพบูลย์ น้อยหุ่น • ผบช.สทส. / ประธานกรรมการ" },
-  { value: "2", label: "พล.ต.ต.ฐากูร นิ่มสมบุญ • รอง ผบช.สทส. / รองประธานกรรมการ" },
-  { value: "3", label: "พล.ต.ต.กิตติศัพท์ ทองศรีวงศ์ • ผบก.สส. / กรรมการ" },
-  { value: "4", label: "พล.ต.ต.ไพโรจน์ หมื่นกล้าหาญ • ผบก.ศทก. / กรรมการ" },
-  { value: "5", label: "พล.ต.ต.กัมพล ลีลาประภาภรณ์ • ผบก.สสท. / กรรมการและเลขานุการ" },
-];
-
 export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; sort?: string; review?: string; reviewer?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
@@ -135,15 +127,11 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
 
 function CommitteeScoreForm2Panel({ totalSubmissions }: { totalSubmissions: number }) {
   return <section className="admin-panel" id="committee-score-form2">
-    <header className="admin-section-head"><FileText/><div><h2>แบบฟอร์มให้คะแนนกรรมการ 2</h2><p>เลือกผู้พิจารณาและช่วงลำดับนวัตกรรมก่อน export</p></div></header>
+    <header className="admin-section-head"><FileText/><div><h2>แบบฟอร์มให้คะแนนกรรมการ 2</h2><p>กรอกข้อมูลผู้พิจารณาและช่วงลำดับนวัตกรรมก่อน export</p></div></header>
     <form className="audit-filter-form committee-score-form2-filter" method="get" action="/api/admin/submissions/review-score-form" target="_blank">
       <input type="hidden" name="custom" value="1"/>
-      <label>รายชื่อกรรมการเดิม (ถ้ามี)<select name="judge" defaultValue="">
-        <option value="">กรอกผู้แทนเอง</option>
-        {committeeScoreForm2Reviewers.map((reviewer) => <option key={reviewer.value} value={reviewer.value}>{reviewer.label}</option>)}
-      </select></label>
-      <label>ชื่อผู้พิจารณา / ผู้แทน<input name="reviewerName" placeholder="คำนำหน้า ชื่อ นามสกุล" /></label>
-      <label>ตำแหน่งผู้พิจารณา / ผู้แทน<input name="reviewerPosition" placeholder="เช่น ผู้แทน ผบช. / กรรมการ" /></label>
+      <label>ชื่อผู้พิจารณา / ผู้แทน<input name="reviewerName" defaultValue="" autoComplete="off" placeholder="คำนำหน้า ชื่อ นามสกุล" required /></label>
+      <label>ตำแหน่งผู้พิจารณา / ผู้แทน<input name="reviewerPosition" defaultValue="" autoComplete="off" placeholder="กรอกตำแหน่งด้วยตนเอง" required /></label>
       <label className="audit-filter-search">ช่วงรายการนวัตกรรม<div><Hash/><input name="items" required placeholder={`เช่น 1-14, 15, 19 จากทั้งหมด ${totalSubmissions.toLocaleString("th-TH")} รายการ`}/></div></label>
       <div className="audit-filter-actions"><button className="primary" type="submit"><FileText/>Export PDF</button></div>
     </form>
