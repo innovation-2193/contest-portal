@@ -14,7 +14,10 @@ export async function ensureDatabaseSchema() {
       console.warn("database schema repair skipped", error);
       return;
     }
-    throw error;
+    // Schema repair is best-effort. Existing read paths have compatibility
+    // queries and should remain available when a production DB user cannot
+    // run one optional migration statement.
+    console.error("database schema repair failed; continuing with existing schema", error);
   });
   return schemaPromise;
 }

@@ -965,7 +965,14 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     return (rows as Array<Omit<SubmissionListItem, "hashtags" | "work_category"> & { title_en?: string | null; summary?: string | null; hashtags?: string | null; work_category?: string | null }>).map(submissionListRowToItem);
   } catch (error) {
     if (isDatabaseSchemaFallback(error)) return listSubmissionsCompat(options);
-    if (!isDatabaseUnavailable(error)) throw error;
+    if (!isDatabaseUnavailable(error)) {
+      console.error("primary submission list query failed; trying compatibility query", error);
+      try {
+        return await listSubmissionsCompat(options);
+      } catch (compatibilityError) {
+        if (!isDatabaseUnavailable(compatibilityError) && !isDatabaseSchemaFallback(compatibilityError)) throw error;
+      }
+    }
     const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
