@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { listSubmissions } from "../../../../../lib/admin-store";
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
-import { listCommitteeScoreRecords } from "../../../../../lib/committee-score-store";
+import { listCommitteeScoreRecords, type CommitteeScoreRecord } from "../../../../../lib/committee-score-store";
 import {
   createCommitteeScoreTemplateCsv,
   createCommitteeScoreTemplateXlsx,
@@ -16,18 +16,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
   }
 
-  let sortedSubmissions;
-  let records;
+  let sortedSubmissions: Awaited<ReturnType<typeof listSubmissions>> = [];
+  let records: CommitteeScoreRecord[] = [];
   try {
-    const result = await Promise.all([
-      listSubmissions(),
-      listCommitteeScoreRecords(),
-    ]);
-    sortedSubmissions = result[0].slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
-    records = result[1];
+    const submissions = await listSubmissions();
+    sortedSubmissions = submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
   } catch (error) {
     console.error("committee score template data load failed", error);
     return NextResponse.json({ ok: false, message: "โหลดรายการนวัตกรรมสำหรับ Template ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" }, { status: 500 });
+  }
+
+  try {
+    records = await listCommitteeScoreRecords();
+  } catch (error) {
+    // Existing scores are optional when creating a fresh import template.
+    console.warn("committee score template existing scores unavailable; creating a blank template", error);
   }
 
   try {

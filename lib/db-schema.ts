@@ -29,7 +29,12 @@ async function runSchemaRepair() {
   await ensureNewsPostsTable();
   await ensureAppAuditEventsTable();
   await ensureParkingReservationsTable();
-  await ensureCommitteeScoresTable();
+  try {
+    await ensureCommitteeScoresTable();
+  } catch (error) {
+    // A missing optional scoring table must not hide submissions from the rest of the admin.
+    console.warn("committee score schema repair skipped", error);
+  }
 }
 
 async function ensureUserColumns() {
