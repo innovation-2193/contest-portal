@@ -1,11 +1,9 @@
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   Building2,
-  CheckCircle2,
-  ClipboardList,
   Eye,
   FileText,
   GraduationCap,
@@ -136,17 +134,13 @@ export default async function DailyReportPage() {
   const activeParticipants = participants.filter((item) => item.status !== "cancelled");
   const todayKey = bangkokDayKey(new Date());
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
-  const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
-  const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
   const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: announcedFinalists });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
-  const pendingReview = Math.max(0, submissions.length - scored.length);
-  const reviewPercent = submissions.length ? Math.round((scored.length / submissions.length) * 100) : 0;
   const reportSubmissions = submissions.slice(0, 5);
 
   return <div className="admin-page report-page">
@@ -199,14 +193,14 @@ export default async function DailyReportPage() {
             <article>
               <header><FileText/><span>ประกวดนวัตกรรม</span></header>
               <p><span>ผลงานที่ส่งทั้งหมด</span><strong>{submissions.length.toLocaleString("th-TH")} รายการ</strong></p>
-              <p><span>ตรวจแล้ว</span><strong>{scored.length.toLocaleString("th-TH")} รายการ</strong></p>
-              <p><span>ยังไม่ได้ตรวจ</span><strong>{pendingReview.toLocaleString("th-TH")} รายการ</strong></p>
+              <p><span>ส่งแบบทีม</span><strong>{teams.length.toLocaleString("th-TH")} รายการ</strong></p>
+              <p><span>ส่งแบบเดี่ยว</span><strong>{(submissions.length - teams.length).toLocaleString("th-TH")} รายการ</strong></p>
             </article>
           </div>
           <p className="report-hero-note">
             <span>สรุปยอดประจำวัน</span>
             <span>ยอดเข้าชมเว็บไซต์</span>
-            <span>และสถานะผลงานจากระบบรับสมัคร</span>
+            <span>และประเภทการส่งผลงาน</span>
           </p>
         </div>
         <div className="report-pulse">
@@ -226,9 +220,8 @@ export default async function DailyReportPage() {
           <Metric icon={<UserCheck/>} value={attended.length} label="เช็คอินเข้าร่วมงานแล้ว" detail={`ยังรอเช็คอิน ${(activeParticipants.length - attended.length).toLocaleString("th-TH")} คน`}/>
         </MetricGroup>
         <MetricGroup title="ผลงานประกวด" detail="สรุปผลงานที่ส่งเข้าระบบ">
-          <Metric icon={<FileText/>} value={submissions.length} label="ส่งผลงานประกวด" detail={`วันนี้ส่งเพิ่ม ${submittedToday.length.toLocaleString("th-TH")} รายการ`}/>
-          <Metric icon={<Trophy/>} value={scored.length} label="ผลงานที่มีคะแนนแล้ว" detail={`ยังรอตรวจ ${(submissions.length - scored.length).toLocaleString("th-TH")} รายการ`}/>
-          <Metric icon={<ClipboardList/>} value={teams.length} label="ส่งแบบทีม" detail="จำนวนผลงานประเภททีม"/>
+          <Metric icon={<FileText/>} value={submissions.length} label="ส่งผลงานประกวด" detail="จำนวนผลงานที่ส่งเข้าระบบทั้งหมด"/>
+          <Metric icon={<Users/>} value={teams.length} label="ส่งแบบทีม" detail="จำนวนผลงานประเภททีม"/>
           <Metric icon={<User/>} value={submissions.length - teams.length} label="ส่งแบบเดี่ยว" detail="จำนวนผลงานประเภทบุคคล"/>
         </MetricGroup>
       </section>
@@ -241,37 +234,9 @@ export default async function DailyReportPage() {
         </div>
       </section>
 
-      <section className="report-grid">
-        <article className="admin-panel report-panel">
-          <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ราย 7 วัน</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ และสามารถย้อนดูข้อมูลเป็นช่วงละ 7 วันได้</p></div></header>
-          <VisitTrendChart stats={siteStats}/>
-        </article>
-
-        <article className="admin-panel report-panel">
-          <header><CheckCircle2/><div><h2>สถานะผลงานประกวด</h2><p>สรุปจำนวนผลงานที่ส่งเข้าระบบและความคืบหน้าการตรวจ</p></div></header>
-          <div className="report-status-dashboard">
-            <div className="report-status-overview">
-              <div className="report-status-dial" style={{ "--progress": `${reviewPercent}%` } as CSSProperties}>
-                <b>{reviewPercent.toLocaleString("th-TH")}%</b>
-                <span>ตรวจแล้ว</span>
-              </div>
-              <div className="report-status-insight">
-                <strong>{scored.length.toLocaleString("th-TH")} จาก {submissions.length.toLocaleString("th-TH")} รายการตรวจแล้ว</strong>
-                <p>{pendingReview ? `ยังไม่ได้ตรวจ ${pendingReview.toLocaleString("th-TH")} รายการ${submittedToday.length ? ` โดยวันนี้มีผลงานใหม่ ${submittedToday.length.toLocaleString("th-TH")} รายการ` : ""}` : "ตรวจครบทุกผลงานที่ส่งเข้าระบบแล้ว"}</p>
-              </div>
-            </div>
-            <div className="report-status-kpi-grid">
-              <StatusKpi label="ผลงานที่ส่งทั้งหมด" value={submissions.length} detail="ใบสมัครประกวดที่ส่งเข้าระบบทั้งหมด"/>
-              <StatusKpi label="ตรวจแล้ว" value={scored.length} detail="มีคะแนนรวมจากผู้ตรวจเอกสารแล้ว"/>
-              <StatusKpi label="ยังไม่ได้ตรวจ" value={pendingReview} detail="ยังไม่มีคะแนนรวมในระบบ"/>
-            </div>
-            <div className="report-status-progress">
-              <span>ความคืบหน้าการตรวจ</span>
-              <b>{reviewPercent.toLocaleString("th-TH")}%</b>
-              <i aria-hidden="true"><span style={{ width: `${reviewPercent}%` }}/></i>
-            </div>
-          </div>
-        </article>
+      <section className="admin-panel report-panel">
+        <header><LineChart/><div><h2>ยอดเข้าชมเว็บไซต์ราย 7 วัน</h2><p>นับผู้เข้าชมหน้าบ้านแบบวันละหนึ่งครั้งต่ออุปกรณ์ และสามารถย้อนดูข้อมูลเป็นช่วงละ 7 วันได้</p></div></header>
+        <VisitTrendChart stats={siteStats}/>
       </section>
 
       <section className="admin-panel report-panel">
@@ -394,14 +359,6 @@ function MetricGroup({ title, detail, children }: { title: string; detail: strin
     </header>
     <div className="report-metric-grid">{children}</div>
   </section>;
-}
-
-function StatusKpi({ label, value, detail }: { label: string; value: number; detail: string }) {
-  return <div>
-    <b>{value.toLocaleString("th-TH")}</b>
-    <span>{label}</span>
-    <small>{detail}</small>
-  </div>;
 }
 
 function CommandToggle({ item, index }: { item: CommandStat; index: number }) {

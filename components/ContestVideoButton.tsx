@@ -19,10 +19,6 @@ export function ContestVideoButton({
 
   async function openVideo() {
     if (loading) return;
-    if (!hasVideoLink) {
-      window.alert("ผู้เข้าประกวดไม่ได้ส่งมา");
-      return;
-    }
     setLoading(true);
     let popup: Window | null = null;
     try {
@@ -34,7 +30,6 @@ export function ContestVideoButton({
       const data = await response.json() as VideoCheckResponse;
       if (!response.ok || !data.ok || !data.url) {
         popup?.close();
-        window.alert("ผู้เข้าประกวดไม่ได้ส่งมา");
         return;
       }
       if (popup) {
@@ -44,14 +39,13 @@ export function ContestVideoButton({
       }
     } catch {
       popup?.close();
-      window.alert("ผู้เข้าประกวดไม่ได้ส่งมา");
     } finally {
       setLoading(false);
     }
   }
 
   if (!hasVideoLink) {
-    return <button className="contest-video-button is-missing" type="button" onClick={openVideo}>
+    return <button className="contest-video-button is-missing" type="button" disabled>
       <VideoOff/>ไม่มี Link Video
     </button>;
   }
