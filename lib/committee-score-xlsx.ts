@@ -166,7 +166,7 @@ function detectHeader(row: string[]) {
   })) as Record<string, number>;
 
   if (submissionCode < 0) return null;
-  if (!Object.values(judgeIndexes).some((index) => index >= 0)) return null;
+  if (Object.values(judgeIndexes).some((index) => index < 0)) return null;
   return { submissionCode, judgeIndexes };
 }
 

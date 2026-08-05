@@ -32,10 +32,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [submissions, existingRecords] = await Promise.all([
-      listSubmissions(),
-      listCommitteeScoreRecords(),
-    ]);
+    const submissions = await listSubmissions();
+    let existingRecords: Awaited<ReturnType<typeof listCommitteeScoreRecords>> = [];
+    try {
+      existingRecords = await listCommitteeScoreRecords();
+    } catch (error) {
+      // A first import must work even when there are no previous score records.
+      console.warn("committee score import existing scores unavailable; importing as new scores", error);
+    }
     const sortedSubmissions = submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
     const parsed = await parseCommitteeScoreImportFile(file, sortedSubmissions, existingRecords);
 
