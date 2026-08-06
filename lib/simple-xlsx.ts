@@ -99,11 +99,14 @@ function worksheetXml(rows: string[][], columnCount: number, columnWidths?: numb
   const widths = Array.from({ length: columnCount }, (_, index) => columnWidths?.[index] ?? 24);
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
   <dimension ref="A1:${cellRef(columnCount - 1, Math.max(1, rows.length))}"/>
   <cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols>
   <sheetData>
 ${rows.map((row, rowIndex) => `    <row r="${rowIndex + 1}">${Array.from({ length: columnCount }, (_, columnIndex) => cellXml(row[columnIndex] ?? "", columnIndex, rowIndex + 1, rowIndex === 0)).join("")}</row>`).join("\n")}
   </sheetData>
+  <pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
 

@@ -71,6 +71,7 @@ const allowedAuditActions = new Set([
   "submission.file_opened",
   "submission.print_packet",
   "submission.applicants_export_pdf",
+  "submission.applicants_export_xlsx",
   "submission.checklist_export_pdf",
   "submission.video_export_pdf",
   "submission.review.assigned",

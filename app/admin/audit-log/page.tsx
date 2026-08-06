@@ -32,6 +32,8 @@ const actionOptions = [
   ["submission.delete_otp_requested", "ขอ OTP ลบใบสมัคร"],
   ["submission.file_opened", "เปิดไฟล์แนบ"],
   ["submission.print_packet", "พิมพ์ชุดใบสมัคร"],
+  ["submission.applicants_export_pdf", "Export รายชื่อผู้สมัคร PDF"],
+  ["submission.applicants_export_xlsx", "Export รายชื่อผู้สมัคร Excel"],
   ["submission.review.assigned", "แจกงานตรวจรอบแรก"],
   ["submission.score.submitted", "ส่งคะแนนรอบแรก"],
   ["submission.scoreboard_pdf", "พิมพ์ Score Board"],
@@ -214,6 +216,8 @@ function auditActionLabel(action: string) {
   if (action === "submission.deleted") return "ลบใบสมัครประกวด";
   if (action === "submission.delete_otp_requested") return "ขอ OTP ลบใบสมัคร";
   if (action === "submission.file_opened") return "เปิดไฟล์แนบ";
+  if (action === "submission.applicants_export_pdf") return "Export รายชื่อผู้สมัคร PDF";
+  if (action === "submission.applicants_export_xlsx") return "Export รายชื่อผู้สมัคร Excel";
   if (action === "submission.print_packet") return "พิมพ์ชุดใบสมัคร";
   if (action === "submission.review.assigned") return "แจกงานตรวจรอบแรก";
   if (action === "submission.score.submitted") return "ส่งคะแนนรอบแรก";

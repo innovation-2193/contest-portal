@@ -14,7 +14,6 @@ import {
   pdfFontRegular,
   type PdfFontSet,
 } from "../../../../../lib/pdf-theme";
-import { abbreviateThaiRankTitle } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
@@ -22,7 +21,10 @@ const reportFonts: PdfFontSet = {
   regular: pdfFontRegular,
   bold: pdfFontBold,
 };
-const rowsPerPage = 10;
+const tableX = 22;
+const tableHeaderY = 136;
+const tableStartY = tableHeaderY + 29;
+const tableBottomY = 545;
 
 export async function GET(request: Request) {
   const cookieStore = await cookies();
@@ -53,15 +55,17 @@ async function submissionApplicantsPdf(applicants: SubmissionApplicantExportRow[
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
-  const totalPages = Math.max(1, Math.ceil(applicants.length / rowsPerPage));
+  const columns = applicantColumns();
+  const layouts = applicants.map((item, index) => layoutApplicantRow(doc, item, index + 1, columns, reportFonts));
+  const pages = paginateRows(layouts, tableBottomY - tableStartY);
+  const totalPages = Math.max(1, pages.length);
   doc.info.Title = "Police Innovation Contest 2026 submission applicants";
   doc.info.Subject = "รายชื่อผู้สมัครประกวดนวัตกรรมทั้งหมด";
   doc.info.Author = "Police Innovation Contest 2026";
 
   for (let page = 0; page < totalPages; page += 1) {
     if (page > 0) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
-    const rows = applicants.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
-    drawPage(doc, rows, applicants.length, generatedAt, page * rowsPerPage, page + 1, totalPages, reportFonts);
+    drawPage(doc, pages[page] ?? [], applicants.length, generatedAt, page + 1, totalPages, columns, reportFonts);
   }
 
   doc.end();
@@ -70,30 +74,14 @@ async function submissionApplicantsPdf(applicants: SubmissionApplicantExportRow[
 
 function drawPage(
   doc: PDFKit.PDFDocument,
-  rows: SubmissionApplicantExportRow[],
+  rows: ApplicantRowLayout[],
   totalApplicants: number,
   generatedAt: Date,
-  startIndex: number,
   pageNumber: number,
   totalPages: number,
+  columns: readonly (readonly [string, number])[],
   fonts: PdfFontSet,
 ) {
-  const columns = [
-    ["ลำดับ", 34],
-    ["รหัสผลงาน", 70],
-    ["ผลงาน", 120],
-    ["คำนำหน้า", 48],
-    ["ชื่อ", 70],
-    ["นามสกุล", 70],
-    ["เลขบัตร", 76],
-    ["สังกัด / หน่วยงาน", 138],
-    ["อีเมล", 112],
-    ["โทร", 54],
-  ] as const;
-  const tableX = 22;
-  const rowHeight = 34;
-  const headerY = 136;
-
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
     title: "รายชื่อผู้สมัครประกวดนวัตกรรม",
@@ -105,22 +93,104 @@ function drawPage(
   });
 
   drawSummaryLine(doc, totalApplicants, pageNumber, totalPages, fonts);
-  drawTableHeader(doc, tableX, headerY, columns, fonts);
+  drawTableHeader(doc, tableX, tableHeaderY, columns, fonts);
 
   if (!rows.length) {
-    doc.roundedRect(42, headerY + 48, doc.page.width - 84, 76, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-    doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลผู้สมัครประกวดนวัตกรรม", 60, headerY + 78, {
+    doc.roundedRect(42, tableHeaderY + 48, doc.page.width - 84, 76, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลผู้สมัครประกวดนวัตกรรม", 60, tableHeaderY + 78, {
       width: doc.page.width - 120,
       align: "center",
       lineBreak: false,
     });
   }
 
-  rows.forEach((item, index) => {
-    drawApplicantRow(doc, tableX, headerY + 29 + index * rowHeight, rowHeight, columns, item, startIndex + index + 1, index, fonts);
+  let y = tableStartY;
+  rows.forEach((row, index) => {
+    drawApplicantRow(doc, tableX, y, row, index);
+    y += row.height;
   });
 
   drawDocumentFooter(doc, pageNumber, totalPages, `${totalApplicants.toLocaleString("th-TH")} คน`, fonts);
+}
+
+function applicantColumns() {
+  return [
+    ["ลำดับ", 34],
+    ["รหัสผลงาน", 70],
+    ["ผลงาน", 120],
+    ["คำนำหน้า", 48],
+    ["ชื่อ", 70],
+    ["นามสกุล", 70],
+    ["เลขบัตร", 76],
+    ["สังกัด / หน่วยงาน", 138],
+    ["อีเมล", 112],
+    ["โทร", 54],
+  ] as const;
+}
+
+type ApplicantCellLayout = {
+  lines: string[];
+  size: number;
+  font: string;
+  color: string;
+};
+
+type ApplicantRowLayout = {
+  cells: ApplicantCellLayout[];
+  height: number;
+};
+
+function layoutApplicantRow(
+  doc: PDFKit.PDFDocument,
+  item: SubmissionApplicantExportRow,
+  runningNumber: number,
+  columns: readonly (readonly [string, number])[],
+  fonts: PdfFontSet,
+): ApplicantRowLayout {
+  const values = [
+    String(runningNumber),
+    item.submission_code,
+    item.title_th,
+    item.title,
+    item.first_name,
+    item.last_name,
+    item.citizen_id,
+    `${clean(item.division)} / ${clean(item.bureau)}`,
+    item.email,
+    item.phone,
+  ];
+  const cells = values.map((value, valueIndex) => {
+    const isPrimary = valueIndex === 0 || valueIndex === 1 || valueIndex === 4 || valueIndex === 5;
+    const size = valueIndex === 1 || valueIndex === 8 ? 6.9 : 7.4;
+    const width = columns[valueIndex][1] - 10;
+    doc.font(isPrimary ? fonts.bold : fonts.regular).fontSize(size);
+    return {
+      lines: fitCellLines(doc, clean(value), width),
+      size,
+      font: isPrimary ? fonts.bold : fonts.regular,
+      color: isPrimary ? PDF_THEME.navy : PDF_THEME.text,
+    };
+  });
+  const lineHeight = Math.max(...cells.map((cell) => cell.lines.length * (cell.size + 2)));
+  return { cells, height: Math.max(34, lineHeight + 12) };
+}
+
+function paginateRows(rows: ApplicantRowLayout[], availableHeight: number) {
+  if (!rows.length) return [[]];
+  const pages: ApplicantRowLayout[][] = [];
+  let page: ApplicantRowLayout[] = [];
+  let usedHeight = 0;
+  for (const row of rows) {
+    if (page.length && usedHeight + row.height > availableHeight) {
+      pages.push(page);
+      page = [];
+      usedHeight = 0;
+    }
+    page.push(row);
+    usedHeight += row.height;
+  }
+  if (page.length) pages.push(page);
+  return pages;
 }
 
 function drawSummaryLine(
@@ -165,70 +235,39 @@ function drawApplicantRow(
   doc: PDFKit.PDFDocument,
   x: number,
   y: number,
-  rowHeight: number,
-  columns: readonly (readonly [string, number])[],
-  item: SubmissionApplicantExportRow,
-  runningNumber: number,
+  row: ApplicantRowLayout,
   index: number,
-  fonts: PdfFontSet,
 ) {
+  const columns = applicantColumns();
+  const rowHeight = row.height;
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   doc.rect(x, y, totalWidth, rowHeight).fill(index % 2 === 0 ? PDF_THEME.white : PDF_THEME.paleBlue);
   doc.moveTo(x, y + rowHeight).lineTo(x + totalWidth, y + rowHeight).lineWidth(0.45).stroke(PDF_THEME.line);
 
-  const values = [
-    String(runningNumber),
-    item.submission_code,
-    item.title_th,
-    abbreviateThaiRankTitle(item.title),
-    item.first_name,
-    item.last_name,
-    item.citizen_id,
-    `${clean(item.division)} / ${clean(item.bureau)}`,
-    item.email,
-    item.phone,
-  ];
-
   let cursor = x;
-  values.forEach((value, valueIndex) => {
+  row.cells.forEach((cell, valueIndex) => {
     if (valueIndex > 0) {
       doc.moveTo(cursor, y + 5).lineTo(cursor, y + rowHeight - 5).lineWidth(0.25).stroke("#e3e9f2");
     }
-    const isPrimary = valueIndex === 0 || valueIndex === 1 || valueIndex === 4 || valueIndex === 5;
-    drawCellText(
-      doc,
-      clean(value),
-      cursor + 5,
-      y + 6,
-      columns[valueIndex][1] - 10,
-      valueIndex === 1 || valueIndex === 8 ? 6.9 : 7.4,
-      isPrimary ? fonts.bold : fonts.regular,
-      isPrimary ? PDF_THEME.navy : PDF_THEME.text,
-      valueIndex === 2 || valueIndex === 7 || valueIndex === 8 ? 2 : 1,
-    );
+    drawCellText(doc, cell, cursor + 5, y + 6, columns[valueIndex][1] - 10);
     cursor += columns[valueIndex][1];
   });
 }
 
 function drawCellText(
   doc: PDFKit.PDFDocument,
-  value: string,
+  cell: ApplicantCellLayout,
   x: number,
   y: number,
   width: number,
-  size: number,
-  font: string,
-  color: string,
-  maxLines: number,
 ) {
-  doc.font(font).fontSize(size).fillColor(color);
-  const lines = fitCellLines(doc, value, width, maxLines);
-  lines.forEach((line, index) => {
-    doc.text(line, x, y + index * (size + 2), { width, lineBreak: false });
+  doc.font(cell.font).fontSize(cell.size).fillColor(cell.color);
+  cell.lines.forEach((line, index) => {
+    doc.text(line, x, y + index * (cell.size + 2), { width, lineBreak: false });
   });
 }
 
-function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number, maxLines: number) {
+function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number) {
   const graphemes = Array.from(
     new Intl.Segmenter("th", { granularity: "grapheme" }).segment(value),
     (item) => item.segment,
@@ -237,7 +276,7 @@ function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number, max
   let current = "";
   let index = 0;
 
-  while (index < graphemes.length && lines.length < maxLines) {
+  while (index < graphemes.length) {
     const next = `${current}${graphemes[index]}`;
     if (!current || doc.widthOfString(next) <= width) {
       current = next;
@@ -247,19 +286,7 @@ function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number, max
     lines.push(current.trimEnd());
     current = "";
   }
-  if (current && lines.length < maxLines) lines.push(current.trimEnd());
-
-  if (index < graphemes.length && lines.length) {
-    const ellipsis = "…";
-    let last = lines[lines.length - 1];
-    while (last && doc.widthOfString(`${last}${ellipsis}`) > width) {
-      last = Array.from(
-        new Intl.Segmenter("th", { granularity: "grapheme" }).segment(last),
-        (item) => item.segment,
-      ).slice(0, -1).join("");
-    }
-    lines[lines.length - 1] = `${last}${ellipsis}`;
-  }
+  if (current) lines.push(current.trimEnd());
   return lines.length ? lines : ["-"];
 }
 

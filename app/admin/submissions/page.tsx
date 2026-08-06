@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { ArrowLeft, Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
@@ -70,6 +70,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจเอกสาร และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
         <div className="admin-actions">
           {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export"><FileText/>Export PDF รายชื่อผู้สมัคร</a>}
+          {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/export/xlsx"><FileSpreadsheet/>Export Excel รายชื่อผู้สมัคร</a>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-score-form" target="_blank" rel="noreferrer"><FileText/>แบบฟอร์มให้คะแนนกรรมการ</a>}
           {isSuperAdmin && <Link className="secondary" href="#committee-score-form2"><FileText/>แบบฟอร์มให้คะแนนกรรมการ 2</Link>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-packets"><FileText/>ZIP PDF ทุกโครงการ</a>}
