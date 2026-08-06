@@ -1,10 +1,9 @@
 import PDFDocument from "pdfkit";
 import {
   drawDocumentFooter,
-  drawDocumentHeader,
-  formatPdfThaiDateTime,
   PDF_THEME,
   pdfFontBold,
+  pdfLogo,
   pdfFontRegular,
   type PdfFontSet,
 } from "./pdf-theme";
@@ -21,18 +20,17 @@ const pageHeight = 595.28;
 export async function parkingReservationsPdf(reservations: ParkingReservationRecord[]) {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: true });
   const pdf = collectPdf(doc);
-  const generatedAt = new Date();
   const pages = reservations.length ? reservations : [null];
 
   pages.forEach((reservation, index) => {
     if (index > 0) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
-    drawParkingPage(doc, reservation, generatedAt);
+    drawParkingPage(doc, reservation);
   });
 
   const range = doc.bufferedPageRange();
   for (let pageIndex = 0; pageIndex < range.count; pageIndex += 1) {
     doc.switchToPage(range.start + pageIndex);
-    drawDocumentFooter(doc, pageIndex + 1, range.count, "Parking Reservation", fonts);
+    drawDocumentFooter(doc, pageIndex + 1, range.count, undefined, fonts);
   }
 
   doc.info.Title = "Police Innovation Contest 2026 parking reservations";
@@ -42,20 +40,19 @@ export async function parkingReservationsPdf(reservations: ParkingReservationRec
   return pdf;
 }
 
-function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservationRecord | null, generatedAt: Date) {
+function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservationRecord | null) {
   doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_THEME.paper);
-  drawDocumentHeader(doc, {
-    title: "ป้ายสำรองที่จอดรถ",
-    subtitle: `VIP / Exhibitor / Staff Parking • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    metaLabel: "ประเภท",
-    metaValue: reservation?.participantRole ?? "-",
-    fonts,
-  });
 
   if (!reservation) {
-    doc.roundedRect(54, 198, pageWidth - 108, 124, 14).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
+    doc.roundedRect(42, 42, pageWidth - 84, 468, 20).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.image(pdfLogo, 64, 76, { fit: [82, 82], align: "center", valign: "center" });
+    doc.font(fonts.bold).fontSize(24).fillColor(PDF_THEME.navy).text("ป้ายจอดรถ", 166, 86, {
+      width: pageWidth - 230,
+      lineBreak: false,
+    });
+    doc.roundedRect(64, 198, pageWidth - 128, 124, 14).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
     doc.font(fonts.bold).fontSize(26).fillColor(PDF_THEME.navy).text("ยังไม่มีรายการสำรองที่จอดรถ", 72, 244, {
-      width: pageWidth - 128,
+      width: pageWidth - 144,
       align: "center",
       lineBreak: false,
     });
@@ -68,40 +65,32 @@ function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservatio
     : reservation.participantRole === "Staff"
       ? PDF_THEME.greenSoft
       : PDF_THEME.paleBlue;
-  doc.roundedRect(42, 130, pageWidth - 84, 416, 20)
+  doc.roundedRect(42, 42, pageWidth - 84, 468, 20)
     .fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.roundedRect(64, 154, pageWidth - 128, 56, 16).fillAndStroke(roleSoft, roleColor);
-  doc.font(fonts.bold).fontSize(25).fillColor(PDF_THEME.navy).text("RESERVED PARKING", 82, 170, {
-    width: pageWidth - 164,
-    align: "center",
-    lineBreak: false,
-  });
-
-  doc.roundedRect(64, 230, pageWidth - 128, 148, 18)
+  doc.roundedRect(64, 70, pageWidth - 128, 228, 18)
     .fillAndStroke(PDF_THEME.navy, "#203a64");
-  doc.font(fonts.bold).fontSize(18).fillColor(PDF_THEME.goldSoft).text("ทะเบียนรถ", 84, 250, {
-    width: pageWidth - 168,
+  doc.image(pdfLogo, 88, 128, { fit: [106, 106], align: "center", valign: "center" });
+  doc.font(fonts.bold).fontSize(18).fillColor(PDF_THEME.goldSoft).text("ทะเบียนรถ", 222, 108, {
+    width: pageWidth - 286,
     align: "center",
     lineBreak: false,
   });
-  drawPlateText(doc, reservation.carPlate, 84, 278, pageWidth - 168);
+  drawPlateText(doc, reservation.carPlate, 222, 150, pageWidth - 286);
 
-  const detailY = 404;
-  drawDetailBox(doc, "Role", reservation.participantRole, 64, detailY, 138, roleColor);
-  drawDetailBox(doc, "เบอร์โทร", reservation.phone, 216, detailY, 200);
-  drawDetailBox(doc, "ชื่อผู้ใช้สิทธิ์", reservation.participantName, 430, detailY, 348);
+  drawDetailBox(doc, "ROLE / สิทธิ์จอดรถ", reservation.participantRole, 64, 324, 230, roleColor, 22);
+  drawDetailBox(doc, "ชื่อผู้ใช้สิทธิ์", reservation.participantName, 310, 324, 468, PDF_THEME.gold, 16);
 
   const supportText = [reservation.note, [reservation.division, reservation.bureau].filter(Boolean).join(" / ")]
     .map(clean)
     .filter((item) => item !== "-")
     .join(" • ");
   if (supportText) {
-    doc.roundedRect(64, 486, pageWidth - 128, 38, 10).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
-    doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("รายละเอียด", 82, 498, {
+    doc.roundedRect(64, 430, pageWidth - 128, 42, 10).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
+    doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("รายละเอียด", 82, 443, {
       width: 80,
       lineBreak: false,
     });
-    doc.font(fonts.regular).fontSize(11).fillColor(PDF_THEME.text).text(supportText, 172, 496, {
+    doc.font(fonts.regular).fontSize(11).fillColor(PDF_THEME.text).text(supportText, 172, 441, {
       width: pageWidth - 254,
       lineGap: 1,
     });
@@ -123,13 +112,13 @@ function drawPlateText(doc: PDFKit.PDFDocument, value: string, x: number, y: num
   });
 }
 
-function drawDetailBox(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number, accent: string = PDF_THEME.gold) {
-  doc.roundedRect(x, y, width, 58, 10).fillAndStroke(PDF_THEME.paleBlue, PDF_THEME.line);
+function drawDetailBox(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number, accent: string = PDF_THEME.gold, valueSize = 14) {
+  doc.roundedRect(x, y, width, 76, 10).fillAndStroke(PDF_THEME.paleBlue, PDF_THEME.line);
   doc.font(fonts.bold).fontSize(9).fillColor(accent).text(label, x + 14, y + 12, {
     width: width - 28,
     lineBreak: false,
   });
-  doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text(clean(value), x + 14, y + 30, {
+  doc.font(fonts.bold).fontSize(valueSize).fillColor(PDF_THEME.navy).text(clean(value), x + 14, y + 34, {
     width: width - 28,
     lineGap: 1,
   });
