@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS registrations (
   title VARCHAR(32) NOT NULL,
   first_name VARCHAR(120) NOT NULL,
   last_name VARCHAR(120) NOT NULL,
-  citizen_id CHAR(13) NOT NULL,
+  citizen_id CHAR(13) NULL,
   phone VARCHAR(20) NOT NULL,
   position VARCHAR(255) NOT NULL,
   division VARCHAR(255) NOT NULL,

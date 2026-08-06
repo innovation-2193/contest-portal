@@ -60,39 +60,32 @@ function drawParkingPage(doc: PDFKit.PDFDocument, reservation: ParkingReservatio
   }
 
   const roleColor = parkingRoleColor(reservation.participantRole);
-  const roleSoft = reservation.participantRole === "VIP"
-    ? PDF_THEME.goldSoft
-    : reservation.participantRole === "Staff"
-      ? PDF_THEME.greenSoft
-      : PDF_THEME.paleBlue;
-  doc.roundedRect(42, 42, pageWidth - 84, 468, 20)
+  doc.roundedRect(42, 30, pageWidth - 84, 510, 20)
     .fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.roundedRect(64, 70, pageWidth - 128, 228, 18)
+  doc.roundedRect(64, 54, pageWidth - 128, 246, 18)
     .fillAndStroke(PDF_THEME.navy, "#203a64");
-  doc.image(pdfLogo, 88, 128, { fit: [106, 106], align: "center", valign: "center" });
-  doc.font(fonts.bold).fontSize(18).fillColor(PDF_THEME.goldSoft).text("ทะเบียนรถ", 222, 108, {
+  doc.image(pdfLogo, 88, 120, { fit: [106, 106], align: "center", valign: "center" });
+  doc.font(fonts.bold).fontSize(18).fillColor(PDF_THEME.goldSoft).text("ทะเบียนรถ", 222, 82, {
     width: pageWidth - 286,
     align: "center",
     lineBreak: false,
   });
-  drawPlateText(doc, reservation.carPlate, 222, 150, pageWidth - 286);
+  drawPlateText(doc, reservation.carPlate, 222, 122, pageWidth - 286);
+  drawPlateOwner(doc, reservation.participantName, 222, 202, pageWidth - 286);
 
-  drawDetailBox(doc, "ROLE / สิทธิ์จอดรถ", reservation.participantRole, 64, 324, 230, roleColor, 22);
-  drawDetailBox(doc, "ชื่อผู้ใช้สิทธิ์", reservation.participantName, 310, 324, 468, PDF_THEME.gold, 16);
+  drawRoleBanner(doc, reservation.participantRole, 64, 318, pageWidth - 128, 84, roleColor);
 
-  const supportText = [reservation.note, [reservation.division, reservation.bureau].filter(Boolean).join(" / ")]
+  const affiliation = [reservation.division, reservation.bureau]
     .map(clean)
     .filter((item) => item !== "-")
-    .join(" • ");
-  if (supportText) {
-    doc.roundedRect(64, 430, pageWidth - 128, 42, 10).fillAndStroke(PDF_THEME.goldSoft, "#e5cd70");
-    doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("รายละเอียด", 82, 443, {
-      width: 80,
+    .join(" / ") || "-";
+  drawDetailBox(doc, "สังกัด / หน่วยงาน", affiliation, 64, 414, pageWidth - 128, PDF_THEME.gold, 14);
+
+  const note = clean(reservation.note);
+  if (note !== "-") {
+    doc.font(fonts.regular).fontSize(9).fillColor(PDF_THEME.muted).text(`หมายเหตุ: ${note}`, 78, 502, {
+      width: pageWidth - 156,
       lineBreak: false,
-    });
-    doc.font(fonts.regular).fontSize(11).fillColor(PDF_THEME.text).text(supportText, 172, 441, {
-      width: pageWidth - 254,
-      lineGap: 1,
     });
   }
 }
@@ -108,6 +101,33 @@ function drawPlateText(doc: PDFKit.PDFDocument, value: string, x: number, y: num
   doc.fillColor(PDF_THEME.white).text(text, x, y, {
     width,
     align: "center",
+    lineBreak: false,
+  });
+}
+
+function drawPlateOwner(doc: PDFKit.PDFDocument, value: string, x: number, y: number, width: number) {
+  const text = clean(value);
+  let size = 16;
+  doc.font(fonts.bold).fontSize(size);
+  while (size > 11 && doc.widthOfString(text) > width) {
+    size -= 1;
+    doc.font(fonts.bold).fontSize(size);
+  }
+  doc.fillColor(PDF_THEME.white).text(text, x, y, {
+    width,
+    align: "center",
+    lineBreak: false,
+  });
+}
+
+function drawRoleBanner(doc: PDFKit.PDFDocument, role: ParkingReservationRecord["participantRole"], x: number, y: number, width: number, height: number, color: string) {
+  doc.roundedRect(x, y, width, height, 14).fillAndStroke(color, color);
+  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("ROLE / สิทธิ์จอดรถ", x + 20, y + 14, {
+    width: width - 40,
+    lineBreak: false,
+  });
+  doc.font(fonts.bold).fontSize(30).fillColor(PDF_THEME.navy).text(role, x + 20, y + 32, {
+    width: width - 40,
     lineBreak: false,
   });
 }

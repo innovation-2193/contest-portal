@@ -66,7 +66,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
               <label>นามสกุล<input name="lastName" required/></label>
               <label>อีเมล<input type="email" name="email" placeholder="เว้นว่างได้สำหรับลงทะเบียนหลังบ้าน"/></label>
               <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue="Guest">{participantRoles.map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
-              <label>เลขบัตรประชาชน<input name="citizenId" inputMode="numeric" pattern="\d{13}" maxLength={13} required/></label>
+              <label>เลขบัตรประชาชน<input name="citizenId" inputMode="numeric" pattern="\d{13}" maxLength={13} placeholder="เว้นว่างได้"/></label>
               <label>เบอร์ติดต่อ<input name="phone" inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} required/></label>
               <label>ตำแหน่ง<input name="position" required/></label>
               <label>สังกัด / กองบังคับการ<input name="division" placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
