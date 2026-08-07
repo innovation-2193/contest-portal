@@ -2,10 +2,11 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { Car, ClipboardList, Download, Gift, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { Car, ClipboardList, Download, Eye, Gift, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
 import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin } from "../../lib/admin-auth";
-import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUciAccounts, updateAdminAccount, verifyAdminAccountPassword } from "../../lib/admin-users";
+import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
@@ -66,8 +67,8 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations">ดูผลประเมินและกด Lucky Draw</Link></div></section>
 
     {session.role === "uci" && <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>สมาชิกทีม UCI</h2><p>เพิ่ม แก้ไข ลบสมาชิก และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกในทีมได้เอง</p></div></header>
-      <form action={createUciMemberAction} className="admin-form"><div className="form-grid compact-grid"><label>ชื่อสมาชิก<input name="name" required placeholder="ชื่อ-นามสกุล หรือหน้าที่"/></label><label>อีเมล<input type="email" name="email" required/></label><label>เบอร์ติดต่อ<input name="phone"/></label></div><button className="primary" type="submit"><UserPlus/>เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่าน</button></form>
-      <div className="admin-table-wrap"><table className="admin-table compact-admin-table"><thead><tr><th>สมาชิก</th><th>อีเมล</th><th>สถานะ</th><th>แก้ไข</th><th></th></tr></thead><tbody>{members.length ? members.map((member) => <tr key={member.id}><td data-label="สมาชิก"><b>{member.name || "ไม่ระบุชื่อ"}</b><small>{member.phone || "-"}</small></td><td data-label="อีเมล">{member.email}</td><td data-label="สถานะ"><span className={`status-pill ${member.disabled ? "cancelled" : "attended"}`}>{member.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}<br/>{member.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td><td data-label="แก้ไข"><form action={updateUciMemberAction} className="uci-inline-form"><input type="hidden" name="id" value={member.id}/><input name="name" defaultValue={member.name}/><input type="email" name="email" defaultValue={member.email}/><input name="phone" defaultValue={member.phone}/><label className="inline-check"><input type="checkbox" name="disabled" defaultChecked={member.disabled}/> ปิดใช้งาน</label><button className="secondary small-action" type="submit"><Pencil/>บันทึก</button></form></td><td data-label="การจัดการ"><div className="admin-detail-actions"><form action={resendUciPasswordAction}><input type="hidden" name="id" value={member.id}/><button className="ghost-action" type="submit"><Mail/>ส่งลิงก์ใหม่</button></form>{member.email !== session.email && <form action={deleteUciMemberAction}><input type="hidden" name="id" value={member.id}/><button className="danger-btn" type="submit">ลบ</button></form>}</div></td></tr>) : <tr><td colSpan={5}>ยังไม่มีสมาชิกทีม UCI</td></tr>}</tbody></table></div>
+      <form action={createUciMemberAction} className="admin-form uci-user-create-form"><div className="uci-user-create-grid"><label>ชื่อสมาชิก<input name="name" required placeholder="ชื่อ-นามสกุล หรือหน้าที่"/></label><label>อีเมล<input type="email" name="email" required placeholder="name@example.com"/></label><label>เบอร์ติดต่อ<input name="phone" placeholder="เบอร์โทรศัพท์ (ถ้ามี)"/></label></div><div className="uci-user-create-footer"><small>ระบบจะส่งลิงก์ตั้งรหัสผ่านไปยังอีเมลของสมาชิกโดยอัตโนมัติ</small><button className="primary" type="submit"><UserPlus/>เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่าน</button></div></form>
+      <div className="admin-table-wrap"><table className="admin-table compact-admin-table uci-user-table"><thead><tr><th>สมาชิก</th><th>อีเมล / เบอร์ติดต่อ</th><th>สถานะ</th><th>การจัดการ</th></tr></thead><tbody>{members.length ? members.map((member) => <tr key={member.id}><td data-label="สมาชิก"><b>{member.name || "ไม่ระบุชื่อ"}</b><small>เพิ่มเมื่อ {formatDate(member.createdAt)}</small></td><td data-label="อีเมล / เบอร์ติดต่อ"><b>{member.email}</b><small>{member.phone || "ไม่ระบุเบอร์ติดต่อ"}</small></td><td data-label="สถานะ"><span className={`status-pill ${member.disabled ? "cancelled" : "attended"}`}>{member.disabled ? "ปิดใช้งาน" : "ใช้งานได้"}<br/>{member.passwordHash ? "ตั้งรหัสผ่านแล้ว" : "รอตั้งรหัสผ่าน"}</span></td><td data-label="การจัดการ"><div className="uci-user-actions"><Link className="secondary small-action" href={`/uci/team/${encodeURIComponent(member.id)}`}><Eye/>ดูข้อมูล</Link><Link className="secondary small-action" href={`/uci/team/${encodeURIComponent(member.id)}`}><Pencil/>แก้ไข</Link><form action={resendUciPasswordAction}><input type="hidden" name="id" value={member.id}/><button className="ghost-action small-action" type="submit"><Mail/>ส่งลิงก์ใหม่</button></form>{member.email !== session.email && <form action={deleteUciMemberAction}><input type="hidden" name="id" value={member.id}/><ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบสมาชิก UCI นี้?"><Trash2/>ลบสมาชิก</ConfirmSubmitButton></form>}</div></td></tr>) : <tr><td colSpan={4}>ยังไม่มีสมาชิกทีม UCI</td></tr>}</tbody></table></div>
     </section>}
   </div></div>;
 }
@@ -114,16 +115,6 @@ async function createUciMemberAction(formData: FormData) {
   redirect("/uci?notice=member_added");
 }
 
-async function updateUciMemberAction(formData: FormData) {
-  "use server";
-  const session = await requireUci();
-  const account = await updateAdminAccount(text(formData, "id"), { name: text(formData, "name"), email: text(formData, "email"), phone: text(formData, "phone"), disabled: formData.get("disabled") === "on" });
-  if (account.role !== "uci") throw new Error("บัญชีนี้ไม่ใช่สมาชิก UCI");
-  await recordAuditEvent({ actor: actorFromAdminSession(session), action: "uci_user.updated", entityType: "uci_user", entityId: account.id, summary: `แก้ไขสมาชิก UCI ${account.email}`, payload: { disabled: account.disabled } }, await headers());
-  revalidatePath("/uci"); revalidatePath(`/admin/uci/${encodeURIComponent(account.id)}`);
-  redirect("/uci?notice=member_saved");
-}
-
 async function resendUciPasswordAction(formData: FormData) {
   "use server";
   const session = await requireUci();
@@ -139,7 +130,9 @@ async function deleteUciMemberAction(formData: FormData) {
   const session = await requireUci();
   const id = text(formData, "id");
   const members = await listUciAccounts();
-  if (!members.some((member) => member.id === id)) throw new Error("ไม่พบสมาชิก UCI");
+  const member = members.find((item) => item.id === id);
+  if (!member) throw new Error("ไม่พบสมาชิก UCI");
+  if (member.email === session.email) redirect("/uci?notice=member_self_delete_forbidden");
   await deleteAdminAccount(id);
   await recordAuditEvent({ actor: actorFromAdminSession(session), action: "uci_user.deleted", entityType: "uci_user", entityId: id, summary: "ลบสมาชิก UCI" }, await headers());
   revalidatePath("/uci"); revalidatePath("/admin/uci");
@@ -159,7 +152,11 @@ async function requireUci() {
 
 function text(formData: FormData, name: string) { return String(formData.get(name) ?? "").replace(/\s+/g, " ").trim(); }
 
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium" }).format(new Date(value));
+}
+
 function noticeLabel(code: string) {
-  const labels: Record<string, string> = { evaluation_opened: "เปิดแบบสอบถามเรียบร้อยแล้ว", evaluation_closed: "ปิดแบบสอบถามเรียบร้อยแล้ว", member_added: "เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่านแล้ว", member_saved: "บันทึกข้อมูลสมาชิกแล้ว", member_deleted: "ลบสมาชิกแล้ว", password_link_sent: "ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว" };
+  const labels: Record<string, string> = { evaluation_opened: "เปิดแบบสอบถามเรียบร้อยแล้ว", evaluation_closed: "ปิดแบบสอบถามเรียบร้อยแล้ว", member_added: "เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่านแล้ว", member_saved: "บันทึกข้อมูลสมาชิกแล้ว", member_deleted: "ลบสมาชิกแล้ว", password_link_sent: "ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว", member_self_delete_forbidden: "ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่ได้" };
   return labels[code] || code;
 }

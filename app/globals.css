@@ -9479,23 +9479,6 @@ body:has(.prelander-page)::before {
   grid-template-columns: repeat(3, minmax(220px, 1fr));
 }
 
-.uci-inline-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(120px, 1fr));
-  gap: 8px;
-  min-width: 360px;
-}
-
-.uci-inline-form .inline-check {
-  align-self: center;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.uci-inline-form .small-action {
-  min-height: 40px;
-}
-
 .uci-user-create-form {
   gap: 16px;
 }
