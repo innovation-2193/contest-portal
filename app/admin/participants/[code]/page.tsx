@@ -23,7 +23,7 @@ const participantStatuses = [
 ] as const;
 
 export default async function AdminParticipantDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ notice?: string }> }) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const { code } = await params;
   const query = await searchParams;
@@ -85,7 +85,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
             </form>
           </details>
         </section>
-        <section className="admin-detail-block print-hidden">
+        {session.role !== "uci" && <section className="admin-detail-block print-hidden">
           <h3>การจัดการรายการ</h3>
           <div className="admin-detail-actions">
             <form action={deleteParticipantAction}>
@@ -93,7 +93,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
               <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข้อมูลผู้เข้าร่วมงานรายการนี้?"><Trash2/>ลบผู้เข้าร่วมงาน</ConfirmSubmitButton>
             </form>
           </div>
-        </section>
+        </section>}
         <div className="print-document-footer"><span>เอกสารจากระบบ Police Innovation Contest 2026</span><b>{item.registration_code}</b></div>
       </article> : <article className="admin-panel"><h2>ไม่พบข้อมูลผู้เข้าร่วมงาน</h2><p>กรุณาตรวจสอบรหัสลงทะเบียน</p></article>}
     </div>
@@ -156,6 +156,7 @@ async function deleteParticipantAction(formData: FormData) {
   const session = await requireAdmin();
   const requestHeaders = await headers();
   const registrationCode = text(formData, "registrationCode");
+  if (session.role === "uci") redirect(adminNoticePath(`/admin/participants/${encodeURIComponent(registrationCode)}`, "participant_delete_forbidden"));
   await deleteParticipant(registrationCode);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),

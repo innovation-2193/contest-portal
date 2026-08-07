@@ -20,6 +20,7 @@ export const adminNoticeMessages = {
   participant_deleted: "ลบข้อมูลผู้เข้าร่วมงานเรียบร้อยแล้ว",
   participants_deleted: "ลบข้อมูลผู้เข้าร่วมงานที่เลือกเรียบร้อยแล้ว",
   participant_none_selected: "ยังไม่ได้เลือกรายการผู้เข้าร่วมงานสำหรับลบ",
+  participant_delete_forbidden: "บัญชี UCI ไม่มีสิทธิ์ลบข้อมูลผู้เข้าร่วมงาน",
   submission_saved: "บันทึกข้อมูลใบสมัครประกวดเรียบร้อยแล้ว",
   score_saved: "บันทึกคะแนนเรียบร้อยแล้ว",
   submission_deleted: "ลบใบสมัครประกวดเรียบร้อยแล้ว",

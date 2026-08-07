@@ -29,6 +29,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const page = Math.max(1, Number(params.page ?? "1") || 1);
   const participants = await listParticipants();
+  const canDeleteParticipants = session.role !== "uci";
   const participantRoleCounts = buildParticipantRoleCounts(participants);
   const searched = filterRecords(participants, q, (item) => [
     item.registration_code,
@@ -93,12 +94,12 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href={participantsClearHref(participantRole)}>ล้าง</Link></div>
         </form>
         <form action={deleteParticipantsAction} className="bulk-delete-form">
-          <div className="bulk-delete-bar">
+          {canDeleteParticipants && <div className="bulk-delete-bar">
             <span>ติ๊ก checkbox หน้าแถวที่ต้องการลบ แล้วกดลบรายการที่เลือก</span>
             <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
-          </div>
+          </div>}
           <div className="admin-table-wrap"><table className="admin-table compact-admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
-            <td data-label="รหัส"><label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label></td>
+            <td data-label="รหัส">{canDeleteParticipants ? <label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label> : <span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span>}</td>
             <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id || "-"}</small></td>
             <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
             <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
@@ -225,6 +226,7 @@ async function deleteParticipantsAction(formData: FormData) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
+  if (session.role === "uci") redirect(adminNoticePath("/admin/participants", "participant_delete_forbidden"));
   const codes = formData.getAll("registrationCode").map(String).filter(Boolean);
   if (!codes.length) redirect(adminNoticePath("/admin/participants", "participant_none_selected"));
   const deleted = await deleteParticipants(codes);

@@ -9,8 +9,8 @@ import { publicSiteUrl } from "../../../../../lib/public-url";
 
 export async function POST(request: NextRequest) {
   const session = getAdminSession(request.cookies.get(cookieName)?.value);
-  if (!session) {
-    return NextResponse.redirect(publicSiteUrl("/admin", request), 303);
+  if (!session || session.role === "uci") {
+    return NextResponse.redirect(publicSiteUrl(adminNoticePath("/admin/participants", "participant_delete_forbidden"), request), 303);
   }
 
   const formData = await request.formData();
