@@ -88,7 +88,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     action: filters.action,
-    actorType: isSuperAdmin ? filters.actor || undefined : session.role,
+    actorType: isSuperAdmin ? filters.actor || undefined : session.role === "super_admin" ? "super_admin" : "admin",
     actorEmail: isSuperAdmin ? undefined : session.email,
     query: filters.q,
     from: filters.from,

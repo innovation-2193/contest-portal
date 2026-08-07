@@ -27,6 +27,8 @@ export const adminNoticeMessages = {
   evaluations_reset: "รีเซ็ตคำตอบแบบประเมินความพึงพอใจทั้งหมดเรียบร้อยแล้ว",
   evaluations_reset_empty: "ยังไม่มีคำตอบแบบประเมินสำหรับรีเซ็ต",
   evaluations_reset_blocked: "กรุณา Reset ผล Lucky Draw ด้วย OTP ก่อนรีเซ็ตคำตอบแบบประเมิน",
+  evaluation_opened: "เปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
+  evaluation_closed: "ปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
 } as const;
 
 export type AdminNoticeCode = keyof typeof adminNoticeMessages;

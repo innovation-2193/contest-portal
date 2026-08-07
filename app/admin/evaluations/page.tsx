@@ -7,9 +7,9 @@ import { ArrowLeft, ChevronDown, ClipboardList, FileDown, Gift, Star, Trophy, Us
 import { AdminNotice } from "../../../components/AdminNotice";
 import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
-import { adminOtpAutoFillCookie, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
+import { adminOtpAutoFillCookie, canOperateEventStaff, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
 import { adminNoticePath } from "../../../lib/admin-flash";
-import { getAdminSettings } from "../../../lib/admin-store";
+import { getAdminSettings, saveAdminSettings } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { getEvaluationSummary, listEvaluationRespondents, listLuckyDrawCandidates, resetEvaluations, type EvaluationSummary } from "../../../lib/evaluation-store";
 
@@ -43,6 +43,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
     withFallback(listLuckyDrawCandidates(), []),
   ]);
   const isSuperAdmin = session.role === "super_admin";
+  const canRunLuckyDraw = canOperateEventStaff(session);
   const resetOtpAutoFill = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "reset_lucky_draw" });
 
   return <div className="admin-page">
@@ -53,7 +54,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           <h1>สรุปแบบประเมินความพึงพอใจ</h1>
           <p>ดูคะแนนรวม คะแนนรายหมวด รายข้อ ข้อมูลทั่วไป ข้อเสนอแนะ และผู้โชคดี Lucky Draw</p>
         </div>
-        <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>กลับหลังบ้าน</Link>
       </div>
       <AdminNotice code={params.notice}/>
       <section className="admin-panel evaluation-detail-panel">
@@ -63,9 +64,10 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
             <h2>ภาพรวมคะแนนประเมิน</h2>
             <p>{settings.satisfactionEvaluationEnabled ? "เปิดให้ผู้เข้าร่วมงานทำแบบประเมินแล้ว" : "ยังไม่ได้เปิดให้ผู้เข้าร่วมงานทำแบบประเมิน"}</p>
           </div>
-          <div className="admin-actions">
-            <span className={`status-pill ${settings.satisfactionEvaluationEnabled ? "attended" : "registered"}`}>{settings.satisfactionEvaluationEnabled ? "เปิดให้ประเมิน" : "ยังไม่เปิด"}</span>
-            {isSuperAdmin && <form action={resetEvaluationsAction}><ResetEvaluationsButton disabled={!summary.total}/></form>}
+            <div className="admin-actions">
+              <span className={`status-pill ${settings.satisfactionEvaluationEnabled ? "attended" : "registered"}`}>{settings.satisfactionEvaluationEnabled ? "เปิดให้ประเมิน" : "ยังไม่เปิด"}</span>
+              {canOperateEventStaff(session) && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}
+              {isSuperAdmin && <form action={resetEvaluationsAction}><ResetEvaluationsButton disabled={!summary.total}/></form>}
           </div>
         </header>
         <div className="evaluation-dashboard-summary">
@@ -154,7 +156,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
             drawnBy: winner.lucky_drawn_by_email,
             notifiedAt: winner.lucky_notified_at,
           }))}
-          isSuperAdmin={isSuperAdmin}
+          canRunLuckyDraw={canRunLuckyDraw}
           resetOtpStatus={params.resetOtp}
           resetOtpAutoFill={resetOtpAutoFill}
         />
@@ -194,6 +196,28 @@ async function resetEvaluationsAction() {
   revalidatePath("/admin/evaluations");
   revalidatePath("/evaluation");
   redirect(adminNoticePath("/admin/evaluations", "evaluations_reset"));
+}
+
+async function toggleEvaluationAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || !canOperateEventStaff(session)) redirect("/admin");
+  const settings = await getAdminSettings();
+  const enabled = String(formData.get("enabled") ?? "") === "1";
+  await saveAdminSettings({ ...settings, satisfactionEvaluationEnabled: enabled });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "evaluation.availability_updated",
+    entityType: "evaluation",
+    summary: `${enabled ? "เปิด" : "ปิด"}แบบสอบถามความพึงพอใจ`,
+    payload: { enabled },
+  }, await headers());
+  revalidatePath("/evaluation");
+  revalidatePath("/admin");
+  revalidatePath("/admin/evaluations");
+  revalidatePath("/uci");
+  redirect(adminNoticePath("/admin/evaluations", enabled ? "evaluation_opened" : "evaluation_closed"));
 }
 
 async function withFallback<T>(promise: Promise<T>, fallback: T) {

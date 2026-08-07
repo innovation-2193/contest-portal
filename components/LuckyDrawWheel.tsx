@@ -29,13 +29,13 @@ const CONFETTI_PIECES = Array.from({ length: 64 }, (_, index) => ({
 export function LuckyDrawWheel({
   candidates,
   initialWinners,
-  isSuperAdmin,
+  canRunLuckyDraw,
   resetOtpStatus,
   resetOtpAutoFill = "",
 }: {
   candidates: LuckyDrawCandidate[];
   initialWinners: LuckyWinner[];
-  isSuperAdmin: boolean;
+  canRunLuckyDraw: boolean;
   resetOtpStatus?: string;
   resetOtpAutoFill?: string;
 }) {
@@ -180,7 +180,7 @@ export function LuckyDrawWheel({
           </div>
           <h3>{nextPrize ? `ขณะนี้กำลังจับรางวัลที่ ${nextPrize}` : "จับฉลากครบแล้ว"}</h3>
           <p>ผู้มีสิทธิ์คงเหลือ <strong>{available.length.toLocaleString("th-TH")}</strong> คน ผลแต่ละรางวัลบันทึกได้เพียงครั้งเดียว</p>
-          {isSuperAdmin ? (
+          {canRunLuckyDraw ? (
             <button className="lucky-draw-button" type="button" onClick={draw} disabled={spinning || !nextPrize || !available.length}>
               {spinning ? <Sparkles /> : nextPrize ? <Gift /> : <LockKeyhole />}
               {spinning ? `กำลังสุ่มรางวัลที่ ${nextPrize}` : nextPrize ? `เริ่มจับรางวัลที่ ${nextPrize}` : "ผลถูกล็อกครบ 3 รางวัล"}
@@ -209,7 +209,7 @@ export function LuckyDrawWheel({
 
       {resetOtpStatus && resetOtpMessage(resetOtpStatus)}
 
-      {isSuperAdmin && winners.length > 0 && (
+      {canRunLuckyDraw && winners.length > 0 && (
         <section className="lucky-reset-panel">
           <div><RotateCcw /><span><b>Reset ผล Lucky Draw</b><small>ใช้เฉพาะเมื่อระบบผิดพลาด ต้องยืนยันด้วย OTP ของ Super Admin และระบบจะแจ้งผู้ได้รับรางวัลเดิมทุกคน</small></span></div>
           <div className="lucky-reset-actions">

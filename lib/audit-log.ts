@@ -50,6 +50,7 @@ const maxAuditAgeDays = 90;
 const allowedAuditActions = new Set([
   "auth.super_admin_login",
   "auth.admin_login",
+  "auth.uci_login",
   "auth.participant_otp_requested",
   "auth.participant_login",
   "auth.participant_logout",
@@ -97,6 +98,10 @@ const allowedAuditActions = new Set([
   "admin_user.password_link_sent",
   "admin_user.password_set",
   "admin_user.deleted",
+  "uci_user.created",
+  "uci_user.updated",
+  "uci_user.password_link_sent",
+  "uci_user.deleted",
   "news.created",
   "news.deleted",
   "home_popup.saved",
@@ -109,6 +114,7 @@ const allowedAuditActions = new Set([
   "evaluation.lucky_draw_reset",
   "evaluation.responses_reset",
   "evaluation.report_exported",
+  "evaluation.availability_updated",
 ]);
 const allowedActionList = [...allowedAuditActions];
 

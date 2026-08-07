@@ -76,6 +76,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
 
+  if (session?.role === "uci") redirect("/uci");
+
   if (session && params.login) {
     return <AdminShell><LoginPanel message="" activeSession={session}/></AdminShell>;
   }
@@ -84,7 +86,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const autoFillOtp = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "login" });
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
-
   const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
@@ -177,6 +178,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
     {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>}
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Users/><div><span className="eyebrow">UCI Access</span><h2>จัดการผู้ใช้ UCI</h2><p>เพิ่ม แก้ไข ลบ และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกทีม UCI</p></div></div><Link className="primary" href="/admin/uci"><Users/>เปิดจัดการผู้ใช้ UCI</Link></section>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
     {isSuperAdmin && <section className="admin-panel">
@@ -869,14 +871,14 @@ async function loginAction(formData: FormData) {
   }
 
   await clearAdminLoginFailures(clientKey);
-  await setAdminSession({ email: admin.email, role: "admin" });
+  await setAdminSession({ email: admin.email, role: admin.role });
   await recordAuditEvent({
     actor: { type: "admin", email: admin.email },
     action: "auth.admin_login",
     entityType: "auth",
     summary: `Admin เข้าสู่ระบบ ${admin.email}`,
   }, requestHeaders);
-  redirect("/admin");
+  redirect(admin.role === "uci" ? "/uci" : "/admin");
 }
 
 async function setAdminSession(session: Pick<AdminSession, "email" | "role">) {

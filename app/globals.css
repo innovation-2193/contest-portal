@@ -9475,6 +9475,27 @@ body:has(.prelander-page)::before {
   height: 22px;
 }
 
+.uci-action-grid {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.uci-inline-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+  min-width: 360px;
+}
+
+.uci-inline-form .inline-check {
+  align-self: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.uci-inline-form .small-action {
+  min-height: 40px;
+}
+
 .admin-edit-disclosure[open] .admin-submission-edit-form {
   display: grid;
 }
@@ -18368,17 +18389,23 @@ footer {
 
 .contest-public-filter-form input,
 .contest-public-filter-form select {
+  box-sizing: border-box;
   background: #061226;
   border: 1px solid rgba(143, 166, 202, 0.48);
   border-radius: 8px;
   color: #eef4ff;
   font: inherit;
   font-size: 14px;
+  height: 56px;
   min-height: 56px;
   outline: none;
   padding: 0 12px;
   width: 100%;
   min-width: 0;
+}
+
+.contest-public-filter-form select {
+  line-height: 1.25;
 }
 
 .contest-public-filter-form input:focus,
@@ -18803,6 +18830,12 @@ footer {
   .contest-public-filter-form {
     grid-template-columns: 1fr;
     padding: 16px 18px;
+  }
+
+  .contest-public-filter-form input,
+  .contest-public-filter-form select {
+    height: 56px;
+    min-height: 56px;
   }
 
   .contest-public-filter-actions {

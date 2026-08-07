@@ -8,7 +8,7 @@ export const adminOtpAutoFillCookie = "contest_admin_otp_autofill";
 
 export { cookieName };
 
-export type AdminRole = "super_admin" | "admin";
+export type AdminRole = "super_admin" | "admin" | "uci";
 
 export type AdminSession = {
   email: string;
@@ -68,6 +68,14 @@ export function adminPassword() {
 
 export function adminSessionMaxAgeSeconds(role: AdminRole = "admin") {
   return role === "super_admin" ? superAdminSessionMaxAge : adminSessionMaxAge;
+}
+
+export function isUciSession(session: AdminSession | null | undefined): session is AdminSession & { role: "uci" } {
+  return session?.role === "uci";
+}
+
+export function canOperateEventStaff(session: AdminSession | null | undefined) {
+  return session?.role === "super_admin" || session?.role === "uci";
 }
 
 export function adminCookieSecure() {
@@ -133,12 +141,13 @@ export function getAdminSession(value?: string, now = Date.now()): AdminSession 
       role?: string;
       issuedAt?: number;
     };
-    if (!decoded.email || decoded.role !== "admin" && decoded.role !== "super_admin") return null;
+    const role = decoded.role;
+    if (!decoded.email || (role !== "admin" && role !== "super_admin" && role !== "uci")) return null;
     if (!Number.isFinite(decoded.issuedAt)) return null;
-    if (now - Number(decoded.issuedAt) > adminSessionMaxAgeSeconds(decoded.role) * 1000) return null;
+    if (now - Number(decoded.issuedAt) > adminSessionMaxAgeSeconds(role) * 1000) return null;
     return {
       email: decoded.email.trim().toLowerCase(),
-      role: decoded.role,
+      role,
       issuedAt: Number(decoded.issuedAt),
     };
   } catch {

@@ -50,7 +50,7 @@ const pages = [
   },
 ];
 
-export function NotFoundSearch({ activeSession }: { activeSession?: { href: "/admin" | "/profile"; label: string } | null }) {
+export function NotFoundSearch({ activeSession }: { activeSession?: { href: "/admin" | "/profile" | "/uci"; label: string } | null }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const normalizedQuery = normalize(query);

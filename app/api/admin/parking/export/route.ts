@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
-import { cookieName, getAdminSession } from "../../../../../lib/admin-auth";
+import { canOperateEventStaff, cookieName, getAdminSession } from "../../../../../lib/admin-auth";
 import { adminUnauthorizedResponse } from "../../../../../lib/admin-api-response";
 import { listParkingReservations } from "../../../../../lib/admin-store";
 import { parkingReservationsPdf } from "../../../../../lib/parking-pdf";
@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
-  if (!session || session.role !== "super_admin") return adminUnauthorizedResponse(request);
+  if (!session || !canOperateEventStaff(session)) return adminUnauthorizedResponse(request);
 
   const reservations = await listParkingReservations();
   await recordAuditEvent({

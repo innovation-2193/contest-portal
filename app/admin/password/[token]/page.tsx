@@ -33,7 +33,7 @@ export default async function AdminPasswordPage({
     <div className="wide">
       <section className="admin-login admin-password-panel">
         <span className="eyebrow">Admin Password</span>
-        <h1>ตั้งรหัสผ่านแอดมิน</h1>
+        <h1>{account?.role === "uci" ? "ตั้งรหัสผ่านเจ้าหน้าที่ UCI" : "ตั้งรหัสผ่านแอดมิน"}</h1>
         {account ? <>
           <p>ตั้งรหัสผ่านสำหรับ {account.email}</p>
           {message && <div className="admin-login-alert"><AlertTriangle/>{message}</div>}
@@ -87,14 +87,14 @@ async function setPasswordAction(formData: FormData) {
     summary: `Admin ตั้ง/รีเซ็ตรหัสผ่าน ${account.email}`,
   }, requestHeaders);
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, createAdminSessionToken({ email: account.email, role: "admin" }), {
+  cookieStore.set(cookieName, createAdminSessionToken({ email: account.email, role: account.role }), {
     httpOnly: true,
     sameSite: "strict",
     secure: adminCookieSecure(),
     path: "/",
-    maxAge: adminSessionMaxAgeSeconds("admin"),
+    maxAge: adminSessionMaxAgeSeconds(account.role),
   });
-  redirect("/admin");
+  redirect(account.role === "uci" ? "/uci" : "/admin");
 }
 
 function adminPasswordMessage(status?: string) {

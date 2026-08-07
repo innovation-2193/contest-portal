@@ -355,7 +355,7 @@ async function saveScoreAction(formData: FormData) {
   await saveSubmissionScore({
     submissionCode,
     actorEmail: session.email,
-    actorRole: session.role,
+    actorRole: session.role === "super_admin" ? "super_admin" : "admin",
     rulesScore: score(formData, "rulesScore"),
     problemScore: score(formData, "problemScore"),
     innovationScore: score(formData, "innovationScore"),

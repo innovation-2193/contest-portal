@@ -15,7 +15,7 @@ export type AdminAccount = {
   email: string;
   name: string;
   phone: string;
-  role: Extract<AdminRole, "admin">;
+  role: Extract<AdminRole, "admin" | "uci">;
   passwordHash: string | null;
   resetTokenHash: string | null;
   resetTokenExpiresAt: string | null;
@@ -29,6 +29,7 @@ export type AdminAccountInput = {
   name: string;
   phone?: string;
   disabled?: boolean;
+  role?: Extract<AdminRole, "admin" | "uci">;
 };
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
@@ -40,7 +41,11 @@ const resetTokenHashPrefix = "sha256:";
 let writeQueue: Promise<unknown> = Promise.resolve();
 
 export async function listAdminAccounts() {
-  return (await readAdminAccounts()).sort((a, b) => a.email.localeCompare(b.email));
+  return (await readAdminAccounts()).filter((account) => account.role === "admin").sort((a, b) => a.email.localeCompare(b.email));
+}
+
+export async function listUciAccounts() {
+  return (await readAdminAccounts()).filter((account) => account.role === "uci").sort((a, b) => a.email.localeCompare(b.email));
 }
 
 export async function findAdminAccountByEmail(email: string) {
@@ -72,7 +77,7 @@ export async function createAdminAccount(input: AdminAccountInput) {
       email,
       name: input.name.trim(),
       phone: textValue(input.phone),
-      role: "admin",
+      role: input.role === "uci" ? "uci" : "admin",
       passwordHash: null,
       resetTokenHash: null,
       resetTokenExpiresAt: null,
@@ -100,6 +105,7 @@ export async function updateAdminAccount(id: string, input: AdminAccountInput) {
       name: input.name.trim(),
       phone: textValue(input.phone),
       disabled: Boolean(input.disabled),
+      role: input.role === "uci" ? "uci" : accounts[targetIndex].role,
       updatedAt: new Date().toISOString(),
     };
     await writeAdminAccounts(accounts);
@@ -136,9 +142,9 @@ export async function createAdminPasswordLink(id: string) {
   const url = `${publicBaseUrl()}/admin/password/${encodeURIComponent(token)}`;
   await sendAdminMail({
     to: account.email,
-    subject: "ลิงก์ตั้งรหัสผ่านผู้ดูแลระบบ",
-    text: `กรุณาตั้งรหัสผ่านผู้ดูแลระบบที่ลิงก์นี้: ${url}\nลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel} นับจากเวลาที่ได้รับอีเมล`,
-    html: `<p>กรุณาตั้งรหัสผ่านผู้ดูแลระบบจากปุ่มด้านล่าง</p><p><a href="${escapeHtml(url)}" style="display:inline-block;background:#123c73;color:#ffffff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">ตั้งรหัสผ่าน</a></p><p><strong>ลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel}</strong> นับจากเวลาที่ได้รับอีเมล</p>`,
+    subject: account.role === "uci" ? "ลิงก์ตั้งรหัสผ่านเจ้าหน้าที่ UCI" : "ลิงก์ตั้งรหัสผ่านผู้ดูแลระบบ",
+    text: `กรุณาตั้งรหัสผ่าน${account.role === "uci" ? "เจ้าหน้าที่ UCI" : "ผู้ดูแลระบบ"}ที่ลิงก์นี้: ${url}\nลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel} นับจากเวลาที่ได้รับอีเมล`,
+    html: `<p>กรุณาตั้งรหัสผ่าน${account.role === "uci" ? "เจ้าหน้าที่ UCI" : "ผู้ดูแลระบบ"}จากปุ่มด้านล่าง</p><p><a href="${escapeHtml(url)}" style="display:inline-block;background:#123c73;color:#ffffff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">ตั้งรหัสผ่าน</a></p><p><strong>ลิงก์นี้ใช้ได้ภายใน ${resetTokenExpiryLabel}</strong> นับจากเวลาที่ได้รับอีเมล</p>`,
     outboxKey: `admin-password-${account.email}-${Date.now()}`,
   });
   return { account, url, expiresAt };
@@ -255,7 +261,7 @@ function normalizeAdminAccount(value: unknown) {
     email,
     name: textValue(raw.name),
     phone: textValue(raw.phone),
-    role: "admin" as const,
+    role: raw.role === "uci" ? "uci" as const : "admin" as const,
     passwordHash: nullableText(raw.passwordHash),
     resetTokenHash: nullableText(raw.resetTokenHash),
     resetTokenExpiresAt: nullableText(raw.resetTokenExpiresAt),

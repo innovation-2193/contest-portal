@@ -11,9 +11,9 @@ type CookieReader = {
 
 export type ActiveSession =
   | {
-      kind: "super_admin" | "admin";
+      kind: "super_admin" | "admin" | "uci";
       email: string;
-      href: "/admin";
+      href: "/admin" | "/uci";
       label: string;
       admin: AdminSession;
       participant: null;
@@ -33,8 +33,8 @@ export function getActiveSession(cookieStore: CookieReader): ActiveSession | nul
     return {
       kind: admin.role,
       email: admin.email,
-      href: "/admin",
-      label: admin.role === "super_admin" ? "เปิดระบบหลังบ้าน Super Admin" : "เปิดระบบหลังบ้าน Admin",
+      href: admin.role === "uci" ? "/uci" : "/admin",
+      label: admin.role === "super_admin" ? "เปิดระบบหลังบ้าน Super Admin" : admin.role === "uci" ? "เปิดระบบ UCI" : "เปิดระบบหลังบ้าน Admin",
       admin,
       participant: null,
     };
