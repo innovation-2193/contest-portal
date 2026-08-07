@@ -65,6 +65,7 @@ const allowedAuditActions = new Set([
   "parking.updated",
   "parking.deleted",
   "parking.export_pdf",
+  "parking.export_list_pdf",
   "submission.created",
   "submission.updated",
   "submission.deleted",

@@ -18,14 +18,14 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
   const params = await searchParams;
   if (!session) {
     return <div className="admin-page"><div className="wide"><section className="admin-login">
-      <span className="eyebrow">UCI Operations</span>
-      <h1>เข้าสู่ระบบ UCI</h1>
-      <p>สำหรับเจ้าหน้าที่ UCI จัดการลงทะเบียน เช็คอิน แบบสอบถาม Lucky Draw และป้ายสำรองที่จอดรถ</p>
+      <span className="eyebrow">UCI / Admin Operations</span>
+      <h1>เข้าสู่ระบบ UCI หรือ Admin</h1>
+      <p>สำหรับเจ้าหน้าที่ UCI หรือ Admin ใช้จัดการลงทะเบียน เช็คอิน แบบสอบถาม Lucky Draw และรายการสำรองที่จอดรถ</p>
       {params.login && <div className="admin-login-alert">อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือบัญชีนี้ไม่มีสิทธิ์เข้าหน้าปฏิบัติงาน</div>}
       <form action={uciLoginAction} className="admin-login-card">
-        <label>อีเมลทีม UCI<input type="email" name="email" required autoComplete="username"/></label>
+        <label>อีเมล UCI หรือ Admin<input type="email" name="email" required autoComplete="username"/></label>
         <label>รหัสผ่าน<SecretInput name="password" required autoComplete="current-password"/></label>
-        <button className="primary" type="submit"><LogIn/>เข้าสู่ระบบ UCI</button>
+        <button className="primary" type="submit"><LogIn/>เข้าสู่ระบบ UCI หรือ Admin</button>
       </form>
       <p className="admin-login-help">หากยังไม่มีรหัสผ่าน ให้ขอลิงก์ตั้งรหัสผ่านจากผู้ดูแลทีม UCI หรือ Super Admin</p>
     </section></div></div>;
@@ -51,7 +51,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/admin/scan"><QrCode/>สแกน QR เช็คอิน</Link>
       <Link className="primary" href="/admin/evaluations"><ClipboardList/>แบบสอบถามและ Lucky Draw</Link>
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
-      <a className="secondary" href="/api/admin/parking/export"><Car/>Export ป้ายสำรองที่จอดรถ PDF ({parking.length})</a>
+      {session.role === "uci" && <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>}
     </div></section>
 
     <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations">ดูผลประเมินและกด Lucky Draw</Link></div></section>
