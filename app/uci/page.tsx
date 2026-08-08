@@ -66,7 +66,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนและจัดการผู้เข้าร่วม</Link>
       <Link className="secondary" href="/admin/evaluations"><ClipboardList/>ดูแบบสอบถามและผล Lucky Draw</Link>
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
-      {session.role === "uci" && <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>}
+      <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>
     </div></section>
 
     <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations">ดูผลประเมินและกด Lucky Draw</Link></div></section>
