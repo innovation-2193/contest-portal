@@ -6,7 +6,6 @@ import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import { findCommitteeScoreReportVersion } from "../../../../../lib/committee-score-report-versions";
 import {
   buildCommitteeScoreboard,
-  committeeJudges,
   listCommitteeScoreRecords,
   type CommitteeScoreSummaryRow,
 } from "../../../../../lib/committee-score-store";
@@ -112,9 +111,8 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
 
   const columns = [
     ["ลำดับ", 48],
-    ["ชื่อโครงการ", 314],
+    ["ชื่อโครงการ", 393],
     ["คะแนนที่ได้", 82],
-    ["หมายเหตุ", 79],
   ] as const;
   const x = 36;
   const y = 145;
@@ -165,7 +163,6 @@ function drawTableRow(
   const values = [
     row.rank.toLocaleString("th-TH"),
     row.averageScore === null ? "-" : row.averageScore.toFixed(2),
-    row.judgeCount === 0 ? "ยังไม่มีคะแนน" : row.judgeCount === committeeJudges.length ? "คะแนนครบ" : `รอคะแนน ${committeeJudges.length - row.judgeCount} คน`,
   ];
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   const fill = row.averageScore === null ? "#f8fafc" : PDF_THEME.white;
@@ -178,7 +175,6 @@ function drawTableRow(
   const cells = [
     { index: 0, value: values[0] },
     { index: 2, value: values[1] },
-    { index: 3, value: values[2] },
   ];
   cells.forEach(({ index, value }) => {
     const cursorX = x + columns.slice(0, index).reduce((sum, [, width]) => sum + width, 0);
