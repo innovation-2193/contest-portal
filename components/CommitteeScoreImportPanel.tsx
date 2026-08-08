@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Download, FileSpreadsheet, Save, Trophy, Upload, Users } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, History, Save, Trophy, Upload, Users } from "lucide-react";
 import { defaultCommitteeJudgeProfiles, type CommitteeJudgeProfile } from "../lib/committee-score-config";
 
 type CommitteeSummaryRow = {
@@ -12,9 +12,21 @@ type CommitteeSummaryRow = {
   judgeCount: number;
 };
 
+type CommitteeReportVersion = {
+  id: string;
+  version: number;
+  sourceFileName: string;
+  createdByEmail: string;
+  createdAt: string;
+  rows?: CommitteeSummaryRow[];
+};
+
 export function CommitteeScoreImportPanel() {
   const [profiles, setProfiles] = useState<CommitteeJudgeProfile[]>(() => defaultCommitteeJudgeProfiles());
   const [rows, setRows] = useState<CommitteeSummaryRow[]>([]);
+  const [versions, setVersions] = useState<CommitteeReportVersion[]>([]);
+  const [versionTotal, setVersionTotal] = useState(0);
+  const [showAllVersions, setShowAllVersions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
@@ -27,19 +39,39 @@ export function CommitteeScoreImportPanel() {
   async function loadData() {
     setLoading(true);
     try {
-      const [profileResponse, summaryResponse] = await Promise.all([
+      const [profileResponse, summaryResponse, versionResponse] = await Promise.all([
         fetch("/api/admin/committee-scores", { cache: "no-store" }),
         fetch("/api/admin/committee-scores/summary", { cache: "no-store" }),
+        fetch("/api/admin/committee-scores/versions", { cache: "no-store" }),
       ]);
       const profilePayload = await profileResponse.json() as { ok?: boolean; judgeProfiles?: CommitteeJudgeProfile[]; message?: string };
       const summaryPayload = await summaryResponse.json() as { ok?: boolean; rows?: CommitteeSummaryRow[]; message?: string };
+      const versionPayload = await versionResponse.json() as { ok?: boolean; versions?: CommitteeReportVersion[]; total?: number };
       if (!profileResponse.ok || !profilePayload.ok) throw new Error(profilePayload.message || "โหลดข้อมูลกรรมการไม่สำเร็จ");
       setProfiles(profilePayload.judgeProfiles?.length ? profilePayload.judgeProfiles : defaultCommitteeJudgeProfiles());
       setRows(summaryPayload.rows ?? []);
+      setVersions(versionPayload.versions ?? []);
+      setVersionTotal(versionPayload.total ?? 0);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "โหลดข้อมูลคะแนนไม่สำเร็จ");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAllVersions() {
+    setWorking(true);
+    try {
+      const response = await fetch("/api/admin/committee-scores/versions?all=1", { cache: "no-store" });
+      const payload = await response.json() as { ok?: boolean; versions?: CommitteeReportVersion[]; total?: number; message?: string };
+      if (!response.ok || !payload.ok) throw new Error(payload.message || "โหลด Version รายงานไม่สำเร็จ");
+      setVersions(payload.versions ?? []);
+      setVersionTotal(payload.total ?? 0);
+      setShowAllVersions(true);
+    } catch (versionError) {
+      setError(versionError instanceof Error ? versionError.message : "โหลด Version รายงานไม่สำเร็จ");
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -76,11 +108,11 @@ export function CommitteeScoreImportPanel() {
     formData.append("file", file);
     try {
       const response = await fetch("/api/admin/committee-scores/import", { method: "POST", body: formData });
-      const payload = await response.json() as { ok?: boolean; message?: string; errors?: string[] };
+      const payload = await response.json() as { ok?: boolean; message?: string; errors?: string[]; reportUrl?: string; reportVersion?: number };
       if (!response.ok || !payload.ok) throw new Error([payload.message, ...(payload.errors?.slice(0, 3) ?? [])].filter(Boolean).join("\n"));
-      setMessage(`${payload.message || "นำเข้าคะแนนเรียบร้อยแล้ว"}\nระบบกำลังเปิดรายงาน PDF จัดอันดับให้`);
+      setMessage(`${payload.message || "นำเข้าคะแนนเรียบร้อยแล้ว"}\nบันทึกเป็น Version ${payload.reportVersion ?? "ใหม่"} และกำลังเปิดรายงาน PDF ให้`);
       await loadData();
-      if (reportWindow) reportWindow.location.href = "/api/admin/committee-scores/export";
+      if (reportWindow) reportWindow.location.href = payload.reportUrl || "/api/admin/committee-scores/export";
     } catch (importError) {
       reportWindow?.close();
       setError(importError instanceof Error ? importError.message : "นำเข้าคะแนนไม่สำเร็จ");
@@ -97,6 +129,11 @@ export function CommitteeScoreImportPanel() {
       <button className="primary" type="submit" disabled={working || loading}><Save/>บันทึกชื่อกรรมการ</button>
     </form>
     <div className="committee-score-actions"><a className="secondary" href="/api/admin/committee-scores/template"><FileSpreadsheet/>ดาวน์โหลด Template Excel</a><label className="secondary committee-upload-button"><Upload/>อัปโหลดไฟล์คะแนน<input type="file" accept=".xlsx,.csv" onChange={importFile} disabled={working}/></label><a className="primary" href="/api/admin/committee-scores/export" target="_blank" rel="noreferrer"><Download/>Export รายงานจัดอันดับ PDF</a></div>
+    <div className="committee-score-report-versions"><div className="committee-summary-heading"><div><h3><History/>Report PDF ตาม Version</h3><p>แสดง {Math.min(versions.length, 3).toLocaleString("th-TH")} Version ล่าสุด จากทั้งหมด {versionTotal.toLocaleString("th-TH")} Version</p></div><FileText/></div>{versions.length ? <div className="committee-report-version-list">{versions.map((version) => <article key={version.id}><div><b>Version {version.version}</b><span>{formatVersionDate(version.createdAt)} • {version.sourceFileName}</span></div><a className="secondary small-action" href={`/api/admin/committee-scores/export?versionId=${encodeURIComponent(version.id)}`} target="_blank" rel="noreferrer"><Download/>ดาวน์โหลด PDF</a></article>)}</div> : <p className="participant-empty">เมื่อ Import Excel แล้ว ระบบจะบันทึก Report เป็น Version ไว้ตรงนี้</p>}{versionTotal > 3 && !showAllVersions && <button className="ghost-action" type="button" onClick={loadAllVersions} disabled={working}>ดูทั้งหมด ({versionTotal.toLocaleString("th-TH")} Version)</button>}{showAllVersions && versionTotal > 3 && <button className="ghost-action" type="button" onClick={() => { setShowAllVersions(false); setVersions((current) => current.slice(0, 3)); }}>แสดงเฉพาะ 3 Version ล่าสุด</button>}</div>
     <div className="committee-score-summary"><div className="committee-summary-heading"><div><h3>ตัวอย่างอันดับล่าสุด</h3><p>{rows.length ? `แสดง ${Math.min(rows.length, 10).toLocaleString("th-TH")} อันดับแรกจาก ${rows.length.toLocaleString("th-TH")} ผลงานที่มีคะแนน` : "ยังไม่มีคะแนนที่นำเข้า"}</p></div><Users/></div>{loading ? <p className="participant-empty">กำลังโหลดข้อมูลคะแนน...</p> : rows.length ? <div className="admin-table-wrap"><table className="admin-table committee-score-table"><thead><tr><th>อันดับ</th><th>ชื่อโครงการ</th><th>รหัสโครงการ</th><th>คะแนนเฉลี่ย</th><th>หมายเหตุ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.submissionCode}><td data-label="อันดับ"><b>{row.rank.toLocaleString("th-TH")}</b></td><td data-label="ชื่อโครงการ">{row.submissionTitle}</td><td data-label="รหัสโครงการ">{row.submissionCode}</td><td data-label="คะแนนเฉลี่ย"><strong>{row.averageScore?.toFixed(2)}</strong></td><td data-label="หมายเหตุ">{row.judgeCount === profiles.length ? "คะแนนครบ" : `กรอกแล้ว ${row.judgeCount}/${profiles.length} คน`}</td></tr>)}</tbody></table></div> : <p className="participant-empty">หลังจากอัปโหลดคะแนนแล้ว ระบบจะแสดงอันดับในส่วนนี้</p>}</div>
   </section>;
+}
+
+function formatVersionDate(value: string) {
+  return new Intl.DateTimeFormat("th-TH", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }

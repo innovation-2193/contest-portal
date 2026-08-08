@@ -3,6 +3,7 @@ import PDFDocument from "pdfkit";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { listSubmissions } from "../../../../../lib/admin-store";
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
+import { findCommitteeScoreReportVersion } from "../../../../../lib/committee-score-report-versions";
 import {
   buildCommitteeScoreboard,
   committeeJudges,
@@ -32,30 +33,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
   }
 
-  const [submissions, records] = await Promise.all([
-    listSubmissions(),
-    listCommitteeScoreRecords(),
-  ]);
-  const rows = buildCommitteeScoreboard(submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)), records);
+  const versionId = new URL(request.url).searchParams.get("versionId")?.trim() || "";
+  const version = versionId ? await findCommitteeScoreReportVersion(versionId) : null;
+  if (versionId && !version) {
+    return NextResponse.json({ ok: false, message: "ไม่พบ Version รายงานนี้" }, { status: 404 });
+  }
+  const rows = version
+    ? version.rows
+    : await buildCurrentRows();
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "committee_score.scoreboard_pdf",
     entityType: "committee_score",
-    summary: "Export ผลคะแนนคณะกรรมการรอบที่ 1 พร้อมจัดอันดับ",
-    payload: { submissions: rows.length, scored: rows.filter((row) => row.averageScore !== null).length },
+    summary: version ? `Export รายงานผลคะแนนคณะกรรมการ Version ${version.version}` : "Export ผลคะแนนคณะกรรมการรอบที่ 1 พร้อมจัดอันดับ",
+    payload: { submissions: rows.length, scored: rows.filter((row) => row.averageScore !== null).length, version: version?.version ?? null },
   }, request.headers);
 
-  const pdf = await buildPdf(rows);
+  const pdf = await buildPdf(rows, version?.version);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="committee-scoreboard-round-1-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      "Content-Disposition": `attachment; filename="committee-scoreboard-round-1-${version ? `v${version.version}-` : ""}${new Date().toISOString().slice(0, 10)}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });
 }
 
-async function buildPdf(rows: CommitteeScoreSummaryRow[]) {
+async function buildCurrentRows() {
+  const [submissions, records] = await Promise.all([
+    listSubmissions(),
+    listCommitteeScoreRecords(),
+  ]);
+  return buildCommitteeScoreboard(submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)), records);
+}
+
+async function buildPdf(rows: CommitteeScoreSummaryRow[], reportVersion?: number) {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
@@ -65,7 +77,7 @@ async function buildPdf(rows: CommitteeScoreSummaryRow[]) {
   for (let page = 0; page < pages; page += 1) {
     if (page > 0) doc.addPage();
     const pageRows = rows.slice(page * perPage, page * perPage + perPage);
-    drawPage(doc, pageRows, page + 1, pages, generatedAt);
+    drawPage(doc, pageRows, page + 1, pages, generatedAt, reportVersion);
   }
 
   doc.info.Title = "ผลคะแนนคณะกรรมการรอบที่ 1";
@@ -75,14 +87,14 @@ async function buildPdf(rows: CommitteeScoreSummaryRow[]) {
   return pdf;
 }
 
-function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pageNumber: number, totalPages: number, generatedAt: Date) {
+function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pageNumber: number, totalPages: number, generatedAt: Date, reportVersion?: number) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
     title: "รายงานอันดับคะแนนคณะกรรมการ รอบที่ 1",
     titleFontSize: 15,
-    subtitle: `เรียงจากคะแนนมากไปน้อย • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    metaLabel: "รายการ",
-    metaValue: rows.length ? `${rows[0].rank}-${rows[rows.length - 1]?.rank}` : "0",
+    subtitle: `${reportVersion ? `Version ${reportVersion} • ` : ""}เรียงจากคะแนนมากไปน้อย • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
+    metaLabel: reportVersion ? "Version" : "รายการ",
+    metaValue: reportVersion ? `V${reportVersion}` : rows.length ? `${rows[0].rank}-${rows[rows.length - 1]?.rank}` : "0",
     showLogo: true,
     fonts,
   });

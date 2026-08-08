@@ -19560,6 +19560,69 @@ footer {
   background: rgba(3, 14, 32, 0.48);
 }
 
+.committee-score-report-versions {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(223, 186, 51, 0.42);
+  border-radius: 14px;
+  background: rgba(8, 25, 55, 0.46);
+}
+
+.committee-score-report-versions .committee-summary-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.committee-score-report-versions .committee-summary-heading h3 svg {
+  width: 19px;
+  height: 19px;
+  color: var(--gold);
+}
+
+.committee-report-version-list {
+  display: grid;
+  gap: 8px;
+}
+
+.committee-report-version-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(68, 99, 145, 0.68);
+  border-radius: 10px;
+  background: rgba(1, 9, 22, 0.62);
+}
+
+.committee-report-version-list article > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.committee-report-version-list b {
+  color: #fff0a8;
+  font-size: 15px;
+}
+
+.committee-report-version-list span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.committee-report-version-list a,
+.committee-score-report-versions > .ghost-action {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
 .committee-summary-heading {
   display: flex;
   align-items: flex-start;
@@ -19636,5 +19699,14 @@ footer {
 
   .committee-summary-heading p {
     line-height: 1.45;
+  }
+
+  .committee-report-version-list article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .committee-report-version-list a {
+    width: 100%;
   }
 }

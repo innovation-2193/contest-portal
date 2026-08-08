@@ -43,6 +43,11 @@ async function runSchemaRepair() {
   } catch (error) {
     console.warn("committee judge profile schema repair skipped", error);
   }
+  try {
+    await ensureCommitteeScoreReportVersionsTable();
+  } catch (error) {
+    console.warn("committee score report version schema repair skipped", error);
+  }
 }
 
 async function ensureUserColumns() {
@@ -279,6 +284,21 @@ async function ensureCommitteeJudgeProfilesTable() {
       position VARCHAR(500) NOT NULL DEFAULT '',
       updated_by_email VARCHAR(255) NOT NULL,
       updated_at VARCHAR(40) NOT NULL
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureCommitteeScoreReportVersionsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS committee_score_report_versions (
+      id CHAR(36) PRIMARY KEY,
+      version_no INT UNSIGNED NOT NULL,
+      source_file_name VARCHAR(255) NOT NULL,
+      created_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      rows_json LONGTEXT NOT NULL,
+      UNIQUE KEY uq_committee_score_report_version (version_no),
+      INDEX idx_committee_score_report_created (created_at)
     ) ENGINE=InnoDB
   `);
 }

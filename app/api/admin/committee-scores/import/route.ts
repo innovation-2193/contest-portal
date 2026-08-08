@@ -4,11 +4,13 @@ import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audi
 import { listSubmissions } from "../../../../../lib/admin-store";
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import {
+  buildCommitteeScoreboard,
   deleteCommitteeScoreRecord,
   listCommitteeScoreRecords,
   saveCommitteeScoreRecords,
 } from "../../../../../lib/committee-score-store";
 import { parseCommitteeScoreImportFile } from "../../../../../lib/committee-score-xlsx";
+import { createCommitteeScoreReportVersion } from "../../../../../lib/committee-score-report-versions";
 
 export const runtime = "nodejs";
 
@@ -63,6 +65,17 @@ export async function POST(request: Request) {
       if (record) deleted.push(record);
     }
 
+    const snapshotRecords = await listCommitteeScoreRecords().catch(() => [
+      ...existingRecords.filter((record) => !parsed.deleteRecordIds.includes(record.id)),
+      ...saved,
+    ]);
+    const reportRows = buildCommitteeScoreboard(sortedSubmissions, snapshotRecords);
+    const reportVersion = await createCommitteeScoreReportVersion({
+      sourceFileName: file.name,
+      createdByEmail: session.email,
+      rows: reportRows,
+    });
+
     await recordAuditEvent({
       actor: actorFromAdminSession(session),
       action: "committee_score.import_xlsx",
@@ -73,6 +86,7 @@ export async function POST(request: Request) {
         saved: saved.length,
         deleted: deleted.length,
         touchedSubmissions: parsed.touchedSubmissions,
+        reportVersion: reportVersion.version,
       },
     }, request.headers);
 
@@ -85,6 +99,9 @@ export async function POST(request: Request) {
       deleted: deleted.length,
       changedCells: parsed.changedCells,
       touchedSubmissions: parsed.touchedSubmissions,
+      reportVersionId: reportVersion.id,
+      reportVersion: reportVersion.version,
+      reportUrl: `/api/admin/committee-scores/export?versionId=${encodeURIComponent(reportVersion.id)}`,
       message: parsed.changedCells
         ? `นำเข้าคะแนนแล้ว ${parsed.changedCells.toLocaleString("th-TH")} ช่อง จาก ${parsed.touchedSubmissions.toLocaleString("th-TH")} ผลงาน`
         : "ไฟล์นี้ไม่มีคะแนนที่เปลี่ยนแปลงจากข้อมูลเดิม",

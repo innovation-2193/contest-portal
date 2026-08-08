@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
-import { listSubmissionApplicantsForExport, listSubmissions, type SubmissionListItem } from "../../../../../lib/admin-store";
+import { listSubmissionApplicantsForExport, listSubmissionTemplateRows, listSubmissions, type SubmissionListItem } from "../../../../../lib/admin-store";
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import { listCommitteeJudgeProfiles, listCommitteeScoreRecords, type CommitteeScoreRecord } from "../../../../../lib/committee-score-store";
 import {
@@ -89,6 +89,40 @@ export async function GET(request: Request) {
 }
 
 async function loadTemplateSubmissions(): Promise<SubmissionListItem[]> {
+  const directRows = await listSubmissionTemplateRows();
+  if (directRows.length) {
+    return directRows.map((row) => ({
+      submission_code: row.submission_code,
+      submission_type: "individual",
+      team_name: null,
+      title_th: row.title_th,
+      title_en: null,
+      video_url: null,
+      work_category: defaultWorkCategory,
+      hashtags: [],
+      status: "submitted",
+      review_assigned_admin_email: null,
+      review_assigned_at: null,
+      review_scored_by_email: null,
+      review_rules_score: null,
+      review_problem_score: null,
+      review_innovation_score: null,
+      review_evidence_score: null,
+      review_impact_score: null,
+      review_total_score: null,
+      review_note: null,
+      review_submitted_at: null,
+      submitted_at: row.submitted_at,
+      email: "",
+      title: "",
+      first_name: "",
+      last_name: "",
+      position: "",
+      division: "",
+      bureau: "",
+    }));
+  }
+
   try {
     const submissions = await listSubmissions();
     if (submissions.length) return submissions;

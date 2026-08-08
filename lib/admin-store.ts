@@ -172,6 +172,12 @@ export type SubmissionApplicantExportRow = {
   submitted_at: string;
 };
 
+export type SubmissionTemplateRow = {
+  submission_code: string;
+  title_th: string;
+  submitted_at: string;
+};
+
 export type SubmissionChecklistRow = {
   submission_code: string;
   title_th: string;
@@ -991,6 +997,29 @@ export async function listSubmissions(options?: { assignedAdminEmail?: string | 
     const local = (await listLocalSubmissions()).map(localSubmissionToListItem);
     const assignedEmail = options?.assignedAdminEmail?.trim().toLowerCase();
     return assignedEmail ? local.filter((item) => item.review_assigned_admin_email?.toLowerCase() === assignedEmail) : local;
+  }
+}
+
+export async function listSubmissionTemplateRows(): Promise<SubmissionTemplateRow[]> {
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      "SELECT submission_code,title_th,submitted_at FROM submissions ORDER BY submitted_at ASC,submission_code ASC",
+    );
+    return (rows as SubmissionTemplateRow[]).map((row) => ({
+      submission_code: String(row.submission_code ?? "").trim(),
+      title_th: String(row.title_th ?? "").trim(),
+      submitted_at: String(row.submitted_at ?? ""),
+    })).filter((row) => row.submission_code && row.title_th);
+  } catch (error) {
+    console.warn("direct committee template submission query failed; using local submission store", error);
+    return (await listLocalSubmissions())
+      .map((submission) => ({
+        submission_code: submission.submission_code,
+        title_th: submission.title_th,
+        submitted_at: submission.submitted_at,
+      }))
+      .sort((left, right) => left.submitted_at.localeCompare(right.submitted_at) || left.submission_code.localeCompare(right.submission_code));
   }
 }
 
