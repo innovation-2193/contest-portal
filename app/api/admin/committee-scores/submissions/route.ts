@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   try {
     const submissions = (await listSubmissions())
       .slice()
-      .sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))
+      .sort(compareSubmittedAt)
       .map((submission, index) => ({
         code: submission.submission_code,
         title: submission.title_th,
@@ -27,4 +27,8 @@ export async function GET(request: Request) {
     console.error("committee score submissions failed", error);
     return NextResponse.json({ ok: false, message: "โหลดรายการนวัตกรรมไม่สำเร็จ", submissions: [] }, { status: 200 });
   }
+}
+
+function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }

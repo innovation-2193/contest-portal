@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   });
   try {
     const submissions = await loadTemplateSubmissions();
-    sortedSubmissions = submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+    sortedSubmissions = submissions.slice().sort(compareSubmittedAt);
   } catch (error) {
     console.error("committee score template data load failed", error);
     // The template is still useful as a blank scoring sheet if an optional
@@ -86,6 +86,10 @@ export async function GET(request: Request) {
       },
     });
   }
+}
+
+function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
 
 async function loadTemplateSubmissions(): Promise<SubmissionListItem[]> {

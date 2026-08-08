@@ -64,7 +64,11 @@ async function buildCurrentRows() {
     listSubmissions(),
     listCommitteeScoreRecords(),
   ]);
-  return buildCommitteeScoreboard(submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)), records);
+  return buildCommitteeScoreboard(submissions.slice().sort(compareSubmittedAt), records);
+}
+
+function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
 
 async function buildPdf(rows: CommitteeScoreSummaryRow[], reportVersion?: number) {

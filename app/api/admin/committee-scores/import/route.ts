@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       // A first import must work even when there are no previous score records.
       console.warn("committee score import existing scores unavailable; importing as new scores", error);
     }
-    const sortedSubmissions = submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at));
+    const sortedSubmissions = submissions.slice().sort(compareSubmittedAt);
     const parsed = await parseCommitteeScoreImportFile(file, sortedSubmissions, existingRecords);
 
     if (parsed.errors.length) {
@@ -110,4 +110,8 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "นำเข้าคะแนนไม่สำเร็จ";
     return NextResponse.json({ ok: false, message }, { status: 400 });
   }
+}
+
+function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }

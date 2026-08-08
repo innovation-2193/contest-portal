@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   try {
     const [submissions, records] = await Promise.all([listSubmissions(), listCommitteeScoreRecords()]);
     const rows = buildCommitteeScoreboard(
-      submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)),
+      submissions.slice().sort(compareSubmittedAt),
       records,
     ).filter((row) => row.averageScore !== null);
     return NextResponse.json({
@@ -26,4 +26,8 @@ export async function GET(request: Request) {
     console.error("committee score summary failed", error);
     return NextResponse.json({ ok: false, message: "โหลดคะแนนคณะกรรมการไม่สำเร็จ", rows: [], total: 0 }, { status: 200 });
   }
+}
+
+function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
+  return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
