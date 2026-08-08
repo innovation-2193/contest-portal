@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
+import { CommitteeScoreImportPanel } from "../../../components/CommitteeScoreImportPanel";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
 import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
@@ -80,6 +81,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       </div>
       <AdminNotice code={params.notice}/>
       {isSuperAdmin && <CommitteeScoreForm2Panel totalSubmissions={submissions.length}/>}
+      {isSuperAdmin && <CommitteeScoreImportPanel/>}
       <section className="admin-panel">
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">

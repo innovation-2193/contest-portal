@@ -30,6 +30,9 @@ export const adminNoticeMessages = {
   evaluations_reset_blocked: "กรุณา Reset ผล Lucky Draw ด้วย OTP ก่อนรีเซ็ตคำตอบแบบประเมิน",
   evaluation_opened: "เปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
   evaluation_closed: "ปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
+  uci_video_added: "เพิ่มคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",
+  uci_video_saved: "บันทึกคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",
+  uci_video_deleted: "ลบคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",
 } as const;
 
 export type AdminNoticeCode = keyof typeof adminNoticeMessages;

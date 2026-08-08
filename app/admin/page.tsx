@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -179,6 +179,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>}
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Users/><div><span className="eyebrow">UCI Access</span><h2>จัดการผู้ใช้ UCI</h2><p>เพิ่ม แก้ไข ลบ และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกทีม UCI</p></div></div><Link className="primary" href="/admin/uci"><Users/>เปิดจัดการผู้ใช้ UCI</Link></section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Video/><div><span className="eyebrow">UCI How-to</span><h2>วิดีโอสอนการใช้งาน UCI</h2><p>เพิ่มชื่อคลิปและลิงก์ YouTube เพื่อแสดงเป็น carousel ในหน้า /uci</p></div></div><Link className="primary" href="/admin/uci-videos"><Video/>จัดการวิดีโอสอนการใช้งาน</Link></section>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
     {isSuperAdmin && <section className="admin-panel">
@@ -1355,7 +1356,9 @@ function auditActionLabel(action: string) {
   if (action === "committee_score.total_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.total_deleted") return "ลบคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.template_xlsx") return "ดาวน์โหลด Template คะแนนรวม";
+  if (action === "committee_score.template_file") return "ดาวน์โหลด Template คะแนนรวม";
   if (action === "committee_score.import_xlsx") return "Import คะแนนรวม Excel";
+  if (action === "committee_score.judge_profiles_updated") return "แก้ไขชื่อกรรมการ";
   if (action === "committee_score.ocr_submitted") return "บันทึกคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.ocr_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.ocr_deleted") return "ลบคะแนนรวมคณะกรรมการ";
@@ -1367,6 +1370,9 @@ function auditActionLabel(action: string) {
   if (action === "admin_user.password_link_sent") return "ส่งลิงก์รหัสผ่านแอดมิน";
   if (action === "admin_user.password_set") return "ตั้งรหัสผ่านแอดมิน";
   if (action === "admin_user.deleted") return "ลบแอดมิน";
+  if (action === "uci_video.created") return "เพิ่มคลิปสอน UCI";
+  if (action === "uci_video.updated") return "แก้ไขคลิปสอน UCI";
+  if (action === "uci_video.deleted") return "ลบคลิปสอน UCI";
   if (action === "news.created") return "เพิ่มข่าวประชาสัมพันธ์";
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";

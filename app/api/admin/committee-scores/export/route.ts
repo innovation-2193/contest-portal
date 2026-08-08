@@ -6,11 +6,9 @@ import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import {
   buildCommitteeScoreboard,
   committeeJudges,
-  listCommitteeJudgeProfiles,
   listCommitteeScoreRecords,
   type CommitteeScoreSummaryRow,
 } from "../../../../../lib/committee-score-store";
-import { defaultCommitteeJudgeProfiles, formatCommitteeJudgeProfile, type CommitteeJudgeProfile } from "../../../../../lib/committee-score-config";
 import {
   drawDocumentFooter,
   drawDocumentHeader,
@@ -34,10 +32,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
   }
 
-  const [submissions, records, judgeProfiles] = await Promise.all([
+  const [submissions, records] = await Promise.all([
     listSubmissions(),
     listCommitteeScoreRecords(),
-    listCommitteeJudgeProfiles().catch(() => defaultCommitteeJudgeProfiles()),
   ]);
   const rows = buildCommitteeScoreboard(submissions.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at)), records);
   await recordAuditEvent({
@@ -48,7 +45,7 @@ export async function GET(request: Request) {
     payload: { submissions: rows.length, scored: rows.filter((row) => row.averageScore !== null).length },
   }, request.headers);
 
-  const pdf = await buildPdf(rows, judgeProfiles);
+  const pdf = await buildPdf(rows);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
@@ -58,17 +55,17 @@ export async function GET(request: Request) {
   });
 }
 
-async function buildPdf(rows: CommitteeScoreSummaryRow[], judgeProfiles: CommitteeJudgeProfile[]) {
-  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
+async function buildPdf(rows: CommitteeScoreSummaryRow[]) {
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
-  const perPage = 10;
+  const perPage = 17;
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
 
   for (let page = 0; page < pages; page += 1) {
     if (page > 0) doc.addPage();
     const pageRows = rows.slice(page * perPage, page * perPage + perPage);
-    drawPage(doc, pageRows, page + 1, pages, generatedAt, judgeProfiles);
+    drawPage(doc, pageRows, page + 1, pages, generatedAt);
   }
 
   doc.info.Title = "ผลคะแนนคณะกรรมการรอบที่ 1";
@@ -78,38 +75,34 @@ async function buildPdf(rows: CommitteeScoreSummaryRow[], judgeProfiles: Committ
   return pdf;
 }
 
-function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pageNumber: number, totalPages: number, generatedAt: Date, judgeProfiles: CommitteeJudgeProfile[]) {
+function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pageNumber: number, totalPages: number, generatedAt: Date) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
-    title: "การพิจารณาผลคะแนนของคณะกรรมการรอบที่ 1",
-    subtitle: `Paper Screening • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
+    title: "รายงานอันดับคะแนนคณะกรรมการ รอบที่ 1",
+    titleFontSize: 15,
+    subtitle: `เรียงจากคะแนนมากไปน้อย • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     metaLabel: "รายการ",
     metaValue: rows.length ? `${rows[0].rank}-${rows[rows.length - 1]?.rank}` : "0",
-    showLogo: false,
+    showLogo: true,
     fonts,
   });
 
   const columns = [
-    ["อันดับ", 44],
-    ["ลำดับ", 44],
-    ["รหัสโครงการ", 106],
-    ["ชื่อนวัตกรรม", 226],
-    ...committeeJudges.map((judge) => [`ก.${judge.order}`, 44] as const),
-    ["เฉลี่ย", 56],
-    ["จำนวน", 48],
+    ["ลำดับ", 48],
+    ["ชื่อโครงการ", 314],
+    ["คะแนนเฉลี่ย", 82],
+    ["หมายเหตุ", 79],
   ] as const;
-  const x = 24;
-  const legendY = 122;
-  const y = 190;
-  const rowHeight = 30;
-  drawJudgeLegend(doc, x, legendY, judgeProfiles);
+  const x = 36;
+  const y = 145;
+  const rowHeight = 34;
   drawTableHeader(doc, x, y, columns);
   let cursorY = y + 28;
 
   if (!rows.length) {
-    doc.roundedRect(x, cursorY + 22, doc.page.width - 48, 80, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.roundedRect(x, cursorY + 22, doc.page.width - x * 2, 80, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
     doc.font(fonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลคะแนนรวมคณะกรรมการ", x, cursorY + 52, {
-      width: doc.page.width - 48,
+      width: doc.page.width - x * 2,
       align: "center",
       lineBreak: false,
     });
@@ -148,12 +141,9 @@ function drawTableRow(
 ) {
   const values = [
     row.rank.toLocaleString("th-TH"),
-    row.submissionOrder.toLocaleString("th-TH"),
-    row.submissionCode,
     row.submissionTitle,
-    ...committeeJudges.map((judge) => scoreText(row.judgeScores[judge.key])),
     row.averageScore === null ? "-" : row.averageScore.toFixed(2),
-    `${row.judgeCount}/5`,
+    row.judgeCount === 0 ? "ยังไม่มีคะแนน" : row.judgeCount === committeeJudges.length ? "คะแนนครบ" : `รอคะแนน ${committeeJudges.length - row.judgeCount} คน`,
   ];
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   const fill = row.averageScore === null ? "#f8fafc" : PDF_THEME.white;
@@ -162,47 +152,18 @@ function drawTableRow(
   values.forEach((value, index) => {
     const [, width] = columns[index];
     if (index > 0) doc.moveTo(cursorX, y).lineTo(cursorX, y + height).lineWidth(0.45).stroke(PDF_THEME.line);
-    const isScore = index >= 4;
-    doc.font(index === 0 || index === 6 || index === 9 ? fonts.bold : fonts.regular)
-      .fontSize(isScore ? 8.3 : 8)
-      .fillColor(index === 0 || index === 9 ? PDF_THEME.navy : PDF_THEME.text)
+    const isScore = index === 2;
+    doc.font(index === 0 || index === 2 ? fonts.bold : fonts.regular)
+      .fontSize(isScore ? 9.5 : 8.8)
+      .fillColor(index === 0 || index === 2 ? PDF_THEME.navy : PDF_THEME.text)
       .text(clean(value), cursorX + 5, y + 8, {
         width: width - 10,
         height: height - 10,
-        align: index === 3 ? "left" : "center",
+        align: index === 1 || index === 3 ? "left" : "center",
         ellipsis: true,
       });
     cursorX += width;
   });
-}
-
-function drawJudgeLegend(doc: PDFKit.PDFDocument, x: number, y: number, judgeProfiles: CommitteeJudgeProfile[]) {
-  const width = doc.page.width - x * 2;
-  doc.roundedRect(x, y, width, 52, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(fonts.bold).fontSize(8.2).fillColor(PDF_THEME.navy).text("คำอธิบายชื่อย่อกรรมการ", x + 12, y + 8, {
-    width: 132,
-    lineBreak: false,
-  });
-  const profiles = new Map(judgeProfiles.map((profile) => [profile.judgeKey, profile]));
-  const defaults = defaultCommitteeJudgeProfiles();
-  const label = (judge: typeof committeeJudges[number]) => {
-    const profile = profiles.get(judge.key) ?? defaults[judge.order - 1];
-    return `ก.${judge.order} ${formatCommitteeJudgeProfile(profile)}${profile.position ? ` (${profile.position})` : ""}`;
-  };
-  const firstLine = committeeJudges.slice(0, 3).map(label).join("   ");
-  const secondLine = committeeJudges.slice(3).map(label).join("   ");
-  doc.font(fonts.regular).fontSize(7.6).fillColor(PDF_THEME.text).text(firstLine, x + 154, y + 8, {
-    width: width - 166,
-    lineBreak: false,
-  });
-  doc.text(secondLine, x + 154, y + 28, {
-    width: width - 166,
-    lineBreak: false,
-  });
-}
-
-function scoreText(score: number | null | undefined) {
-  return typeof score === "number" ? score.toFixed(0) : "-";
 }
 
 function clean(value: unknown) {

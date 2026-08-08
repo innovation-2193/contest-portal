@@ -16,8 +16,7 @@ export type CommitteeScoreImportResult = {
   touchedSubmissions: number;
 };
 
-const baseHeaders = ["ลำดับ", "รหัสโครงการ", "ชื่อนวัตกรรม", "เจ้าของผลงาน", "หน่วยงาน"];
-const summaryHeaders = ["เฉลี่ย", "จำนวนกรรมการที่กรอก"];
+const baseHeaders = ["ลำดับ", "ชื่อโครงการ", "รหัสโครงการ"];
 const maxImportRows = 600;
 
 export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem[], records: CommitteeScoreRecord[], judgeProfiles = defaultCommitteeJudgeProfiles()) {
@@ -26,7 +25,7 @@ export function createCommitteeScoreTemplateXlsx(submissions: SubmissionListItem
     sheetName: "Committee Scores",
     title: "Committee total score import template",
     rows,
-    columnWidths: [10, 18, 56, 28, 34, 18, 18, 18, 18, 18, 14, 18],
+    columnWidths: [10, 56, 18, 24, 24, 24, 24, 24],
   });
 }
 
@@ -42,22 +41,15 @@ function committeeScoreTemplateRows(submissions: SubmissionListItem[], records: 
     [
       ...baseHeaders,
       ...committeeJudges.map((judge) => `ก.${judge.order} ${formatCommitteeJudgeProfile(profiles.get(judge.key) ?? defaultCommitteeJudgeProfiles()[judge.order - 1])}`),
-      ...summaryHeaders,
     ],
     ...submissions.map((submission, index) => {
       const rowRecords = latest.get(submission.submission_code) ?? new Map<string, CommitteeScoreRecord>();
       const scores = committeeJudges.map((judge) => rowRecords.get(judge.key)?.calculatedTotal ?? null);
-      const filled = scores.filter((score): score is number => typeof score === "number" && Number.isFinite(score));
-      const average = filled.length ? roundScore(filled.reduce((sum, score) => sum + score, 0) / filled.length) : null;
       return [
         String(index + 1),
-        templateText(submission.submission_code),
         templateText(submission.title_th),
-        templateText(`${submission.first_name} ${submission.last_name}`.trim()),
-        templateText(submission.division || submission.bureau || ""),
+        templateText(submission.submission_code),
         ...scores.map(scoreText),
-        average === null ? "" : average.toFixed(2),
-        `${filled.length}/5`,
       ];
     }),
   ];

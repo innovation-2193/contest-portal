@@ -29,6 +29,7 @@ export type PdfFontSet = {
 
 type HeaderOptions = {
   title: string;
+  titleFontSize?: number;
   subtitle: string;
   eyebrow?: string;
   metaLabel?: string;
@@ -59,7 +60,7 @@ export function drawDocumentHeader(doc: PDFKit.PDFDocument, options: HeaderOptio
       characterSpacing: 0.5,
       lineBreak: false,
     });
-  doc.font(fonts.bold).fontSize(21).fillColor(PDF_THEME.white).text(options.title, textX, 38, {
+  doc.font(fonts.bold).fontSize(options.titleFontSize ?? 21).fillColor(PDF_THEME.white).text(options.title, textX, 38, {
     width: titleWidth,
     lineBreak: false,
   });

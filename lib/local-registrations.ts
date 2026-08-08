@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { code } from "./codes";
+import { participantNameKey } from "./participant-name";
 
 export type RegistrationInput = {
   email: string;
@@ -96,13 +97,17 @@ export async function createLocalRegistration(input: RegistrationInput) {
     const store = await readStore();
     const email = input.email.trim().toLowerCase();
     const citizenId = input.citizenId.trim();
+    const nameKey = participantNameKey(input.firstName, input.lastName);
     const duplicate = Boolean(citizenId) && store.registrations.some(
       (item) => item.citizen_id === citizenId,
     );
+    const duplicateName = Boolean(nameKey) && store.registrations.some(
+      (item) => participantNameKey(item.first_name, item.last_name) === nameKey,
+    );
 
-    if (duplicate) {
+    if (duplicate || duplicateName) {
       throw Object.assign(new Error("duplicate registration"), {
-        code: "DUPLICATE_CITIZEN_ID",
+        code: duplicate ? "DUPLICATE_CITIZEN_ID" : "DUPLICATE_NAME",
       });
     }
 
@@ -158,12 +163,16 @@ export async function updateLocalRegistration(input: RegistrationUpdateInput) {
     if (index === -1) throw Object.assign(new Error("registration not found"), { code: "NOT_FOUND" });
 
     const citizenId = input.citizenId.trim();
+    const nameKey = participantNameKey(input.firstName, input.lastName);
     const duplicate = Boolean(citizenId) && store.registrations.some(
       (item) => item.registration_code !== registrationCode && item.citizen_id === citizenId,
     );
-    if (duplicate) {
+    const duplicateName = Boolean(nameKey) && store.registrations.some(
+      (item) => item.registration_code !== registrationCode && participantNameKey(item.first_name, item.last_name) === nameKey,
+    );
+    if (duplicate || duplicateName) {
       throw Object.assign(new Error("duplicate registration"), {
-        code: "DUPLICATE_CITIZEN_ID",
+        code: duplicate ? "DUPLICATE_CITIZEN_ID" : "DUPLICATE_NAME",
       });
     }
 

@@ -36,9 +36,9 @@ export async function POST(request: Request) {
     await ensureDatabaseSchema();
     const result = await transaction(async (connection) => {
       const userId = randomUUID(), registrationId = randomUUID(), registrationCode = code("REG");
-      const [existingRows] = await connection.execute("SELECT registration_code FROM registrations WHERE citizen_id=? LIMIT 1", [parsed.citizenId]);
+      const [existingRows] = await connection.execute("SELECT registration_code FROM registrations WHERE (first_name=? AND last_name=?) OR citizen_id=? LIMIT 1", [parsed.firstName, parsed.lastName, parsed.citizenId]);
       if ((existingRows as Array<{registration_code:string}>).length > 0) {
-        throw Object.assign(new Error("duplicate citizen id"), { code: "DUPLICATE_CITIZEN_ID" });
+        throw Object.assign(new Error("duplicate registration"), { code: "DUPLICATE_NAME" });
       }
       await connection.execute("INSERT INTO users(id,email,provider,display_name) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE display_name=VALUES(display_name),updated_at=CURRENT_TIMESTAMP(3)", [userId,parsed.email,parsed.provider,`${parsed.firstName} ${parsed.lastName}`]);
       const [users] = await connection.execute("SELECT id FROM users WHERE email=? LIMIT 1", [parsed.email]);
@@ -135,5 +135,7 @@ function messageFor(error: unknown) {
     ? error.issues[0]?.message
     : code === "DUPLICATE_CITIZEN_ID" || code === "ER_DUP_ENTRY"
       ? "หมายเลขบัตรประชาชนนี้ลงทะเบียนเข้าร่วมงานแล้ว ไม่สามารถสมัครซ้ำได้"
+      : code === "DUPLICATE_NAME"
+        ? "ชื่อและนามสกุลนี้ลงทะเบียนเข้าร่วมงานแล้ว ไม่สามารถสมัครซ้ำได้"
       : "ไม่สามารถบันทึกการลงทะเบียนได้";
 }

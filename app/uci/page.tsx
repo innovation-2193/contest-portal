@@ -5,11 +5,13 @@ import Link from "next/link";
 import { Car, ClipboardList, Download, Eye, Gift, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
+import { UciVideoCarousel } from "../../components/UciVideoCarousel";
 import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin } from "../../lib/admin-auth";
 import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
+import { listUciVideos, youtubeThumbnailUrl } from "../../lib/uci-videos";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +34,13 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     </section></div></div>;
   }
 
-  const [settings, participants, evaluation, parking, members] = await Promise.all([
+  const [settings, participants, evaluation, parking, members, videos] = await Promise.all([
     getAdminSettings(),
     listParticipants(),
     getEvaluationSummary(),
     listParkingReservations(),
     session.role === "uci" ? listUciAccounts() : Promise.resolve([]),
+    listUciVideos(),
   ]);
   const attended = participants.filter((item) => item.status === "attended").length;
 
@@ -56,6 +59,8 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Live Lucky Draw</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการเหมือน Super Admin</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
     </section>}
+
+    <UciVideoCarousel videos={videos.map((video) => ({ ...video, thumbnailUrl: youtubeThumbnailUrl(video.url) }))}/>
 
     <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>งานที่ UCI ดูแล</h2><p>เปิดเครื่องมือที่ใช้ในวันงานได้ทันที</p></div></header><div className="admin-detail-actions uci-action-grid">
       <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนและจัดการผู้เข้าร่วม</Link>

@@ -622,7 +622,9 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
       if (!latest || safeTime(record.updatedAt) > safeTime(latest)) return record.updatedAt;
       return latest;
     }, null as string | null);
-    const averageScore = totals.length ? roundScore(totals.reduce((sum, value) => sum + value, 0) / totals.length) : null;
+    const averageScore = totals.length === committeeJudges.length
+      ? roundScore(totals.reduce((sum, value) => sum + value, 0) / committeeJudges.length)
+      : null;
     return {
       rank: 0,
       submissionCode: submission.submission_code,

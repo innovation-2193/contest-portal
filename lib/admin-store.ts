@@ -43,6 +43,8 @@ import {
   type WorkCategory,
 } from "./work-categories";
 import { formatApplicantName } from "./thai-rank-title";
+import { findRegistrationByName } from "./registration-lookup";
+import { participantNameKey } from "./participant-name";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -537,6 +539,7 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
 
 export async function createParticipant(input: RegistrationInput) {
   let record: RegistrationRecord;
+  let created = true;
   try {
     await ensureDatabaseSchema();
     const result = await transaction(async (connection) => {
@@ -545,11 +548,12 @@ export async function createParticipant(input: RegistrationInput) {
         return (codeRows as Array<{ registration_code: string }>).length > 0;
       });
       const citizenId = input.citizenId.trim();
-      if (citizenId) {
-        const [existingRows] = await connection.execute("SELECT registration_code FROM registrations WHERE citizen_id=? LIMIT 1", [citizenId]);
-        if ((existingRows as Array<{ registration_code: string }>).length > 0) {
-          throw Object.assign(new Error("duplicate registration"), { code: "DUPLICATE_CITIZEN_ID" });
-        }
+      const [existingRows] = await connection.execute(
+        "SELECT registration_code FROM registrations WHERE (first_name=? AND last_name=?) OR (? <> '' AND citizen_id=?) LIMIT 1",
+        [input.firstName, input.lastName, citizenId, citizenId],
+      );
+      if ((existingRows as Array<{ registration_code: string }>).length > 0) {
+        throw Object.assign(new Error("duplicate registration"), { code: citizenId ? "DUPLICATE_CITIZEN_ID" : "DUPLICATE_NAME" });
       }
 
       const userId = randomUUID();
@@ -606,9 +610,15 @@ async function nextRegistrationCode(hasCollision: (candidate: string) => Promise
 }
 
 export async function registerSubmissionAsParticipant(submissionCode: string) {
+  const result = await ensureSubmissionMemberParticipant(submissionCode, 1);
+  const email = result.created ? await sendRegistrationConfirmation(result.record) : { status: "skipped" as const };
+  return { ...result, emailStatus: email.status };
+}
+
+export async function ensureSubmissionMemberParticipant(submissionCode: string, memberOrder: number) {
   const submission = await getSubmissionDetail(submissionCode);
   if (!submission) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
-  const member = submission.members[0];
+  const member = submission.members.find((item) => item.member_order === memberOrder) ?? submission.members[0];
   if (!member) throw Object.assign(new Error("submission member not found"), { code: "NOT_FOUND" });
 
   const input = {
@@ -625,14 +635,17 @@ export async function registerSubmissionAsParticipant(submissionCode: string) {
     bureau: member.bureau,
   };
 
+  const existing = await findRegistrationByName(input.firstName, input.lastName, input.citizenId);
+  if (existing) return { record: existing, created: false, member };
+
   let record: RegistrationRecord;
-  let created = false;
+  let created = true;
   try {
     await ensureDatabaseSchema();
     const result = await transaction(async (connection) => {
       const [existingRows] = await connection.execute(
-        "SELECT r.registration_code,r.user_id FROM registrations r WHERE r.citizen_id=? LIMIT 1",
-        [input.citizenId],
+        "SELECT r.registration_code,r.user_id FROM registrations r WHERE (r.first_name=? AND r.last_name=?) OR (? <> '' AND r.citizen_id=?) LIMIT 1",
+        [input.firstName, input.lastName, input.citizenId, input.citizenId],
       );
       const existing = (existingRows as Array<{ registration_code: string; user_id: string }>)[0];
       if (existing) {
@@ -679,9 +692,7 @@ export async function registerSubmissionAsParticipant(submissionCode: string) {
     record = local.record;
     created = local.created;
   }
-
-  const email = await sendRegistrationConfirmation(record);
-  return { record, created, emailStatus: email.status };
+  return { record, created, member };
 }
 
 async function findRegisteredParticipantRecord(registrationCode: string) {
@@ -706,7 +717,11 @@ async function registerLocalSubmissionParticipant(input: {
   division: string;
   bureau: string;
 }) {
-  const existing = (await listLocalRegistrations()).find((item) => item.citizen_id === input.citizenId);
+  const nameKey = participantNameKey(input.firstName, input.lastName);
+  const existing = (await listLocalRegistrations()).find((item) => (
+    participantNameKey(item.first_name, item.last_name) === nameKey
+    || (input.citizenId && item.citizen_id === input.citizenId)
+  ));
   if (existing) {
     const record = await updateLocalRegistration({
       ...input,

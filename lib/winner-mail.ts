@@ -1,6 +1,7 @@
 import { sendAdminMail } from "./admin-mail";
 import { publicBaseUrl } from "./public-url";
-import type { AdminSubmissionDetail } from "./admin-store";
+import { ensureSubmissionMemberParticipant, type AdminSubmissionDetail } from "./admin-store";
+import { sendRegistrationConfirmation } from "./registration-artifacts";
 import path from "path";
 
 const lineCoordinationQrCid = "police-innovation-line-coordination-qr";
@@ -16,6 +17,7 @@ type WinnerAnnouncementInput = {
 type WinnerAnnouncementResult = {
   email: string;
   status: "sent" | "outbox" | "failed" | "skipped";
+  registrationEmailStatus: "sent" | "outbox" | "failed" | "skipped";
 };
 
 export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInput) {
@@ -24,6 +26,10 @@ export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInpu
 
   const results: WinnerAnnouncementResult[] = [];
   for (const recipient of recipients) {
+    const registration = await ensureSubmissionMemberParticipant(input.submission.submission_code, recipient.memberOrder);
+    const registrationEmail = registration.created
+      ? await sendRegistrationConfirmation(registration.record)
+      : { status: "skipped" as const };
     const mail = await sendAdminMail({
       to: recipient.email,
       subject: `ขอแสดงความยินดี ผลงานของท่านได้รับ${input.award}`,
@@ -35,7 +41,7 @@ export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInpu
       html: winnerAnnouncementHtml(input, recipient.name),
       attachments: [lineCoordinationQrAttachment()],
     });
-    results.push({ email: recipient.email, status: winnerMailStatus(mail.status) });
+    results.push({ email: recipient.email, status: winnerMailStatus(mail.status), registrationEmailStatus: winnerMailStatus(registrationEmail.status) });
   }
   return results;
 }
@@ -47,10 +53,11 @@ function winnerMailStatus(status: string): WinnerAnnouncementResult["status"] {
 
 function winnerRecipients(submission: AdminSubmissionDetail) {
   const recipients = [
-    { email: submission.email, name: primaryRecipientName(submission) },
+    { email: submission.email, name: primaryRecipientName(submission), memberOrder: submission.members[0]?.member_order ?? 1 },
     ...submission.members.map((member) => ({
       email: member.email,
       name: `${member.title}${member.first_name} ${member.last_name}`.trim(),
+      memberOrder: member.member_order,
     })),
   ];
   const seen = new Set<string>();
@@ -58,6 +65,7 @@ function winnerRecipients(submission: AdminSubmissionDetail) {
     .map((recipient) => ({
       email: recipient.email.trim().toLowerCase(),
       name: recipient.name.trim(),
+      memberOrder: recipient.memberOrder,
     }))
     .filter((recipient) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.email) || seen.has(recipient.email)) return false;
