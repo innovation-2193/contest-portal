@@ -38,7 +38,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
           <h1>ข้อมูลผู้เข้าร่วมงาน</h1>
           <p>รายละเอียดสำหรับตรวจสอบและพิมพ์เอกสารยืนยันการลงทะเบียน</p>
         </div>
-        <div className="admin-actions"><Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>{item && <AdminPrintButton />}</div>
+        <div className="admin-actions"><Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>{item && <AdminPrintButton />}</div>
       </div>
       <AdminNotice code={query.notice}/>
       {item ? <article className="admin-panel printable-sheet">

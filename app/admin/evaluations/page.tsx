@@ -54,7 +54,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           <h1>สรุปแบบประเมินความพึงพอใจ</h1>
           <p>ดูคะแนนรวม คะแนนรายหมวด รายข้อ ข้อมูลทั่วไป ข้อเสนอแนะ และผู้โชคดี Lucky Draw</p>
         </div>
-        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>กลับหลังบ้าน</Link>
+        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
       </div>
       <AdminNotice code={params.notice}/>
       <section className="admin-panel evaluation-detail-panel">

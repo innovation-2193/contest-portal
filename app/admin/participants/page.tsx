@@ -53,7 +53,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
     <div className="wide">
       <div className="admin-topline">
         <div><span className="eyebrow">Participants</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า</p></div>
-        <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
       </div>
       <AdminNotice code={params.notice} error={params.error}/>
       <section className="admin-panel">
