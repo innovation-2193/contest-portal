@@ -88,7 +88,7 @@ function drawParkingReservationListTable(doc: PDFKit.PDFDocument, reservations: 
     { label: "เลขลงทะเบียน", width: 115, align: "left" as const },
     { label: "Role", width: 75, align: "center" as const },
     { label: "สังกัด / หน่วยงาน", width: 180, align: "left" as const },
-    { label: "หมายเหตุ", width: 100, align: "left" as const },
+    { label: "เบอร์ติดต่อ", width: 100, align: "left" as const },
   ];
   const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
 
@@ -127,7 +127,7 @@ function drawParkingReservationListTable(doc: PDFKit.PDFDocument, reservations: 
       reservation.registrationCode,
       reservation.participantRole,
       affiliation,
-      reservation.note,
+      reservation.phone,
     ];
     let cellX = x;
     columns.forEach((column, columnIndex) => {

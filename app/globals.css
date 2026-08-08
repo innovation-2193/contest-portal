@@ -19127,6 +19127,7 @@ footer {
   aspect-ratio: 16 / 9;
   place-items: center;
   overflow: hidden;
+  border-radius: 11px 11px 0 0;
   background: #071a3a;
   text-decoration: none;
 }

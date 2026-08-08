@@ -42,11 +42,10 @@ export function UciVideoCarousel({ videos }: { videos: UciVideoCarouselItem[] })
         {videos.length > 1 && <div className="uci-video-controls" aria-label="เลื่อนคลิปสอนการใช้งาน"><button type="button" onClick={() => moveTo(activeIndex - 1)} disabled={activeIndex === 0} aria-label="คลิปก่อนหน้า"><ArrowLeft/></button><button type="button" onClick={() => moveTo(activeIndex + 1)} disabled={activeIndex === videos.length - 1} aria-label="คลิปถัดไป"><ArrowRight/></button></div>}
       </header>
       <div className={`uci-video-track uci-video-count-${Math.min(videos.length, 3)}`} ref={trackRef} onScroll={updateActiveCard}>
-        {videos.map((video, index) => <article className="uci-video-card" key={video.id}>
+        {videos.map((video) => <article className="uci-video-card" key={video.id}>
           <a className="uci-video-media" href={video.url} target="_blank" rel="noreferrer" aria-label={`เปิดคลิป ${video.title}`}>
             {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt=""/> : <Video aria-hidden="true"/>}
             <span className="uci-video-play"><Play fill="currentColor"/></span>
-            {index === 0 && <span className="uci-video-featured">แนะนำ</span>}
           </a>
           <div className="uci-video-copy"><h3>{video.title}</h3><a href={video.url} target="_blank" rel="noreferrer">เปิดดูคลิปบน YouTube <ArrowRight/></a></div>
         </article>)}
