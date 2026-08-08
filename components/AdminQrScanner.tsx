@@ -40,7 +40,7 @@ export type CheckInRoleCounts = Record<ParticipantRoleName, number>;
 const scannerRoleOrder: ParticipantRoleName[] = ["VIP", "Guest", "Exhibitor", "Competitor", "Staff"];
 const prosperityParticles = Array.from({ length: 22 }, (_, index) => index);
 
-export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: CheckInRoleCounts }) {
+export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { initialRoleCounts: CheckInRoleCounts; registrationRoleCounts: CheckInRoleCounts }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -361,8 +361,8 @@ export function AdminQrScanner({ initialRoleCounts }: { initialRoleCounts: Check
       <div className="scanner-role-counts" aria-label="จำนวนผู้เช็คอินแยกตาม Role">
         {scannerRoleOrder.map((role) => <article className={participantRoleClass(role)} key={role}>
           <span>{role}</span>
-          <b>{roleCounts[role].toLocaleString("th-TH")}</b>
-          <small>เช็คอินแล้ว</small>
+          <b>{roleCounts[role].toLocaleString("th-TH")} <i className="scanner-role-total">/ {registrationRoleCounts[role].toLocaleString("th-TH")}</i></b>
+          <small>เช็คอินแล้ว / ผู้ลงทะเบียน</small>
         </article>)}
       </div>
       <div className="scanner-buttons">

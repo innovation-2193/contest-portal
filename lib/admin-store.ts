@@ -489,6 +489,26 @@ export async function getParticipantCheckInRoleCounts() {
   }
 }
 
+export async function getParticipantRegistrationRoleCounts() {
+  const counts = Object.fromEntries(participantRoles.map((role) => [role, 0])) as Record<ParticipantRole, number>;
+  try {
+    await ensureDatabaseSchema();
+    const [rows] = await db.execute(
+      "SELECT participant_role,COUNT(*) AS total FROM registrations WHERE status <> 'cancelled' GROUP BY participant_role",
+    );
+    for (const row of rows as Array<{ participant_role: unknown; total: number | string }>) {
+      counts[normalizeParticipantRole(row.participant_role)] += Number(row.total) || 0;
+    }
+    return counts;
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    for (const item of await listLocalRegistrations()) {
+      if (item.status !== "cancelled") counts[item.participant_role] += 1;
+    }
+    return counts;
+  }
+}
+
 export async function searchParticipants(query: string, limit = 12) {
   const normalizedQuery = query.replace(/\s+/g, " ").trim().toLowerCase();
   if (normalizedQuery.length < 2) return [];

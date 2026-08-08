@@ -9960,6 +9960,13 @@ body:has(.prelander-page)::before {
   line-height: 1.05;
 }
 
+.scanner-role-counts .scanner-role-total {
+  color: #9eacc1;
+  font-size: 17px;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .scanner-role-counts small {
   color: #b9c7dc;
   font-size: 11px;

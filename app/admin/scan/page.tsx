@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, QrCode } from "lucide-react";
 import { AdminQrScanner, type CheckInRoleCounts } from "../../../components/AdminQrScanner";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { getParticipantCheckInRoleCounts } from "../../../lib/admin-store";
+import { getParticipantCheckInRoleCounts, getParticipantRegistrationRoleCounts } from "../../../lib/admin-store";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,7 @@ export default async function AdminScanPage() {
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
   const initialRoleCounts = await getParticipantCheckInRoleCounts() as CheckInRoleCounts;
+  const registrationRoleCounts = await getParticipantRegistrationRoleCounts() as CheckInRoleCounts;
 
   return <div className="admin-page">
     <div className="wide">
@@ -26,7 +27,7 @@ export default async function AdminScanPage() {
       </div>
       <section className="admin-panel">
         <header><QrCode/><div><h2>ระบบเช็คอินหน้างาน</h2><p>รองรับการสแกนผ่านกล้องและ Live Search จากข้อมูลผู้เข้าร่วม</p></div></header>
-        <AdminQrScanner initialRoleCounts={initialRoleCounts} />
+        <AdminQrScanner initialRoleCounts={initialRoleCounts} registrationRoleCounts={registrationRoleCounts} />
       </section>
     </div>
   </div>;
