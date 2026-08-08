@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, message: "ไม่พบ Version รายงานนี้" }, { status: 404 });
   }
   const rows = version
-    ? version.rows
+    ? await enrichVersionRows(version.rows)
     : await buildCurrentRows();
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -67,6 +67,15 @@ async function buildCurrentRows() {
   return buildCommitteeScoreboard(submissions.slice().sort(compareSubmittedAt), records);
 }
 
+async function enrichVersionRows(rows: CommitteeScoreSummaryRow[]) {
+  const submissions = await listSubmissions().catch(() => []);
+  const englishTitles = new Map(submissions.map((submission) => [submission.submission_code, submission.title_en || null]));
+  return rows.map((row) => ({
+    ...row,
+    submissionTitleEnglish: row.submissionTitleEnglish || englishTitles.get(row.submissionCode) || null,
+  }));
+}
+
 function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
   return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
@@ -75,7 +84,7 @@ async function buildPdf(rows: CommitteeScoreSummaryRow[], reportVersion?: number
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
-  const perPage = 17;
+  const perPage = 11;
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
 
   for (let page = 0; page < pages; page += 1) {
@@ -104,12 +113,12 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
   const columns = [
     ["ลำดับ", 48],
     ["ชื่อโครงการ", 314],
-    ["คะแนนเฉลี่ย", 82],
+    ["คะแนนที่ได้", 82],
     ["หมายเหตุ", 79],
   ] as const;
   const x = 36;
   const y = 145;
-  const rowHeight = 34;
+  const rowHeight = 50;
   drawTableHeader(doc, x, y, columns);
   let cursorY = y + 28;
 
@@ -155,17 +164,25 @@ function drawTableRow(
 ) {
   const values = [
     row.rank.toLocaleString("th-TH"),
-    row.submissionTitle,
     row.averageScore === null ? "-" : row.averageScore.toFixed(2),
     row.judgeCount === 0 ? "ยังไม่มีคะแนน" : row.judgeCount === committeeJudges.length ? "คะแนนครบ" : `รอคะแนน ${committeeJudges.length - row.judgeCount} คน`,
   ];
   const totalWidth = columns.reduce((sum, [, width]) => sum + width, 0);
   const fill = row.averageScore === null ? "#f8fafc" : PDF_THEME.white;
   doc.rect(x, y, totalWidth, height).fillAndStroke(fill, PDF_THEME.line);
-  let cursorX = x;
-  values.forEach((value, index) => {
+  let boundaryX = x;
+  for (let index = 1; index < columns.length; index += 1) {
+    boundaryX += columns[index - 1][1];
+    doc.moveTo(boundaryX, y).lineTo(boundaryX, y + height).lineWidth(0.45).stroke(PDF_THEME.line);
+  }
+  const cells = [
+    { index: 0, value: values[0] },
+    { index: 2, value: values[1] },
+    { index: 3, value: values[2] },
+  ];
+  cells.forEach(({ index, value }) => {
+    const cursorX = x + columns.slice(0, index).reduce((sum, [, width]) => sum + width, 0);
     const [, width] = columns[index];
-    if (index > 0) doc.moveTo(cursorX, y).lineTo(cursorX, y + height).lineWidth(0.45).stroke(PDF_THEME.line);
     const isScore = index === 2;
     doc.font(index === 0 || index === 2 ? fonts.bold : fonts.regular)
       .fontSize(isScore ? 9.5 : 8.8)
@@ -176,8 +193,24 @@ function drawTableRow(
         align: index === 1 || index === 3 ? "left" : "center",
         ellipsis: true,
       });
-    cursorX += width;
   });
+
+  const titleColumnX = x + columns[0][1];
+  const titleColumnWidth = columns[1][1];
+  doc.font(fonts.regular).fontSize(10).fillColor(PDF_THEME.text).text(clean(row.submissionTitle), titleColumnX + 5, y + 5, {
+    width: titleColumnWidth - 10,
+    height: 26,
+    lineGap: 0,
+    ellipsis: true,
+  });
+  if (row.submissionTitleEnglish) {
+    doc.font(fonts.regular).fontSize(8.5).fillColor(PDF_THEME.muted).text(clean(row.submissionTitleEnglish), titleColumnX + 5, y + 32, {
+      width: titleColumnWidth - 10,
+      height: 12,
+      lineBreak: false,
+      ellipsis: true,
+    });
+  }
 }
 
 function clean(value: unknown) {

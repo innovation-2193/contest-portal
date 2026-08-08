@@ -19666,6 +19666,17 @@ footer {
   min-width: 260px;
 }
 
+.committee-score-table td:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.committee-score-table td:nth-child(2) small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 @media (max-width: 1100px) {
   .committee-judge-fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));

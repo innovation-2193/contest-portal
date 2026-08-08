@@ -80,6 +80,7 @@ export type CommitteeScoreSummaryRow = {
   rank: number;
   submissionCode: string;
   submissionTitle: string;
+  submissionTitleEnglish: string | null;
   submissionOrder: number;
   ownerName: string;
   division: string;
@@ -629,6 +630,7 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
       rank: 0,
       submissionCode: submission.submission_code,
       submissionTitle: submission.title_th,
+      submissionTitleEnglish: submission.title_en || null,
       submissionOrder: index + 1,
       ownerName: `${submission.first_name} ${submission.last_name}`.trim() || "-",
       division: submission.division || submission.bureau || "-",
