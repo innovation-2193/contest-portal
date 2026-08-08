@@ -44,7 +44,10 @@ export function UciVideoCarousel({ videos }: { videos: UciVideoCarouselItem[] })
       <div className={`uci-video-track uci-video-count-${Math.min(videos.length, 3)}`} ref={trackRef} onScroll={updateActiveCard}>
         {videos.map((video) => <article className="uci-video-card" key={video.id}>
           <a className="uci-video-media" href={video.url} target="_blank" rel="noreferrer" aria-label={`เปิดคลิป ${video.title}`}>
-            {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt=""/> : <Video aria-hidden="true"/>}
+            {video.thumbnailUrl ? <img src={video.thumbnailUrl} alt="" onError={(event) => {
+              const fallbackUrl = video.thumbnailUrl?.replace("/maxresdefault.jpg", "/hqdefault.jpg");
+              if (fallbackUrl && event.currentTarget.src !== fallbackUrl) event.currentTarget.src = fallbackUrl;
+            }}/> : <Video aria-hidden="true"/>}
             <span className="uci-video-play"><Play fill="currentColor"/></span>
           </a>
           <div className="uci-video-copy"><h3>{video.title}</h3><a href={video.url} target="_blank" rel="noreferrer">เปิดดูคลิปบน YouTube <ArrowRight/></a></div>

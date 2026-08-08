@@ -79,7 +79,7 @@ export function youtubeVideoId(value: string) {
 
 export function youtubeThumbnailUrl(value: string) {
   const id = youtubeVideoId(value);
-  return id ? `https://img.youtube.com/vi/${encodeURIComponent(id)}/hqdefault.jpg` : null;
+  return id ? `https://img.youtube.com/vi/${encodeURIComponent(id)}/maxresdefault.jpg` : null;
 }
 
 function normalizeInput(input: UciVideoInput): UciVideoInput {
