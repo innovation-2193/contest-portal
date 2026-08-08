@@ -90,49 +90,56 @@ export async function GET(request: Request) {
 
 async function loadTemplateSubmissions(): Promise<SubmissionListItem[]> {
   try {
-    return await listSubmissions();
+    const submissions = await listSubmissions();
+    if (submissions.length) return submissions;
+    console.warn("committee score template primary submission list was empty; trying export-compatible list");
+    return await loadTemplateSubmissionsFromApplicants();
   } catch (error) {
     console.error("committee score template primary submission list failed; trying export-compatible list", error);
-    try {
-      const applicants = await listSubmissionApplicantsForExport();
-      const unique = new Map<string, SubmissionListItem>();
-      for (const applicant of applicants) {
-        if (unique.has(applicant.submission_code)) continue;
-        unique.set(applicant.submission_code, {
-          submission_code: applicant.submission_code,
-          submission_type: applicant.submission_type,
-          team_name: applicant.team_name,
-          title_th: applicant.title_th,
-          title_en: null,
-          video_url: null,
-          work_category: defaultWorkCategory,
-          hashtags: [],
-          status: "submitted",
-          review_assigned_admin_email: null,
-          review_assigned_at: null,
-          review_scored_by_email: null,
-          review_rules_score: null,
-          review_problem_score: null,
-          review_innovation_score: null,
-          review_evidence_score: null,
-          review_impact_score: null,
-          review_total_score: null,
-          review_note: null,
-          review_submitted_at: null,
-          submitted_at: applicant.submitted_at,
-          email: applicant.email,
-          title: applicant.title,
-          first_name: applicant.first_name,
-          last_name: applicant.last_name,
-          position: applicant.position,
-          division: applicant.division,
-          bureau: applicant.bureau,
-        });
-      }
-      return [...unique.values()];
-    } catch (fallbackError) {
-      console.error("committee score template fallback submission list failed; creating blank template", fallbackError);
-      return [];
+    return loadTemplateSubmissionsFromApplicants();
+  }
+}
+
+async function loadTemplateSubmissionsFromApplicants(): Promise<SubmissionListItem[]> {
+  try {
+    const applicants = await listSubmissionApplicantsForExport();
+    const unique = new Map<string, SubmissionListItem>();
+    for (const applicant of applicants) {
+      if (unique.has(applicant.submission_code)) continue;
+      unique.set(applicant.submission_code, {
+        submission_code: applicant.submission_code,
+        submission_type: applicant.submission_type,
+        team_name: applicant.team_name,
+        title_th: applicant.title_th,
+        title_en: null,
+        video_url: null,
+        work_category: defaultWorkCategory,
+        hashtags: [],
+        status: "submitted",
+        review_assigned_admin_email: null,
+        review_assigned_at: null,
+        review_scored_by_email: null,
+        review_rules_score: null,
+        review_problem_score: null,
+        review_innovation_score: null,
+        review_evidence_score: null,
+        review_impact_score: null,
+        review_total_score: null,
+        review_note: null,
+        review_submitted_at: null,
+        submitted_at: applicant.submitted_at,
+        email: applicant.email,
+        title: applicant.title,
+        first_name: applicant.first_name,
+        last_name: applicant.last_name,
+        position: applicant.position,
+        division: applicant.division,
+        bureau: applicant.bureau,
+      });
     }
+    return [...unique.values()];
+  } catch (fallbackError) {
+    console.error("committee score template fallback submission list failed; creating blank template", fallbackError);
+    return [];
   }
 }
