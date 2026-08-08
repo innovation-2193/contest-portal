@@ -176,7 +176,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
-    {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled}/>}
+    {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled} totalParticipants={activeRegistrations.length}/>}
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Users/><div><span className="eyebrow">UCI Access</span><h2>จัดการผู้ใช้ UCI</h2><p>เพิ่ม แก้ไข ลบ และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกทีม UCI</p></div></div><Link className="primary" href="/admin/uci"><Users/>เปิดจัดการผู้ใช้ UCI</Link></section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Video/><div><span className="eyebrow">UCI How-to</span><h2>วิดีโอสอนการใช้งาน UCI</h2><p>เพิ่มชื่อคลิปและลิงก์ YouTube เพื่อแสดงเป็น carousel ในหน้า /uci</p></div></div><Link className="primary" href="/admin/uci-videos"><Video/>จัดการวิดีโอสอนการใช้งาน</Link></section>}
@@ -545,7 +545,7 @@ function AdminManagementPanel({ admins, search, total }: { admins: Awaited<Retur
   </section>;
 }
 
-function EvaluationAdminPanel({ summary, evaluationEnabled }: { summary: EvaluationSummary; evaluationEnabled: boolean }) {
+function EvaluationAdminPanel({ summary, evaluationEnabled, totalParticipants }: { summary: EvaluationSummary; evaluationEnabled: boolean; totalParticipants: number }) {
   return <section className="admin-panel evaluation-admin-panel">
     <header className="admin-section-head">
       <Star/>
@@ -556,7 +556,7 @@ function EvaluationAdminPanel({ summary, evaluationEnabled }: { summary: Evaluat
       </div>
     </header>
     <div className="evaluation-dashboard-summary">
-      <div className="stat-panel"><Star/><b>{summary.total.toLocaleString("th-TH")}</b><span>ผู้ทำแบบประเมิน</span></div>
+      <div className="stat-panel"><Star/><b>{summary.total.toLocaleString("th-TH")} / {totalParticipants.toLocaleString("th-TH")}</b><span>ผู้ทำแบบประเมิน / ผู้ลงทะเบียน</span></div>
       <div className="stat-panel"><Trophy/><b>{summary.average ? summary.average.toFixed(2) : "-"}</b><span>คะแนนเฉลี่ยรวม / 5</span></div>
       <div className="stat-panel"><Gift/><b>{summary.winners.length.toLocaleString("th-TH")}/3</b><span>ผู้โชคดี Lucky Draw</span></div>
     </div>
