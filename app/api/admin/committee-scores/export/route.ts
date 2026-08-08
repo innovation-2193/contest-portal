@@ -95,10 +95,8 @@ function drawPage(doc: PDFKit.PDFDocument, rows: CommitteeScoreSummaryRow[], pag
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
     title: "รายงานอันดับคะแนนคณะกรรมการ รอบที่ 1",
-    titleFontSize: 15,
-    subtitle: `${reportVersion ? `Version ${reportVersion} • ` : ""}เรียงจากคะแนนมากไปน้อย • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    metaLabel: reportVersion ? "Version" : "รายการ",
-    metaValue: reportVersion ? `V${reportVersion}` : rows.length ? `${rows[0].rank}-${rows[rows.length - 1]?.rank}` : "0",
+    titleFontSize: 21,
+    subtitle: `เรียงจากคะแนนมากไปน้อย • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     showLogo: true,
     fonts,
   });
