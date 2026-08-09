@@ -9216,67 +9216,6 @@ body:has(.prelander-page)::before {
   font-size: 12px;
 }
 
-.admin-login-uci-ops {
-  margin-top: 34px;
-  padding: 15px 16px;
-  border: 1px solid rgba(82, 125, 180, 0.4);
-  border-radius: 15px;
-  background: rgba(4, 18, 43, 0.46);
-}
-
-.admin-login-uci-ops-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.admin-login-uci-ops-head span {
-  color: #80efdb;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-}
-
-.admin-login-uci-ops-head b {
-  color: #dce9f8;
-  font-size: 12px;
-}
-
-.admin-login-uci-ops-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 13px;
-}
-
-.admin-login-uci-ops-grid span {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  padding: 9px 8px;
-  border: 1px solid rgba(82, 125, 180, 0.28);
-  border-radius: 10px;
-  color: #a6bad4;
-}
-
-.admin-login-uci-ops-grid svg {
-  flex: 0 0 auto;
-  width: 17px;
-  height: 17px;
-  color: var(--gold);
-}
-
-.admin-login-uci-ops-grid small {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  color: #b5c8df;
-  font-size: 9px;
-  font-weight: 900;
-  line-height: 1.25;
-}
-
 .admin-login-uci-panel {
   min-width: 0;
   padding: clamp(20px, 3vw, 30px);
@@ -9642,16 +9581,6 @@ body:has(.prelander-page)::before {
     margin-top: 20px;
   }
 
-  .admin-login-uci-ops {
-    margin-top: 24px;
-    padding: 13px;
-  }
-
-  .admin-login-uci-ops-head {
-    display: grid;
-    gap: 4px;
-  }
-
   .admin-login-uci-panel {
     padding: 18px 15px;
     border-radius: 17px;
@@ -9706,12 +9635,6 @@ body:has(.prelander-page)::before {
     bottom: 22%;
     width: 180px;
     height: 180px;
-  }
-}
-
-@media (max-width: 480px) {
-  .admin-login-uci-ops-grid {
-    grid-template-columns: 1fr;
   }
 }
 
