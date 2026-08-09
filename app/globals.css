@@ -9513,7 +9513,7 @@ body:has(.prelander-page)::before {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
-  padding: 8px 12px 4px;
+  padding: 8px 12px 14px;
 }
 
 .uci-user-create-footer small {
@@ -9528,6 +9528,14 @@ body:has(.prelander-page)::before {
 
 .uci-user-table {
   min-width: 920px;
+}
+
+.uci-status-pill {
+  width: fit-content;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
 }
 
 .uci-user-actions {
