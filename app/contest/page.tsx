@@ -105,13 +105,13 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                     <em>ผู้ตรวจเอกสารเบื้องต้น: {row.reviewerName}</em>
                   </div>
                 </td>
-                <td data-label="Link Video">
+                <td className="contest-action-cell" data-label="Link Video">
                   <ContestVideoButton
                     hasVideoLink={row.hasUsableVideoLink}
                     submissionCode={row.submission.submission_code}
                   />
                 </td>
-                <td data-label="ดาวน์โหลดเอกสาร">
+                <td className="contest-action-cell" data-label="ดาวน์โหลดเอกสาร">
                   <div className="contest-document-actions">
                     <a className="contest-download-button" href={`/api/contest/submissions/${encodeURIComponent(row.submission.submission_code)}/documents`}>
                       <Download/>ดาวน์โหลดเอกสาร
