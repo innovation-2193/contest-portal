@@ -179,7 +179,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <EvaluationAdminPanel summary={evaluationSummary} evaluationEnabled={settings.satisfactionEvaluationEnabled} totalParticipants={activeRegistrations.length}/>}
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Users/><div><span className="eyebrow">UCI Access</span><h2>จัดการผู้ใช้ UCI</h2><p>เพิ่ม แก้ไข ลบ และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกทีม UCI</p></div></div><Link className="primary" href="/admin/uci"><Users/>เปิดจัดการผู้ใช้ UCI</Link></section>}
-    {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Video/><div><span className="eyebrow">UCI How-to</span><h2>วิดีโอสอนการใช้งาน UCI</h2><p>เพิ่มชื่อคลิปและลิงก์ YouTube เพื่อแสดงเป็น carousel ในหน้า /uci</p></div></div><Link className="primary" href="/admin/uci-videos"><Video/>จัดการวิดีโอสอนการใช้งาน</Link></section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Video/><div><span className="eyebrow">UCI How-to</span><h2>วิดีโอสอนการใช้งาน UCI</h2><p>เพิ่มชื่อคลิปและลิงก์ YouTube หรือ Google Drive เพื่อแสดงเป็น carousel ในหน้า /uci</p></div></div><Link className="primary" href="/admin/uci-videos"><Video/>จัดการวิดีโอสอนการใช้งาน</Link></section>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
     {isSuperAdmin && <section className="admin-panel">

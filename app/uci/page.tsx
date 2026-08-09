@@ -11,7 +11,7 @@ import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUc
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
-import { listUciVideos, youtubeThumbnailUrl } from "../../lib/uci-videos";
+import { listUciVideos, uciVideoPlatform, youtubeThumbnailUrl } from "../../lib/uci-videos";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +60,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
     </section>}
 
-    <UciVideoCarousel videos={videos.map((video) => ({ ...video, thumbnailUrl: youtubeThumbnailUrl(video.url) }))}/>
+    <UciVideoCarousel videos={videos.map((video) => ({ ...video, thumbnailUrl: video.thumbnailName ? `/api/uci-video-images/${encodeURIComponent(video.thumbnailName)}` : youtubeThumbnailUrl(video.url), sourceLabel: uciVideoPlatform(video.url) ?? "วิดีโอ" }))}/>
 
     <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>งานที่ UCI ดูแล</h2><p>เปิดเครื่องมือที่ใช้ในวันงานได้ทันที</p></div></header><div className="admin-detail-actions uci-action-grid">
       <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนและจัดการผู้เข้าร่วม</Link>

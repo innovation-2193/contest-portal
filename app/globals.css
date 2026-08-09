@@ -19256,7 +19256,7 @@ footer {
 }
 
 .uci-video-create-form {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr) minmax(220px, 0.75fr) auto;
   align-items: end;
 }
 
@@ -19366,7 +19366,7 @@ footer {
 }
 
 .uci-video-edit form {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr) minmax(220px, 0.8fr) auto;
   align-items: end;
 }
 

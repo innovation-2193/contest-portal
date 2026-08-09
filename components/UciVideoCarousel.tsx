@@ -8,6 +8,7 @@ export type UciVideoCarouselItem = {
   title: string;
   url: string;
   thumbnailUrl: string | null;
+  sourceLabel: string;
 };
 
 export function UciVideoCarousel({ videos }: { videos: UciVideoCarouselItem[] }) {
@@ -50,7 +51,7 @@ export function UciVideoCarousel({ videos }: { videos: UciVideoCarouselItem[] })
             }}/> : <Video aria-hidden="true"/>}
             <span className="uci-video-play"><Play fill="currentColor"/></span>
           </a>
-          <div className="uci-video-copy"><h3>{video.title}</h3><a href={video.url} target="_blank" rel="noreferrer">เปิดดูคลิปบน YouTube <ArrowRight/></a></div>
+          <div className="uci-video-copy"><h3>{video.title}</h3><a href={video.url} target="_blank" rel="noreferrer">เปิดดูคลิปบน {video.sourceLabel} <ArrowRight/></a></div>
         </article>)}
       </div>
       {videos.length > 1 && <div className="uci-video-dots" aria-label="เลือกคลิปสอนการใช้งาน">{videos.map((video, index) => <button type="button" className={index === activeIndex ? "active" : ""} key={video.id} onClick={() => moveTo(index)} aria-label={`คลิปที่ ${index + 1}`} aria-current={index === activeIndex ? "true" : undefined}/>)}</div>}
