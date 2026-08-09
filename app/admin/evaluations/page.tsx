@@ -9,7 +9,7 @@ import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
 import { adminOtpAutoFillCookie, canOperateEventStaff, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
 import { adminNoticePath } from "../../../lib/admin-flash";
-import { getAdminSettings, saveAdminSettings } from "../../../lib/admin-store";
+import { getAdminSettings, getParticipantRegistrationRoleCounts, saveAdminSettings } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { getEvaluationSummary, listEvaluationRespondents, listLuckyDrawCandidates, resetEvaluations, type EvaluationSummary } from "../../../lib/evaluation-store";
 
@@ -30,18 +30,22 @@ const emptyEvaluationSummary: EvaluationSummary = {
   winners: [],
 };
 
+const emptyParticipantRoleCounts = { VIP: 0, Guest: 0, Exhibitor: 0, Competitor: 0, Staff: 0 };
+
 export default async function AdminEvaluationsPage({ searchParams }: { searchParams: Promise<{ notice?: string; resetOtp?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
 
   const params = await searchParams;
-  const [summary, respondents, settings, luckyDrawCandidates] = await Promise.all([
+  const [summary, respondents, settings, luckyDrawCandidates, participantRoleCounts] = await Promise.all([
     withFallback(getEvaluationSummary(), emptyEvaluationSummary),
     withFallback(listEvaluationRespondents(), []),
     getAdminSettings(),
     withFallback(listLuckyDrawCandidates(), []),
+    withFallback(getParticipantRegistrationRoleCounts(), emptyParticipantRoleCounts),
   ]);
+  const totalParticipants = Object.values(participantRoleCounts).reduce((total, count) => total + count, 0);
   const isSuperAdmin = session.role === "super_admin";
   const canRunLuckyDraw = canOperateEventStaff(session);
   const resetOtpAutoFill = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "reset_lucky_draw" });
@@ -71,7 +75,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           </div>
         </header>
         <div className="evaluation-dashboard-summary">
-          <div className="stat-panel"><Star/><b>{summary.total.toLocaleString("th-TH")}</b><span>ผู้ทำแบบประเมิน</span></div>
+          <div className="stat-panel"><Star/><b>{summary.total.toLocaleString("th-TH")} / {totalParticipants.toLocaleString("th-TH")}</b><span>ผู้ทำแบบประเมิน / ผู้ลงทะเบียน</span></div>
           <div className="stat-panel"><Trophy/><b>{summary.average ? summary.average.toFixed(2) : "-"}</b><span>คะแนนเฉลี่ยรวม / 5</span></div>
           <div className="stat-panel"><Gift/><b>{summary.winners.length.toLocaleString("th-TH")}/3</b><span>Lucky Draw</span></div>
         </div>
