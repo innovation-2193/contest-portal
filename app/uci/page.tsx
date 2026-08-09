@@ -34,6 +34,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
             <div><CheckCircle2/><span><b>จัดการหน้างานได้ในที่เดียว</b><small>ข้อมูลพร้อมใช้งานแบบเรียลไทม์</small></span></div>
             <div><CheckCircle2/><span><b>ปลอดภัยสำหรับทีมปฏิบัติการ</b><small>ระบบแยกสิทธิ์ UCI และ Admin</small></span></div>
           </div>
+          <div className="admin-login-uci-footer"><span>AUTHORIZED PERSONNEL ONLY</span><span>•</span><span>UCI OPERATIONS CENTER</span></div>
         </div>
         <div className="admin-login-uci-panel">
           <div className="admin-login-uci-panel-head"><div><span className="eyebrow">Welcome back</span><h2>ยินดีต้อนรับกลับมา</h2></div><span className="admin-login-uci-live"><i/> Live</span></div>
@@ -50,7 +51,6 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
           <p className="admin-login-help">หากยังไม่มีรหัสผ่าน ให้ขอลิงก์ตั้งรหัสผ่านจากผู้ดูแลทีม UCI หรือ Super Admin</p>
         </div>
       </div>
-      <div className="admin-login-uci-footer"><span>AUTHORIZED PERSONNEL ONLY</span><span>•</span><span>UCI OPERATIONS CENTER</span></div>
     </section></div></div>;
   }
 

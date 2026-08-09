@@ -9094,11 +9094,17 @@ body:has(.prelander-page)::before {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr);
   gap: clamp(32px, 6vw, 88px);
-  align-items: center;
+  align-items: stretch;
 }
 
 .admin-login-uci-intro {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid rgba(82, 125, 180, 0.52);
+  border-radius: 22px;
+  background: linear-gradient(155deg, rgba(7, 27, 60, 0.46), rgba(2, 11, 27, 0.28));
   animation: uci-login-rise 650ms ease both;
 }
 
@@ -9459,7 +9465,8 @@ body:has(.prelander-page)::before {
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: 34px;
+  margin-top: auto;
+  padding-top: 34px;
   color: #647b9d;
   font-size: 10px;
   font-weight: 900;
@@ -9932,6 +9939,10 @@ body:has(.prelander-page)::before {
     gap: 54px;
   }
 
+  .admin-login-uci-intro {
+    min-height: 100%;
+  }
+
   .admin-login-uci-brand {
     margin-bottom: 42px;
   }
@@ -9963,7 +9974,7 @@ body:has(.prelander-page)::before {
   }
 
   .admin-login-uci-footer {
-    margin-top: 22px;
+    padding-top: 22px;
   }
 }
 
