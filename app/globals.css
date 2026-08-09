@@ -19453,8 +19453,22 @@ footer {
 .committee-score-import-panel {
   display: grid;
   gap: 18px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
+}
+
+.committee-score-import-panel > *,
+.committee-judge-form,
+.committee-judge-grid,
+.committee-judge-grid fieldset,
+.committee-score-actions,
+.committee-score-report-versions,
+.committee-score-summary {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .committee-score-import-panel .admin-section-head {
@@ -19535,6 +19549,7 @@ footer {
 
 .committee-judge-fields input {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 44px;
   padding: 8px 10px;
@@ -19553,9 +19568,13 @@ footer {
 
 .committee-score-actions > a,
 .committee-score-actions > label {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   justify-content: center;
   min-height: 48px;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .committee-upload-button {
@@ -19623,6 +19642,8 @@ footer {
 .committee-report-version-list article > div {
   display: grid;
   gap: 3px;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -19641,6 +19662,8 @@ footer {
 
 .committee-report-version-list a,
 .committee-score-report-versions > .ghost-action {
+  max-width: 100%;
+  min-width: 0;
   flex: 0 0 auto;
   justify-content: center;
 }
@@ -19736,8 +19759,16 @@ footer {
   }
 
   .committee-judge-form > .primary {
+    max-width: 100%;
     width: 100%;
     justify-content: center;
+  }
+
+  .committee-score-actions > a,
+  .committee-score-actions > label,
+  .committee-report-version-list a,
+  .committee-score-report-versions > .ghost-action {
+    width: 100%;
   }
 }
 
