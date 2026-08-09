@@ -338,6 +338,8 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
 
   const resultRoleClass = participantRoleClass(result?.participantRole);
   const resultFeaturedClass = isFeaturedCheckInRole(result?.participantRole) ? "featured-role" : "";
+  const totalCheckedIn = scannerRoleOrder.reduce((total, role) => total + roleCounts[role], 0);
+  const totalRegistered = scannerRoleOrder.reduce((total, role) => total + registrationRoleCounts[role], 0);
 
   return <div className="scanner-shell">
     <section className={["scanner-camera", result ? "checked-in" : "", result ? resultRoleClass : "", result ? resultFeaturedClass : ""].filter(Boolean).join(" ")}>
@@ -357,6 +359,10 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
         <span className="eyebrow">QR Check-in</span>
         <h2>สแกน QR Code ผู้เข้าร่วมงาน</h2>
         <p>{cameraStatus}</p>
+        <div className="scanner-total-count" aria-label="จำนวนผู้เข้าร่วมงานที่เช็คอินแล้วเทียบกับผู้ลงทะเบียนทั้งหมด">
+          <b>{totalCheckedIn.toLocaleString("th-TH")} / {totalRegistered.toLocaleString("th-TH")}</b>
+          <span>ผู้เข้าร่วมงานเช็คอินแล้ว / ผู้ลงทะเบียนทั้งหมด</span>
+        </div>
       </div>
       <div className="scanner-role-counts" aria-label="จำนวนผู้เช็คอินแยกตาม Role">
         {scannerRoleOrder.map((role) => <article className={participantRoleClass(role)} key={role}>

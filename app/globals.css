@@ -9912,6 +9912,29 @@ body:has(.prelander-page)::before {
   line-height: 1.25;
 }
 
+.scanner-total-count {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(64, 89, 128, 0.48);
+}
+
+.scanner-total-count b {
+  color: #ffffff;
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.scanner-total-count span {
+  color: #b9c7dc;
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .scanner-buttons {
   display: flex;
   gap: 10px;
