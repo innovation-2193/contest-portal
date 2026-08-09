@@ -14,6 +14,7 @@ export type AdminSession = {
   email: string;
   role: AdminRole;
   issuedAt: number;
+  remember?: boolean;
 };
 
 export const superAdminEmails = [
@@ -23,6 +24,8 @@ export const superAdminEmails = [
 
 const adminSessionMaxAge = Number(process.env.ADMIN_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 8);
 const superAdminSessionMaxAge = Number(process.env.SUPER_ADMIN_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 24);
+const rememberedAdminSessionMaxAge = Number(process.env.ADMIN_REMEMBERED_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 24 * 30);
+const rememberedSuperAdminSessionMaxAge = Number(process.env.SUPER_ADMIN_REMEMBERED_SESSION_MAX_AGE_SECONDS ?? 60 * 60 * 24 * 30);
 const maxFailures = Number(process.env.ADMIN_LOGIN_MAX_FAILURES ?? 5);
 const windowMs = Number(process.env.ADMIN_LOGIN_WINDOW_SECONDS ?? 10 * 60) * 1000;
 const lockMs = Number(process.env.ADMIN_LOGIN_LOCK_SECONDS ?? 15 * 60) * 1000;
@@ -66,7 +69,8 @@ export function adminPassword() {
   return process.env.ADMIN_PASSWORD ?? "";
 }
 
-export function adminSessionMaxAgeSeconds(role: AdminRole = "admin") {
+export function adminSessionMaxAgeSeconds(role: AdminRole = "admin", remember = false) {
+  if (remember) return role === "super_admin" ? rememberedSuperAdminSessionMaxAge : rememberedAdminSessionMaxAge;
   return role === "super_admin" ? superAdminSessionMaxAge : adminSessionMaxAge;
 }
 
@@ -111,11 +115,12 @@ export function getAdminOtpAutoFillCode(value: string | undefined, options: Pick
   }
 }
 
-export function createAdminSessionToken(session: Pick<AdminSession, "email" | "role">, now = Date.now()) {
+export function createAdminSessionToken(session: Pick<AdminSession, "email" | "role"> & { remember?: boolean }, now = Date.now()) {
   const payload = Buffer.from(JSON.stringify({
     email: session.email.trim().toLowerCase(),
     role: session.role,
     issuedAt: now,
+    remember: Boolean(session.remember),
     nonce: randomBytes(18).toString("base64url"),
   })).toString("base64url");
   return `${payload}.${signAdminSessionPayload(payload)}`;
@@ -140,15 +145,18 @@ export function getAdminSession(value?: string, now = Date.now()): AdminSession 
       email?: string;
       role?: string;
       issuedAt?: number;
+      remember?: boolean;
     };
     const role = decoded.role;
     if (!decoded.email || (role !== "admin" && role !== "super_admin" && role !== "uci")) return null;
     if (!Number.isFinite(decoded.issuedAt)) return null;
-    if (now - Number(decoded.issuedAt) > adminSessionMaxAgeSeconds(role) * 1000) return null;
+    const remember = Boolean(decoded.remember);
+    if (now - Number(decoded.issuedAt) > adminSessionMaxAgeSeconds(role, remember) * 1000) return null;
     return {
       email: decoded.email.trim().toLowerCase(),
       role,
       issuedAt: Number(decoded.issuedAt),
+      remember,
     };
   } catch {
     return null;

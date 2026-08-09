@@ -2,12 +2,13 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { Car, ClipboardList, Download, Eye, Gift, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { Car, CheckCircle2, ClipboardList, Download, Eye, Gift, KeyRound, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from "lucide-react";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
+import { UciOnboardingPrompt } from "../../components/UciOnboardingPrompt";
 import { UciVideoCarousel } from "../../components/UciVideoCarousel";
 import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin } from "../../lib/admin-auth";
-import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
+import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, findAdminAccountByEmail, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
@@ -20,17 +21,36 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   const params = await searchParams;
   if (!session) {
-    return <div className="admin-page"><div className="wide"><section className="admin-login">
-      <span className="eyebrow">UCI / Admin Operations</span>
-      <h1>เข้าสู่ระบบ UCI หรือ Admin</h1>
-      <p>สำหรับเจ้าหน้าที่ UCI หรือ Admin ใช้จัดการลงทะเบียน เช็คอิน แบบสอบถาม Lucky Draw และรายการสำรองที่จอดรถ</p>
-      {params.login && <div className="admin-login-alert">อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือบัญชีนี้ไม่มีสิทธิ์เข้าหน้าปฏิบัติงาน</div>}
-      <form action={uciLoginAction} className="admin-login-card">
-        <label>อีเมล UCI หรือ Admin<input type="email" name="email" required autoComplete="username"/></label>
-        <label>รหัสผ่าน<SecretInput name="password" required autoComplete="current-password"/></label>
-        <button className="primary" type="submit"><LogIn/>เข้าสู่ระบบ UCI หรือ Admin</button>
-      </form>
-      <p className="admin-login-help">หากยังไม่มีรหัสผ่าน ให้ขอลิงก์ตั้งรหัสผ่านจากผู้ดูแลทีม UCI หรือ Super Admin</p>
+    return <div className="admin-page"><div className="wide"><section className="admin-login admin-login-uci">
+      <div className="admin-login-uci-orb admin-login-uci-orb-one" aria-hidden="true"/>
+      <div className="admin-login-uci-orb admin-login-uci-orb-two" aria-hidden="true"/>
+      <div className="admin-login-uci-grid">
+        <div className="admin-login-uci-intro">
+          <div className="admin-login-uci-brand"><span><ShieldCheck/></span><div><b>POLICE INNOVATION CONTEST 2026</b><small>SECURE OPERATIONS PORTAL</small></div></div>
+          <span className="eyebrow"><Sparkles/> UCI / Admin Operations</span>
+          <h1>เข้าสู่ระบบ<br/><em>UCI หรือ Admin</em></h1>
+          <p>ศูนย์ควบคุมงานหน้างานสำหรับจัดการลงทะเบียน เช็คอิน แบบสอบถาม Lucky Draw และข้อมูลสำคัญของการประกวด</p>
+          <div className="admin-login-uci-features">
+            <div><CheckCircle2/><span><b>จัดการหน้างานได้ในที่เดียว</b><small>ข้อมูลพร้อมใช้งานแบบเรียลไทม์</small></span></div>
+            <div><CheckCircle2/><span><b>ปลอดภัยสำหรับทีมปฏิบัติการ</b><small>ระบบแยกสิทธิ์ UCI และ Admin</small></span></div>
+          </div>
+        </div>
+        <div className="admin-login-uci-panel">
+          <div className="admin-login-uci-panel-head"><div><span className="eyebrow">Welcome back</span><h2>ยินดีต้อนรับกลับมา</h2></div><span className="admin-login-uci-live"><i/> Live</span></div>
+          {params.login && <div className="admin-login-alert">อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือบัญชีนี้ไม่มีสิทธิ์เข้าหน้าปฏิบัติงาน</div>}
+          {params.notice && <div className="admin-login-alert success">{noticeLabel(params.notice)}</div>}
+          <form action={uciLoginAction} className="admin-login-card">
+            <label><span>อีเมล UCI หรือ Admin</span><input type="email" name="email" required autoComplete="username" placeholder="name@example.com"/></label>
+            <label><span>รหัสผ่าน</span><SecretInput name="password" required autoComplete="current-password"/></label>
+            <label className="admin-login-remember"><input type="checkbox" name="remember"/><span>จำการเข้าสู่ระบบไว้ 30 วัน</span></label>
+            <button className="primary" type="submit"><LogIn/>เข้าสู่ระบบ UCI หรือ Admin</button>
+            <div className="admin-login-uci-secure"><ShieldCheck/><span>การเชื่อมต่อปลอดภัยสำหรับเจ้าหน้าที่ที่ได้รับอนุญาต</span></div>
+          </form>
+          <div className="admin-login-forgot"><div><KeyRound/><span><b>ลืมรหัสผ่าน?</b><small>ส่งลิงก์สร้างรหัสผ่านใหม่ไปยังอีเมลของคุณ</small></span></div><form action={forgotPasswordAction}><label><span className="sr-only">อีเมลสำหรับรับลิงก์ตั้งรหัสผ่าน</span><input type="email" name="email" required autoComplete="email" placeholder="กรอกอีเมลที่ใช้เข้าสู่ระบบ"/></label><button className="secondary" type="submit"><Mail/>ส่งลิงก์ตั้งรหัสผ่าน</button></form></div>
+          <p className="admin-login-help">หากยังไม่มีรหัสผ่าน ให้ขอลิงก์ตั้งรหัสผ่านจากผู้ดูแลทีม UCI หรือ Super Admin</p>
+        </div>
+      </div>
+      <div className="admin-login-uci-footer"><span>AUTHORIZED PERSONNEL ONLY</span><span>•</span><span>UCI OPERATIONS CENTER</span></div>
     </section></div></div>;
   }
 
@@ -49,6 +69,8 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     {params.notice && <div className="admin-login-alert success">{noticeLabel(params.notice)}</div>}
 
     <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>ภาพรวมหน้างาน</h2><p>ข้อมูลล่าสุดจากระบบลงทะเบียน</p></div></header><div className="evaluation-dashboard-summary"><div className="stat-panel"><Users/><b>{participants.length.toLocaleString("th-TH")}</b><span>ผู้ลงทะเบียน</span></div><div className="stat-panel"><QrCode/><b>{attended.toLocaleString("th-TH")}</b><span>เช็คอินแล้ว</span></div><div className="stat-panel"><ClipboardList/><b>{evaluation.total.toLocaleString("th-TH")}/{participants.length.toLocaleString("th-TH")}</b><span>ผู้ตอบแบบสอบถาม</span></div></div></section>
+
+    <UciOnboardingPrompt accountEmail={session.email} hasVideos={videos.length > 0}/>
 
     <section className="admin-panel admin-checkin-cta">
       <div className="admin-checkin-copy"><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>สแกน QR Code หรือค้นหาชื่อผู้เข้าร่วม แล้วกดเช็คอินได้ทันที</p></div></div>
@@ -87,6 +109,7 @@ async function uciLoginAction(formData: FormData) {
   const status = await getAdminLoginStatus(clientKey);
   if (status.locked) { await slowFailedAdminLogin(); redirect("/uci?login=locked"); }
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const remember = formData.get("remember") === "on";
   const account = await verifyAdminAccountPassword(email, String(formData.get("password") ?? ""));
   if (!account || (account.role !== "uci" && account.role !== "admin")) {
     const failure = await recordAdminLoginFailure(clientKey);
@@ -94,9 +117,23 @@ async function uciLoginAction(formData: FormData) {
     redirect(`/uci?login=${failure.locked ? "locked" : "failed"}`);
   }
   await clearAdminLoginFailures(clientKey);
-  cookieStore.set(cookieName, createAdminSessionToken({ email: account.email, role: account.role }), { httpOnly: true, sameSite: "strict", secure: adminCookieSecure(), path: "/", maxAge: adminSessionMaxAgeSeconds(account.role) });
+  cookieStore.set(cookieName, createAdminSessionToken({ email: account.email, role: account.role, remember }), { httpOnly: true, sameSite: "strict", secure: adminCookieSecure(), path: "/", maxAge: adminSessionMaxAgeSeconds(account.role, remember) });
   await recordAuditEvent({ actor: { type: "admin", email: account.email }, action: "auth.uci_login", entityType: "auth", summary: `UCI เข้าสู่ระบบ ${account.email}` }, requestHeaders);
   redirect("/uci");
+}
+
+async function forgotPasswordAction(formData: FormData) {
+  "use server";
+  const email = text(formData, "email").toLowerCase();
+  const account = await findAdminAccountByEmail(email);
+  if (account && !account.disabled) {
+    try {
+      await createAdminPasswordLink(account.id);
+    } catch (error) {
+      console.error("UCI forgot-password mail failed", error);
+    }
+  }
+  redirect("/uci?notice=password_reset_requested");
 }
 
 async function toggleEvaluationAction(formData: FormData) {
@@ -162,6 +199,6 @@ function formatDate(value: string) {
 }
 
 function noticeLabel(code: string) {
-  const labels: Record<string, string> = { evaluation_opened: "เปิดแบบสอบถามเรียบร้อยแล้ว", evaluation_closed: "ปิดแบบสอบถามเรียบร้อยแล้ว", member_added: "เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่านแล้ว", member_saved: "บันทึกข้อมูลสมาชิกแล้ว", member_deleted: "ลบสมาชิกแล้ว", password_link_sent: "ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว", member_self_delete_forbidden: "ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่ได้" };
+  const labels: Record<string, string> = { evaluation_opened: "เปิดแบบสอบถามเรียบร้อยแล้ว", evaluation_closed: "ปิดแบบสอบถามเรียบร้อยแล้ว", member_added: "เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่านแล้ว", member_saved: "บันทึกข้อมูลสมาชิกแล้ว", member_deleted: "ลบสมาชิกแล้ว", password_link_sent: "ส่งลิงก์ตั้งรหัสผ่านใหม่แล้ว", password_reset_requested: "หากอีเมลนี้มีบัญชีในระบบ ระบบได้ส่งลิงก์ตั้งรหัสผ่านใหม่ให้แล้ว กรุณาตรวจสอบกล่องจดหมาย", member_self_delete_forbidden: "ไม่สามารถลบบัญชีที่กำลังใช้งานอยู่ได้" };
   return labels[code] || code;
 }

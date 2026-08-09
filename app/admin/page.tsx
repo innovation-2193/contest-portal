@@ -448,6 +448,7 @@ function LoginPanel({ message, autoFillOtp = "", activeSession }: { message: str
         <h2><Users/>Admin</h2>
         <input type="email" name="email" placeholder="admin@example.com" required autoComplete="username"/>
         <SecretInput name="password" placeholder="รหัสผ่าน" required autoComplete="current-password"/>
+        <label className="admin-login-remember"><input type="checkbox" name="remember"/> <span>จำการเข้าสู่ระบบไว้ 30 วัน</span></label>
         <button className="secondary" type="submit">เข้าสู่ระบบ Admin</button>
       </form>
     </div>
@@ -864,6 +865,7 @@ async function loginAction(formData: FormData) {
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const remember = formData.get("remember") === "on";
   const admin = await verifyAdminAccountPassword(email, password);
   if (!admin) {
     const failure = await recordAdminLoginFailure(clientKey);
@@ -872,7 +874,7 @@ async function loginAction(formData: FormData) {
   }
 
   await clearAdminLoginFailures(clientKey);
-  await setAdminSession({ email: admin.email, role: admin.role });
+  await setAdminSession({ email: admin.email, role: admin.role }, remember);
   await recordAuditEvent({
     actor: { type: "admin", email: admin.email },
     action: "auth.admin_login",
@@ -882,14 +884,14 @@ async function loginAction(formData: FormData) {
   redirect(admin.role === "uci" ? "/uci" : "/admin");
 }
 
-async function setAdminSession(session: Pick<AdminSession, "email" | "role">) {
+async function setAdminSession(session: Pick<AdminSession, "email" | "role">, remember = false) {
   const cookieStore = await cookies();
-  cookieStore.set(cookieName, createAdminSessionToken(session), {
+  cookieStore.set(cookieName, createAdminSessionToken({ ...session, remember }), {
     httpOnly: true,
     sameSite: "strict",
     secure: adminCookieSecure(),
     path: "/",
-    maxAge: adminSessionMaxAgeSeconds(session.role),
+    maxAge: adminSessionMaxAgeSeconds(session.role, remember),
   });
 }
 

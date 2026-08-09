@@ -36,7 +36,7 @@ export function UciVideoCarousel({ videos }: { videos: UciVideoCarouselItem[] })
     setActiveIndex(index);
   };
 
-  return <section className="uci-video-section" aria-labelledby="uci-video-title">
+  return <section id="uci-howto-videos" className="uci-video-section" aria-labelledby="uci-video-title">
     <div className="wide">
       <header className="uci-video-heading">
         <div><span className="eyebrow">UCI How-to</span><h2 id="uci-video-title"><Video/>สอนการใช้งาน</h2><p>คลิปแนะนำขั้นตอนการเช็คอิน Lucky Draw และเครื่องมือที่เจ้าหน้าที่ UCI ใช้ในวันงาน</p></div>
