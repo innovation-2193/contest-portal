@@ -48,6 +48,6 @@ export function UciOnboardingPrompt({ accountEmail, hasVideos }: { accountEmail:
       <button className="primary" type="button" onClick={startGuide}><Play/>เริ่มเรียนรู้</button>
       <button className="ghost-action" type="button" onClick={dismiss}><X/>ข้ามการแนะนำ</button>
     </div>
-    <span className="uci-onboarding-arrow" aria-hidden="true"><ArrowDown/></span>
+    <button className="uci-onboarding-arrow" type="button" onClick={startGuide} aria-label="ไปยังส่วนสาธิตการใช้งาน"><ArrowDown/></button>
   </section>;
 }

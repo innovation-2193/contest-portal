@@ -9652,7 +9652,7 @@ body:has(.prelander-page)::before {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 20px;
-  overflow: hidden;
+  overflow: visible;
   margin: 18px 0;
   padding: 22px 24px;
   border: 1px solid rgba(91, 220, 196, 0.5);
@@ -9774,6 +9774,7 @@ body:has(.prelander-page)::before {
 
 .uci-onboarding-arrow {
   position: absolute !important;
+  z-index: 4 !important;
   right: 50%;
   bottom: -12px;
   display: grid;
@@ -9784,8 +9785,19 @@ body:has(.prelander-page)::before {
   border-radius: 50%;
   background: #061b31;
   color: #80efdb;
+  cursor: pointer;
+  appearance: none;
+  padding: 0;
   transform: translateX(50%);
   animation: uci-onboarding-bounce 2s ease-in-out infinite;
+}
+
+.uci-onboarding-arrow:hover,
+.uci-onboarding-arrow:focus-visible {
+  border-color: #80efdb;
+  color: #ffffff;
+  outline: 3px solid rgba(128, 239, 219, 0.2);
+  outline-offset: 2px;
 }
 
 .uci-onboarding-arrow svg {
