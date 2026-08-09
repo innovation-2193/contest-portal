@@ -9881,6 +9881,80 @@ body:has(.prelander-page)::before {
   }
 }
 
+/* Keep the login screen calm and compact on desktop. */
+.admin-login-uci::after,
+.admin-login-uci::before,
+.admin-login-uci .admin-login-uci-intro,
+.admin-login-uci .admin-login-uci-panel,
+.admin-login-uci .admin-login-uci-brand > span,
+.admin-login-uci .admin-login-uci-live i,
+.admin-login-uci .admin-login-card > button::after,
+.admin-login-uci .admin-login-uci-orb-one,
+.admin-login-uci .admin-login-uci-orb-two {
+  animation: none !important;
+}
+
+.admin-login-uci::before {
+  opacity: 0.28;
+}
+
+.admin-login-uci::after {
+  opacity: 0;
+}
+
+.admin-login-uci,
+.admin-login-uci *,
+.admin-login-uci::before,
+.admin-login-uci::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (min-width: 821px) {
+  .admin-login-uci {
+    padding: 38px 46px 26px;
+  }
+
+  .admin-login-uci-grid {
+    align-items: start;
+    gap: 54px;
+  }
+
+  .admin-login-uci-brand {
+    margin-bottom: 42px;
+  }
+
+  .admin-login-uci-panel {
+    padding: 24px;
+  }
+
+  .admin-login-uci-panel-head {
+    margin-bottom: 16px;
+  }
+
+  .admin-login-uci .admin-login-card {
+    gap: 13px;
+  }
+
+  .admin-login-uci .admin-login-card input:not([type="checkbox"]) {
+    min-height: 48px;
+  }
+
+  .admin-login-uci .admin-login-card > button {
+    min-height: 50px;
+  }
+
+  .admin-login-forgot {
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+
+  .admin-login-uci-footer {
+    margin-top: 22px;
+  }
+}
+
 .admin-score-confirm-modal {
   position: fixed;
   inset: 0;
