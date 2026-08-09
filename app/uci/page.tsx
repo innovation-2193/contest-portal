@@ -34,6 +34,10 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
             <div><CheckCircle2/><span><b>จัดการหน้างานได้ในที่เดียว</b><small>ข้อมูลพร้อมใช้งานแบบเรียลไทม์</small></span></div>
             <div><CheckCircle2/><span><b>ปลอดภัยสำหรับทีมปฏิบัติการ</b><small>ระบบแยกสิทธิ์ UCI และ Admin</small></span></div>
           </div>
+          <div className="admin-login-uci-ops">
+            <div className="admin-login-uci-ops-head"><span>OPERATION READY</span><b>เครื่องมือพร้อมสำหรับวันงาน</b></div>
+            <div className="admin-login-uci-ops-grid"><span><QrCode/><small>QR CHECK-IN</small></span><span><ClipboardList/><small>แบบสอบถาม</small></span><span><Gift/><small>LUCKY DRAW</small></span></div>
+          </div>
         </div>
         <div className="admin-login-uci-panel">
           <div className="admin-login-uci-panel-head"><div><span className="eyebrow">Welcome back</span><h2>ยินดีต้อนรับกลับมา</h2></div><span className="admin-login-uci-live"><i/> Live</span></div>
