@@ -19737,6 +19737,37 @@ footer {
     grid-template-columns: 1fr;
   }
 
+  .committee-score-table,
+  .committee-score-table thead,
+  .committee-score-table tbody,
+  .committee-score-table tr,
+  .committee-score-table th,
+  .committee-score-table td {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .committee-score-table td:nth-child(2) {
+    display: grid;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .committee-score-table td:nth-child(2) b,
+  .committee-score-table td:nth-child(2) small {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .committee-score-table th:nth-child(1),
+  .committee-score-table td:nth-child(1),
+  .committee-score-table th:nth-child(4),
+  .committee-score-table td:nth-child(4) {
+    white-space: normal;
+  }
+
   .committee-report-version-list article {
     align-items: stretch;
     flex-direction: column;
