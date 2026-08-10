@@ -3,8 +3,9 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ChevronDown, ClipboardList, FileDown, Gift, Star, Trophy, UserCheck } from "lucide-react";
+import { ChevronDown, ClipboardList, FileDown, Gift, Star, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
+import { BackButton } from "../../../components/BackButton";
 import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
 import { adminOtpAutoFillCookie, canOperateEventStaff, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
@@ -58,7 +59,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           <h1>สรุปแบบประเมินความพึงพอใจ</h1>
           <p>ดูคะแนนรวม คะแนนรายหมวด รายข้อ ข้อมูลทั่วไป ข้อเสนอแนะ และผู้โชคดี Lucky Draw</p>
         </div>
-        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
+        <BackButton />
       </div>
       <AdminNotice code={params.notice}/>
       <section className="admin-panel evaluation-detail-panel">

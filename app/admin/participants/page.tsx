@@ -2,8 +2,9 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Download, Eye, FileSpreadsheet, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
+import { BackButton } from "../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
@@ -53,13 +54,13 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
     <div className="wide">
       <div className="admin-topline">
         <div><span className="eyebrow">Participants</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า</p></div>
-        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
+        <BackButton />
       </div>
       <AdminNotice code={params.notice} error={params.error}/>
       <section className="admin-panel">
         <header className="admin-section-head"><Users/><div><h2>รายการผู้เข้าร่วมงาน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
-        <details className="admin-edit-disclosure participant-create-disclosure">
-          <summary><UserPlus/>{session.role === "uci" ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (เช็คอินอัตโนมัติ)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</summary>
+        <details className={`admin-edit-disclosure participant-create-disclosure ${session.role === "uci" ? "uci-walkin-disclosure" : ""}`}>
+          <summary><UserPlus/><span className="participant-create-summary-copy"><strong>{session.role === "uci" ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (Walk-in)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</strong>{session.role === "uci" && <small>กรอกข้อมูลหน้างาน แล้วเช็คอินอัตโนมัติทันที</small>}</span></summary>
           <form action={createParticipantAction} className="admin-form admin-participant-detail-form participant-create-form">
             <div className="form-grid compact-grid">
               <label>คำนำหน้า<input name="title" required placeholder="เช่น นาย / พ.ต.อ."/></label>

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ArrowLeft, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { AdminQrScanner, type CheckInRoleCounts } from "../../../components/AdminQrScanner";
+import { BackButton } from "../../../components/BackButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { getParticipantCheckInRoleCounts, getParticipantRegistrationRoleCounts } from "../../../lib/admin-store";
 
@@ -23,7 +23,7 @@ export default async function AdminScanPage() {
           <h1>เช็คอินหน้างาน</h1>
           <p>สแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมเพื่ออัปเดตสถานะเป็นเข้าร่วมงานแล้ว</p>
         </div>
-        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
+        <BackButton />
       </div>
       <section className="admin-panel">
         <header><QrCode/><div><h2>ระบบเช็คอินหน้างาน</h2><p>รองรับการสแกนผ่านกล้องและ Live Search จากข้อมูลผู้เข้าร่วม</p></div></header>

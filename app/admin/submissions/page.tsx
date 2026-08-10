@@ -2,8 +2,9 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
+import { BackButton } from "../../../components/BackButton";
 import { CommitteeScoreImportPanel } from "../../../components/CommitteeScoreImportPanel";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
@@ -76,7 +77,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           {isSuperAdmin && <Link className="secondary" href="#committee-score-form2"><FileText/>แบบฟอร์มให้คะแนนกรรมการ 2</Link>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-packets"><FileText/>ZIP PDF ทุกโครงการ</a>}
           {isSuperAdmin && <Link className="secondary" href="/progress2"><Eye/>สถานะตรวจ</Link>}
-          <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
+          <BackButton />
         </div>
       </div>
       <AdminNotice code={params.notice}/>

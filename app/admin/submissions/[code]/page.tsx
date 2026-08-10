@@ -2,8 +2,9 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, ExternalLink, FileText, Hash, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
+import { ExternalLink, FileText, Hash, Mail, Pencil, Printer, ShieldCheck, Trash2, Trophy, Users } from "lucide-react";
 import { AdminNotice } from "../../../../components/AdminNotice";
+import { BackButton } from "../../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { ScoreSubmitConfirmButton } from "../../../../components/ScoreSubmitConfirmButton";
 import { SecretInput } from "../../../../components/SecretInput";
@@ -87,7 +88,7 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
           <h1>ข้อมูลสมัครประกวด</h1>
           <p>รายละเอียดใบสมัคร ผลงาน สมาชิกทีม และเอกสารแนบสำหรับตรวจสอบ/พิมพ์</p>
         </div>
-        <div className="admin-actions"><Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>{item && <a className="primary" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a>}</div>
+        <div className="admin-actions"><BackButton />{item && <a className="primary" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์ข้อมูลผู้สมัคร</a>}</div>
       </div>
       <AdminNotice code={query.notice}/>
       {item ? <article className="admin-panel printable-sheet">

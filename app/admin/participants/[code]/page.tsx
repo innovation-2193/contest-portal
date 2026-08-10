@@ -2,9 +2,10 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Download, Pencil, Trash2 } from "lucide-react";
+import { Download, Pencil, Trash2 } from "lucide-react";
 import { AdminNotice } from "../../../../components/AdminNotice";
 import { AdminPrintButton } from "../../../../components/AdminPrintButton";
+import { BackButton } from "../../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../../lib/admin-auth";
 import { deleteParticipant, updateParticipant } from "../../../../lib/admin-store";
@@ -38,7 +39,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
           <h1>ข้อมูลผู้เข้าร่วมงาน</h1>
           <p>รายละเอียดสำหรับตรวจสอบและพิมพ์เอกสารยืนยันการลงทะเบียน</p>
         </div>
-        <div className="admin-actions"><Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>{item && <AdminPrintButton />}</div>
+        <div className="admin-actions"><BackButton />{item && <AdminPrintButton />}</div>
       </div>
       <AdminNotice code={query.notice}/>
       {item ? <article className="admin-panel printable-sheet">
