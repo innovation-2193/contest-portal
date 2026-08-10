@@ -2599,12 +2599,9 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   scrollbar-width: thin;
 }
 
-.public-news-track.public-news-count-1 {
-  grid-auto-columns: minmax(320px, 100%);
-}
-
+.public-news-track.public-news-count-1,
 .public-news-track.public-news-count-2 {
-  grid-auto-columns: minmax(320px, min(520px, calc((100% - 16px) / 2)));
+  grid-auto-columns: minmax(320px, calc((100% - 32px) / 3));
 }
 
 .public-news-track::-webkit-scrollbar {
@@ -15822,7 +15819,7 @@ body:has(.report-page) .brand b {
     grid-auto-columns: minmax(300px, calc((100% - 16px) / 2));
   }
   .public-news-track.public-news-count-1 {
-    grid-auto-columns: minmax(300px, 100%);
+    grid-auto-columns: minmax(300px, calc((100% - 16px) / 2));
   }
   .public-news-track.public-news-count-2 {
     grid-auto-columns: minmax(300px, calc((100% - 16px) / 2));
