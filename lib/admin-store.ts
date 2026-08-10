@@ -83,6 +83,8 @@ export type NewsRecord = {
   body: string;
   imageName: string | null;
   imageOriginalName: string | null;
+  attachmentName: string | null;
+  attachmentOriginalName: string | null;
   publishAt: string;
   published: boolean;
   createdAt: string;
@@ -95,6 +97,7 @@ export type NewsInput = {
   publishAt: string;
   published: boolean;
   image?: File | null;
+  attachment?: File | null;
 };
 
 export type HomePopupRecord = {
@@ -281,6 +284,7 @@ const newsStorePath = path.join(storageDir, "news.json");
 const homePopupStorePath = path.join(storageDir, "home-popup.json");
 const parkingReservationsStorePath = path.join(storageDir, "parking-reservations.json");
 const newsUploadsDir = path.join(storageDir, "news");
+const newsAttachmentsDir = path.join(storageDir, "news-attachments");
 const homePopupUploadsDir = path.join(storageDir, "home-popup");
 
 const defaultSettings: AdminSettings = {
@@ -1528,7 +1532,7 @@ export async function listNews(options?: { publicOnly?: boolean }) {
   try {
     await ensureNewsTable();
     const [rows] = await db.execute(
-      "SELECT id,title,excerpt,body,image_name,image_original_name,publish_at,published,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
+      "SELECT id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
     );
     return filterAndSortNews((rows as NewsDbRow[]).map(newsDbRowToRecord), options?.publicOnly);
   } catch (error) {
@@ -1541,6 +1545,7 @@ export async function addNews(input: NewsInput) {
   const now = new Date().toISOString();
   const id = randomUUID();
   const image = input.image && input.image.size > 0 ? await saveNewsImage(input.image) : null;
+  const attachment = input.attachment && input.attachment.size > 0 ? await saveNewsAttachment(input.attachment) : null;
   const record: NewsRecord = {
     id,
     title: input.title.trim(),
@@ -1548,6 +1553,8 @@ export async function addNews(input: NewsInput) {
     body: input.body.trim(),
     imageName: image?.storedName ?? null,
     imageOriginalName: image?.originalName ?? null,
+    attachmentName: attachment?.storedName ?? null,
+    attachmentOriginalName: attachment?.originalName ?? null,
     publishAt: input.publishAt || now,
     published: input.published,
     createdAt: now,
@@ -1556,7 +1563,7 @@ export async function addNews(input: NewsInput) {
   try {
     await ensureNewsTable();
     await db.execute(
-      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,publish_at,published,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
       [
         record.id,
         record.title,
@@ -1564,6 +1571,8 @@ export async function addNews(input: NewsInput) {
         record.body,
         record.imageName,
         record.imageOriginalName,
+        record.attachmentName,
+        record.attachmentOriginalName,
         record.publishAt,
         record.published,
         record.createdAt,
@@ -1582,18 +1591,22 @@ export async function addNews(input: NewsInput) {
 export async function deleteNews(id: string) {
   const targetId = id.trim();
   let imageName: string | null = null;
+  let attachmentName: string | null = null;
   try {
     await ensureNewsTable();
-    const [rows] = await db.execute("SELECT image_name FROM news_posts WHERE id=? LIMIT 1", [targetId]);
+    const [rows] = await db.execute("SELECT image_name,attachment_name FROM news_posts WHERE id=? LIMIT 1", [targetId]);
     imageName = ((rows as Array<{ image_name: string | null }>)[0]?.image_name) ?? null;
+    attachmentName = ((rows as Array<{ attachment_name: string | null }>)[0]?.attachment_name) ?? null;
     await db.execute("DELETE FROM news_posts WHERE id=?", [targetId]);
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     const news = await readJson<NewsRecord[]>(newsStorePath, []);
     imageName = news.find((item) => item.id === targetId)?.imageName ?? null;
+    attachmentName = news.find((item) => item.id === targetId)?.attachmentName ?? null;
     await writeJson(newsStorePath, news.filter((item) => item.id !== targetId));
   }
   if (imageName) await deleteNewsImage(imageName);
+  if (attachmentName) await deleteNewsAttachment(attachmentName);
 }
 
 export async function getHomePopup() {
@@ -1627,6 +1640,12 @@ export function getNewsImagePath(imageName: string) {
   const safeName = path.basename(imageName);
   if (!safeName || safeName !== imageName) return null;
   return path.join(newsUploadsDir, safeName);
+}
+
+export function getNewsAttachmentPath(attachmentName: string) {
+  const safeName = path.basename(attachmentName);
+  if (!safeName || safeName !== attachmentName) return null;
+  return path.join(newsAttachmentsDir, safeName);
 }
 
 export function getHomePopupImagePath(imageName: string) {
@@ -1677,6 +1696,8 @@ type NewsDbRow = {
   body: string;
   image_name: string | null;
   image_original_name: string | null;
+  attachment_name: string | null;
+  attachment_original_name: string | null;
   publish_at: string | Date;
   published: boolean | number;
   created_at: string | Date;
@@ -1710,6 +1731,8 @@ function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
     body: row.body,
     imageName: row.image_name,
     imageOriginalName: row.image_original_name,
+    attachmentName: row.attachment_name,
+    attachmentOriginalName: row.attachment_original_name,
     publishAt: normalizeStoredDate(row.publish_at),
     published: Boolean(row.published),
     createdAt: normalizeStoredDate(row.created_at),
@@ -1850,6 +1873,17 @@ async function saveNewsImage(file: File) {
   return { storedName, originalName: file.name || storedName };
 }
 
+async function saveNewsAttachment(file: File) {
+  const allowedExtensions = new Set([".pdf", ".xlsx", ".xls", ".docx", ".doc", ".csv"]);
+  const extension = path.extname(file.name).toLowerCase();
+  if (!allowedExtensions.has(extension)) throw new Error("ไฟล์แนบต้องเป็น PDF, Excel, Word หรือ CSV");
+  if (file.size > 20 * 1024 * 1024) throw new Error("ไฟล์แนบต้องมีขนาดไม่เกิน 20 MB");
+  await mkdir(newsAttachmentsDir, { recursive: true });
+  const storedName = `${randomUUID()}${extension}`;
+  await writeFile(path.join(newsAttachmentsDir, storedName), Buffer.from(await file.arrayBuffer()));
+  return { storedName, originalName: file.name || storedName };
+}
+
 async function saveHomePopupImage(file: File) {
   const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
   if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
@@ -1863,6 +1897,16 @@ async function saveHomePopupImage(file: File) {
 
 async function deleteNewsImage(imageName: string) {
   const filePath = getNewsImagePath(imageName);
+  if (!filePath) return;
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
+async function deleteNewsAttachment(attachmentName: string) {
+  const filePath = getNewsAttachmentPath(attachmentName);
   if (!filePath) return;
   try {
     await unlink(filePath);
@@ -1904,12 +1948,29 @@ async function ensureNewsTable() {
       body LONGTEXT NOT NULL,
       image_name VARCHAR(255) NULL,
       image_original_name VARCHAR(255) NULL,
+      attachment_name VARCHAR(255) NULL,
+      attachment_original_name VARCHAR(255) NULL,
       publish_at VARCHAR(40) NOT NULL,
       published BOOLEAN NOT NULL DEFAULT TRUE,
       created_at VARCHAR(40) NOT NULL,
       INDEX idx_news_publish (published, publish_at)
     ) ENGINE=InnoDB
   `);
+  for (const column of [
+    "ALTER TABLE news_posts ADD COLUMN attachment_name VARCHAR(255) NULL",
+    "ALTER TABLE news_posts ADD COLUMN attachment_original_name VARCHAR(255) NULL",
+  ]) {
+    try {
+      await db.execute(column);
+    } catch (error) {
+      if (!isDuplicateColumnError(error)) throw error;
+    }
+  }
+}
+
+function isDuplicateColumnError(error: unknown) {
+  const typed = error as { code?: string; message?: string };
+  return typed.code === "ER_DUP_FIELDNAME" || typed.message?.toLowerCase().includes("duplicate column") === true;
 }
 
 async function listParticipantsCompat() {

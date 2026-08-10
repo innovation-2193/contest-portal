@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Image as ImageIcon, Newspaper, Search } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Newspaper, Paperclip, Search } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
@@ -48,7 +48,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
               <span className={`status-pill ${isLive ? "attended" : item.published ? "registered" : "cancelled"}`}>{isLive ? "เผยแพร่แล้ว" : item.published ? "รอโพสต์" : "ฉบับร่าง"}</span>
               <h3>{item.title}</h3>
               <p>{item.excerpt}</p>
-              <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>
+              <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>{item.attachmentOriginalName && <small><Paperclip/>ไฟล์แนบ: {item.attachmentOriginalName}</small>}
             </div>
             <form action={deleteNewsAction}>
               <input type="hidden" name="id" value={item.id}/>

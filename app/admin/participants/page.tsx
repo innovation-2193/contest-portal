@@ -20,12 +20,13 @@ export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
 
   const params = await searchParams;
+  const isUciWorkspace = session.role === "uci" || params.from === "uci";
   const q = (params.q ?? "").trim();
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const page = Math.max(1, Number(params.page ?? "1") || 1);
@@ -53,15 +54,16 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
   return <div className="admin-page">
     <div className="wide">
       <div className="admin-topline">
-        <div><span className="eyebrow">Participants</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า</p></div>
+        <div><span className="eyebrow">{isUciWorkspace ? "UCI Participants" : "Participants"}</span><h1>ผู้เข้าร่วมงานทั้งหมด</h1><p>{isUciWorkspace ? "ลงทะเบียน Walk-in และดูแลผู้เข้าร่วมงานจากจุดปฏิบัติการ UCI" : "ค้นหาและเปิดดูข้อมูลผู้เข้าร่วมงานแบบแบ่งหน้า"}</p></div>
         <BackButton />
       </div>
       <AdminNotice code={params.notice} error={params.error}/>
-      <section className="admin-panel">
-        <header className="admin-section-head"><Users/><div><h2>รายการผู้เข้าร่วมงาน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
-        <details className={`admin-edit-disclosure participant-create-disclosure ${session.role === "uci" ? "uci-walkin-disclosure" : ""}`}>
-          <summary><UserPlus/><span className="participant-create-summary-copy"><strong>{session.role === "uci" ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (Walk-in)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</strong>{session.role === "uci" && <small>กรอกข้อมูลหน้างาน แล้วเช็คอินอัตโนมัติทันที</small>}</span></summary>
+      <section className={`admin-panel ${isUciWorkspace ? "uci-participants-panel" : ""}`}>
+        <header className="admin-section-head"><Users/><div><span className="eyebrow">{isUciWorkspace ? "Participants" : "รายการ"}</span><h2>ผู้เข้าร่วมงานทั้งหมด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
+        <details className={`admin-edit-disclosure participant-create-disclosure ${isUciWorkspace ? "uci-walkin-disclosure" : ""}`}>
+          <summary><UserPlus/><span className="participant-create-summary-copy"><strong>{isUciWorkspace ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (Walk-in)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</strong>{isUciWorkspace && <small>กรอกข้อมูลหน้างาน แล้วเช็คอินอัตโนมัติทันที</small>}</span></summary>
           <form action={createParticipantAction} className="admin-form admin-participant-detail-form participant-create-form">
+            {isUciWorkspace && <input type="hidden" name="workspace" value="uci"/>}
             <div className="form-grid compact-grid">
               <label>คำนำหน้า<input name="title" required placeholder="เช่น นาย / พ.ต.อ."/></label>
               <label>ชื่อ<input name="firstName" required/></label>
@@ -74,12 +76,13 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
               <label>สังกัด / กองบังคับการ<input name="division" placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
               <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ<input name="bureau" placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required/></label>
             </div>
-            <button className="primary" type="submit"><UserPlus/>{session.role === "uci" ? "ลงทะเบียนและเช็คอินทันที" : "บันทึกผู้เข้าร่วมงาน"}</button>
+            <button className="primary" type="submit"><UserPlus/>{isUciWorkspace ? "ลงทะเบียนและเช็คอินทันที" : "บันทึกผู้เข้าร่วมงาน"}</button>
           </form>
           <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
+            {isUciWorkspace && <input type="hidden" name="workspace" value="uci"/>}
             <div>
               <b><FileSpreadsheet/>Bulk Import Excel</b>
-              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมล และชื่อ+นามสกุลห้ามซ้ำกับข้อมูลในระบบ{session.role === "uci" ? " และรายชื่อที่นำเข้าจะเช็คอินอัตโนมัติ" : ""}</small>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมล และชื่อ+นามสกุลห้ามซ้ำกับข้อมูลในระบบ{isUciWorkspace ? " และรายชื่อที่นำเข้าจะเช็คอินอัตโนมัติ" : ""}</small>
             </div>
             <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
             <div className="participant-bulk-actions">
@@ -88,11 +91,12 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
             </div>
           </form>
         </details>
-        <ParticipantRoleTabs activeRole={participantRole} basePath="/admin/participants" counts={participantRoleCounts} query={{ q }} />
+        <ParticipantRoleTabs activeRole={participantRole} basePath="/admin/participants" counts={participantRoleCounts} query={{ q, ...(isUciWorkspace ? { from: "uci" } : {}) }} />
         <form className="audit-filter-form" method="get">
+          {isUciWorkspace && <input type="hidden" name="from" value="uci"/>}
           {participantRole !== "all" && <input type="hidden" name="participantRole" value={participantRole}/>}
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/></div></label>
-          <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href={participantsClearHref(participantRole)}>ล้าง</Link></div>
+          <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href={participantsClearHref(participantRole, isUciWorkspace ? "uci" : "")}>ล้าง</Link></div>
         </form>
         <form action={deleteParticipantsAction} className="bulk-delete-form">
           {canDeleteParticipants && <div className="bulk-delete-bar">
@@ -106,10 +110,10 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
             <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
             <td data-label="หน่วยงาน / หน่วยจัดบูธ">{item.position}<small>{participantOrganizationText(item)}</small></td>
             <td data-label="สถานะ"><span className={`status-pill ${item.status}`}>{participantStatus(item.status)}</span>{item.checked_in_by_email && <small>สแกนโดย {item.checked_in_by_email}</small>}</td>
-            <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}`}><Eye/>ดูข้อมูล</Link></td>
+            <td data-label="การจัดการ"><Link className="secondary small-action" href={`/admin/participants/${encodeURIComponent(item.registration_code)}${isUciWorkspace ? "?from=uci" : ""}`}><Eye/>ดูข้อมูล</Link></td>
           </tr>) : <tr><td colSpan={7}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         </form>
-        <Pagination basePath="/admin/participants" q={q} role={participantRole} page={currentPage} totalPages={totalPages}/>
+        <Pagination basePath="/admin/participants" q={q} role={participantRole} page={currentPage} totalPages={totalPages} from={isUciWorkspace ? "uci" : ""}/>
       </section>
     </div>
   </div>;
@@ -120,6 +124,7 @@ async function bulkCreateParticipantsAction(formData: FormData) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
+  const isUciWorkspace = session.role === "uci" || text(formData, "workspace") === "uci";
   const requestHeaders = await headers();
   const file = formData.get("file");
   if (!(file instanceof File)) throw new Error("กรุณาแนบไฟล์รายชื่อ");
@@ -172,9 +177,9 @@ async function bulkCreateParticipantsAction(formData: FormData) {
     createdCodes.push(result.record.registration_code);
   }
 
-  if (session.role === "uci") {
+  if (isUciWorkspace) {
     for (const registrationCode of createdCodes) {
-      await recordUciAutoCheckIn(registrationCode, session, requestHeaders);
+      await recordUciAutoCheckIn(registrationCode, isUciWorkspace, session, requestHeaders);
     }
   }
 
@@ -187,7 +192,8 @@ async function bulkCreateParticipantsAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
-  redirect(adminNoticePath("/admin/participants", session.role === "uci" ? "participants_imported_checked_in" : "participants_imported"));
+  const returnPath = isUciWorkspace ? "/admin/participants?from=uci" : "/admin/participants";
+  redirect(adminNoticePath(returnPath, isUciWorkspace ? "participants_imported_checked_in" : "participants_imported"));
 }
 
 async function createParticipantAction(formData: FormData) {
@@ -195,6 +201,7 @@ async function createParticipantAction(formData: FormData) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
+  const isUciWorkspace = session.role === "uci" || text(formData, "workspace") === "uci";
   const requestHeaders = await headers();
   const citizenId = text(formData, "citizenId");
   const phone = text(formData, "phone");
@@ -215,8 +222,8 @@ async function createParticipantAction(formData: FormData) {
     division: text(formData, "division"),
     bureau: text(formData, "bureau"),
   });
-  const autoCheckedIn = session.role === "uci"
-    ? Boolean(await recordUciAutoCheckIn(result.record.registration_code, session, requestHeaders))
+  const autoCheckedIn = isUciWorkspace
+    ? Boolean(await recordUciAutoCheckIn(result.record.registration_code, isUciWorkspace, session, requestHeaders))
     : false;
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -228,11 +235,14 @@ async function createParticipantAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
-  redirect(adminNoticePath(`/admin/participants/${encodeURIComponent(result.record.registration_code)}`, autoCheckedIn ? "participant_created_checked_in" : "participant_created"));
+  const returnPath = isUciWorkspace
+    ? `/admin/participants/${encodeURIComponent(result.record.registration_code)}?from=uci`
+    : `/admin/participants/${encodeURIComponent(result.record.registration_code)}`;
+  redirect(adminNoticePath(returnPath, autoCheckedIn ? "participant_created_checked_in" : "participant_created"));
 }
 
-async function recordUciAutoCheckIn(registrationCode: string, session: NonNullable<ReturnType<typeof getAdminSession>>, requestHeaders: Headers) {
-  if (session.role !== "uci") return null;
+async function recordUciAutoCheckIn(registrationCode: string, isUciWorkspace: boolean, session: NonNullable<ReturnType<typeof getAdminSession>>, requestHeaders: Headers) {
+  if (!isUciWorkspace) return null;
   const checkedIn = await checkInParticipant(registrationCode, session.email);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -277,8 +287,8 @@ function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-function Pagination({ basePath, q, role, page, totalPages }: { basePath: string; q: string; role: string; page: number; totalPages: number }) {
-  const href = (target: number) => `${basePath}?${new URLSearchParams({ ...(q ? { q } : {}), ...(role !== "all" ? { participantRole: role } : {}), page: String(target) })}`;
+function Pagination({ basePath, q, role, page, totalPages, from }: { basePath: string; q: string; role: string; page: number; totalPages: number; from?: string }) {
+  const href = (target: number) => `${basePath}?${new URLSearchParams({ ...(q ? { q } : {}), ...(role !== "all" ? { participantRole: role } : {}), ...(from ? { from } : {}), page: String(target) })}`;
   return <nav className="audit-pagination" aria-label="pagination">
     {page <= 1 ? <span className="disabled-action" aria-disabled="true">ก่อนหน้า</span> : <Link className="secondary" href={href(page - 1)}>ก่อนหน้า</Link>}
     <span>หน้า {page.toLocaleString("th-TH")} / {totalPages.toLocaleString("th-TH")}</span>
@@ -286,9 +296,11 @@ function Pagination({ basePath, q, role, page, totalPages }: { basePath: string;
   </nav>;
 }
 
-function participantsClearHref(role: string) {
-  if (role === "all") return "/admin/participants";
-  return `/admin/participants?participantRole=${encodeURIComponent(role)}`;
+function participantsClearHref(role: string, from = "") {
+  const params = new URLSearchParams();
+  if (role !== "all") params.set("participantRole", role);
+  if (from) params.set("from", from);
+  return params.toString() ? `/admin/participants?${params.toString()}` : "/admin/participants";
 }
 
 function participantBulkErrorPath(message: string) {

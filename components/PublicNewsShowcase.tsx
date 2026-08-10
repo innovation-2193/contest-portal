@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Newspaper, X } from "lucide-react";
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, CalendarDays, Newspaper } from "lucide-react";
 
 export type PublicNewsItem = {
   id: string;
@@ -9,27 +10,14 @@ export type PublicNewsItem = {
   excerpt: string;
   body: string;
   imageName: string | null;
+  attachmentName?: string | null;
+  attachmentOriginalName?: string | null;
   publishAt: string;
 };
 
 export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedNews, setSelectedNews] = useState<PublicNewsItem | null>(null);
-
-  useEffect(() => {
-    if (!selectedNews) return;
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedNews(null);
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [selectedNews]);
 
   const moveTo = (index: number) => {
     const track = trackRef.current;
@@ -89,9 +77,9 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
                 <span className="public-news-date"><CalendarDays />{formatThaiDate(item.publishAt)}</span>
                 <h3>{item.title}</h3>
                 <p>{item.excerpt}</p>
-                <button type="button" onClick={() => setSelectedNews(item)}>
+                <Link href={"/news/" + encodeURIComponent(item.id)}>
                   รายละเอียด <ArrowRight />
-                </button>
+                </Link>
               </div>
             </article>
           ))}
@@ -113,26 +101,6 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
         )}
       </div>
 
-      {selectedNews && (
-        <div className="public-news-modal" role="dialog" aria-modal="true" aria-labelledby="public-news-modal-title" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSelectedNews(null);
-        }}>
-          <article>
-            <button className="public-news-modal-close" type="button" onClick={() => setSelectedNews(null)} aria-label="ปิดรายละเอียดข่าว">
-              <X />
-            </button>
-            {selectedNews.imageName && (
-              <img src={`/api/news-images/${encodeURIComponent(selectedNews.imageName)}`} alt={selectedNews.title} />
-            )}
-            <div>
-              <span className="public-news-date"><CalendarDays />{formatThaiDate(selectedNews.publishAt)}</span>
-              <h2 id="public-news-modal-title">{selectedNews.title}</h2>
-              <p className="public-news-modal-lead">{selectedNews.excerpt}</p>
-              <p className="public-news-modal-body">{selectedNews.body}</p>
-            </div>
-          </article>
-        </div>
-      )}
     </section>
   );
 }

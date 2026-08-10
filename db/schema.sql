@@ -222,6 +222,8 @@ CREATE TABLE IF NOT EXISTS news_posts (
   body LONGTEXT NOT NULL,
   image_name VARCHAR(255) NULL,
   image_original_name VARCHAR(255) NULL,
+  attachment_name VARCHAR(255) NULL,
+  attachment_original_name VARCHAR(255) NULL,
   publish_at VARCHAR(40) NOT NULL,
   published BOOLEAN NOT NULL DEFAULT TRUE,
   created_at VARCHAR(40) NOT NULL,

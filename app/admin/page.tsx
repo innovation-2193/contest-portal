@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Hash, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -186,6 +186,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
         <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
+        <label className="field-wide news-attachment-field"><span><Paperclip/>ไฟล์แนบข่าว / รายชื่อผู้ผ่านการประกวด</span><input type="file" name="attachment" accept=".pdf,.xlsx,.xls,.docx,.doc,.csv"/><small>แนบ PDF, Excel, Word หรือ CSV ขนาดไม่เกิน 20 MB</small></label>
         <label>วันที่ต้องการโพสต์<input type="datetime-local" name="publishAt" defaultValue={toInputDate(new Date().toISOString())} required/></label>
         <label className="field-wide">หัวข้อข่าว<input name="title" placeholder="เช่น เปิดรับสมัครผลงานนวัตกรรมตำรวจ ประจำปี 2569" required maxLength={255}/></label>
         <label className="field-wide">ข้อความสรุป<input name="excerpt" placeholder="ข้อความสั้นสำหรับแสดงบนการ์ดข่าว" required maxLength={500}/></label>
@@ -744,7 +745,7 @@ function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>
         <span className={`status-pill ${isLive ? "attended" : item.published ? "registered" : "cancelled"}`}>{isLive ? "เผยแพร่แล้ว" : item.published ? "รอโพสต์" : "ฉบับร่าง"}</span>
         <h3>{item.title}</h3>
         <p>{item.excerpt}</p>
-        <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>
+      <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>{item.attachmentOriginalName && <small><Paperclip/>ไฟล์แนบ: {item.attachmentOriginalName}</small>}
       </div>
       <form action={deleteNewsAction}>
         <input type="hidden" name="id" value={item.id}/>
@@ -1098,20 +1099,21 @@ async function addNewsAction(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim();
   const publishAt = String(formData.get("publishAt") ?? "").trim();
   if (!title || !excerpt || !body || !publishAt) throw new Error("กรุณากรอกข้อมูลข่าวให้ครบถ้วน");
-  await addNews({
+  const createdNews = await addNews({
     title,
     excerpt,
     body,
     publishAt,
     published: formData.get("published") === "on",
     image: formData.get("image") as File | null,
+    attachment: formData.get("attachment") as File | null,
   });
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "news.created",
     entityType: "news",
     summary: `เพิ่มข่าวประชาสัมพันธ์ ${title}`,
-    payload: { publishAt },
+    payload: { publishAt, attachmentName: createdNews.attachmentName, attachmentOriginalName: createdNews.attachmentOriginalName },
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");

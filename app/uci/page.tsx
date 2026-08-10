@@ -74,29 +74,29 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
 
     <section className="admin-panel admin-checkin-cta">
       <div className="admin-checkin-copy"><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>สแกน QR Code หรือค้นหาชื่อผู้เข้าร่วม แล้วกดเช็คอินได้ทันที</p></div></div>
-      <Link className="primary" href="/admin/scan"><QrCode/>เปิดหน้าเช็คอิน</Link>
+      <Link className="primary" href="/admin/scan?from=uci"><QrCode/>เปิดหน้าเช็คอิน</Link>
     </section>
 
     <section className="admin-panel admin-checkin-cta admin-walkin-cta">
       <div className="admin-checkin-copy"><UserPlus/><div><span className="eyebrow">Walk-in Registration</span><h2>ลงทะเบียน Walk-in หน้างาน</h2><p>กรอกข้อมูลผู้เข้าร่วมที่มาหน้างาน แล้วระบบจะเช็คอินให้อัตโนมัติทันที</p></div></div>
-      <Link className="primary" href="/admin/participants"><UserPlus/>เปิด Walk-in</Link>
+      <Link className="primary" href="/admin/participants?from=uci"><UserPlus/>เปิด Walk-in</Link>
     </section>
 
     {(session.role === "uci" || session.role === "super_admin") && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Live Lucky Draw</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการเหมือน Super Admin</p></div></div>
-      <Link className="primary" href="/admin/evaluations#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
+      <Link className="primary" href="/admin/evaluations?from=uci#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
     </section>}
 
     <UciVideoCarousel videos={videos.map((video) => ({ ...video, thumbnailUrl: video.thumbnailName ? `/api/uci-video-images/${encodeURIComponent(video.thumbnailName)}` : youtubeThumbnailUrl(video.url), sourceLabel: uciVideoPlatform(video.url) ?? "วิดีโอ" }))}/>
 
     <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>งานที่ UCI ดูแล</h2><p>เปิดเครื่องมือที่ใช้ในวันงานได้ทันที</p></div></header><div className="admin-detail-actions uci-action-grid">
-      <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนหน้างานและเช็คอิน</Link>
-      <Link className="secondary" href="/admin/evaluations"><ClipboardList/>ดูแบบสอบถามและผล Lucky Draw</Link>
+      <Link className="primary" href="/admin/participants?from=uci"><UserPlus/>ลงทะเบียนหน้างานและเช็คอิน</Link>
+      <Link className="secondary" href="/admin/evaluations?from=uci"><ClipboardList/>ดูแบบสอบถามและผล Lucky Draw</Link>
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
       <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>
     </div></section>
 
-    <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations">ดูผลประเมินและกด Lucky Draw</Link></div></section>
+    <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations?from=uci">ดูผลประเมินและกด Lucky Draw</Link></div></section>
 
     {session.role === "uci" && <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>สมาชิกทีม UCI</h2><p>เพิ่ม แก้ไข ลบสมาชิก และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกในทีมได้เอง</p></div></header>
       <form action={createUciMemberAction} className="admin-form uci-user-create-form"><div className="uci-user-create-grid"><label>ชื่อสมาชิก<input name="name" required placeholder="ชื่อ-นามสกุล หรือหน้าที่"/></label><label>อีเมล<input type="email" name="email" required placeholder="name@example.com"/></label><label>เบอร์ติดต่อ<input name="phone" placeholder="เบอร์โทรศัพท์ (ถ้ามี)"/></label></div><div className="uci-user-create-footer"><small>ระบบจะส่งลิงก์ตั้งรหัสผ่านไปยังอีเมลของสมาชิกโดยอัตโนมัติ</small><button className="primary" type="submit"><UserPlus/>เพิ่มสมาชิกและส่งลิงก์ตั้งรหัสผ่าน</button></div></form>
