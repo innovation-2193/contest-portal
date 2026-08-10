@@ -4,19 +4,37 @@ import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audi
 import { requireSuperAdminRequest } from "../../../../../lib/admin-guard";
 import { listCommitteeScoreRecords } from "../../../../../lib/committee-score-store";
 import { listSubmissions, listWinners, type SubmissionListItem } from "../../../../../lib/admin-store";
-import { createZip, type ZipEntry } from "../../../../../lib/zip";
-import { selectPresentationSubmissions } from "../../../../../lib/presentation-score-utils";
 import { formatPresentationJudge, presentationScoreCriteria, type PresentationJudgeProfile } from "../../../../../lib/presentation-score-config";
 import { listPresentationJudgeProfiles, round1WeightedScore } from "../../../../../lib/presentation-score-store";
-import { drawDocumentFooter, drawDocumentHeader, formatPdfThaiDateTime, PDF_THEME, pdfFontBold, pdfFontRegular, type PdfFontSet } from "../../../../../lib/pdf-theme";
+import { selectPresentationSubmissions } from "../../../../../lib/presentation-score-utils";
+import { drawDocumentFooter, pdfFontBold, pdfFontRegular, type PdfFontSet } from "../../../../../lib/pdf-theme";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
 const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
+const PRINT = {
+  black: "#111827",
+  text: "#1f2937",
+  muted: "#6b7280",
+  watermark: "#cbd5e1",
+  line: "#9ca3af",
+  lineLight: "#d1d5db",
+  white: "#ffffff",
+} as const;
+
+const columns = [
+  ["ข้อ", 42],
+  ["เกณฑ์การประเมินรอบที่ 2", 300],
+  ["คะแนนเต็ม", 62],
+  ["คะแนนที่ได้", 143],
+] as const;
+const tableWidth = columns.reduce((sum, [, width]) => sum + width, 0);
 
 export async function GET(request: Request) {
   const session = requireSuperAdminRequest(request);
   if (!session) return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
+
   const [submissions, winners, profiles, round1Records] = await Promise.all([
     listSubmissions(),
     listWinners(),
@@ -25,109 +43,195 @@ export async function GET(request: Request) {
   ]);
   const finalists = selectPresentationSubmissions(submissions, winners);
   const selectedJudgeKey = new URL(request.url).searchParams.get("judgeKey")?.trim() || "";
-  const selectedProfiles = selectedJudgeKey ? profiles.filter((profile) => profile.judgeKey === selectedJudgeKey) : profiles;
-  if (!selectedProfiles.length) return NextResponse.json({ ok: false, message: "ไม่พบกรรมการรอบที่ 2 ที่เลือก" }, { status: 404 });
-
-  const entries: ZipEntry[] = [];
-  for (const judge of selectedProfiles) {
-    const pdf = await presentationScoreFormPdf(finalists, judge, round1Records);
-    entries.push({ name: `${judge.judgeKey}/presentation-score-form-${judge.judgeKey}.pdf`, data: pdf });
+  const judge = selectedJudgeKey ? profiles.find((profile) => profile.judgeKey === selectedJudgeKey) ?? null : null;
+  if (selectedJudgeKey && !judge) {
+    return NextResponse.json({ ok: false, message: "ไม่พบกรรมการรอบที่ 2 ที่เลือก" }, { status: 404 });
   }
+
+  const pdf = await presentationScoreFormPdf(finalists, judge, round1Records);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "presentation_score.form_pdf",
     entityType: "presentation_score",
-    summary: `Export แบบฟอร์มให้คะแนนรอบที่ 2 ${finalists.length.toLocaleString("th-TH")} ผลงาน`,
-    payload: { finalists: finalists.length, judges: selectedProfiles.map((profile) => profile.judgeKey) },
+    summary: `Export PDF แบบฟอร์มให้คะแนนรอบที่ 2 ${finalists.length.toLocaleString("th-TH")} ผลงาน`,
+    payload: { finalists: finalists.length, judge: judge?.judgeKey ?? "committee-copy" },
   }, request.headers);
-  if (selectedJudgeKey) {
-    return new NextResponse(new Uint8Array(entries[0].data), { headers: pdfHeaders(`presentation-score-form-round-2-${selectedJudgeKey}.pdf`) });
-  }
-  return new NextResponse(new Uint8Array(await createZip(entries)), {
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="presentation-score-forms-round-2-${new Date().toISOString().slice(0, 10)}.zip"`,
-      "Cache-Control": "private, no-store",
-    },
+
+  const suffix = judge ? `-${safeFilePart(judge.judgeKey)}` : "";
+  return new NextResponse(new Uint8Array(pdf), {
+    headers: pdfHeaders(`presentation-score-form-round-2${suffix}-${new Date().toISOString().slice(0, 10)}.pdf`),
   });
 }
 
-async function presentationScoreFormPdf(submissions: SubmissionListItem[], judge: PresentationJudgeProfile, round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>) {
-  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0 });
+export async function presentationScoreFormPdf(
+  submissions: SubmissionListItem[],
+  judge: PresentationJudgeProfile | null,
+  round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
+) {
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
   const rows = submissions.length ? submissions : [null];
+  const totalPages = rows.length;
   doc.info.Title = "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)";
   doc.info.Subject = "Police Innovation Contest 2026 Presentation score form";
   doc.info.Author = "Police Innovation Contest 2026";
+
   rows.forEach((submission, index) => {
     if (index) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
-    drawSheet(doc, submission, judge, index + 1, rows.length, round1Records);
+    drawSheet(doc, submission, judge, index + 1, totalPages, round1Records);
   });
   doc.end();
   return pdf;
 }
 
-function drawSheet(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null, judge: PresentationJudgeProfile, pageNumber: number, totalPages: number, round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>) {
-  doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
-  drawDocumentHeader(doc, {
-    title: "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)",
-    subtitle: "การนำเสนอผลงานและตอบคำถาม • คะแนนเต็ม 100 คะแนน",
-    metaLabel: "กรรมการ",
-    metaValue: formatPresentationJudge(judge),
-    showLogo: true,
-    fonts,
-  });
+function drawSheet(
+  doc: PDFKit.PDFDocument,
+  submission: SubmissionListItem | null,
+  judge: PresentationJudgeProfile | null,
+  pageNumber: number,
+  totalPages: number,
+  round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
+) {
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
+  drawPrintHeader(doc, submission, judge);
   if (!submission) {
-    doc.font(fonts.bold).fontSize(16).fillColor(PDF_THEME.navy).text("ยังไม่มีรายการในประกาศผลการแข่งขัน", 48, 210, { width: 500, align: "center" });
+    doc.rect(80, 190, doc.page.width - 160, 110).fillAndStroke(PRINT.white, PRINT.line);
+    doc.font(fonts.bold).fontSize(18).fillColor(PRINT.black).text("ยังไม่มีผลงานในประกาศผลการแข่งขัน", 100, 224, {
+      width: doc.page.width - 200,
+      align: "center",
+      lineBreak: false,
+    });
     drawDocumentFooter(doc, pageNumber, totalPages, "รอบที่ 2 Presentation", fonts);
     return;
   }
 
-  doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text(`ลำดับ ${pageNumber.toLocaleString("th-TH")} • ${submission.submission_code}`, 38, 106, { lineBreak: false });
-  doc.font(fonts.bold).fontSize(17).fillColor(PDF_THEME.navy).text(submission.title_th, 38, 126, { width: 520, height: 24, ellipsis: true, lineBreak: false });
-  doc.font(fonts.regular).fontSize(9).fillColor(PDF_THEME.muted).text(`ผู้สมัครหลัก: ${submission.first_name} ${submission.last_name} • ${[submission.division, submission.bureau].filter(Boolean).join(" / ") || "ไม่ระบุหน่วยงาน"}`, 38, 151, { width: 520, ellipsis: true, lineBreak: false });
-
-  const scoreTableX = 38;
-  const scoreTableY = 178;
-  const columns = [320, 75, 145];
-  doc.roundedRect(scoreTableX, scoreTableY, columns.reduce((sum, value) => sum + value, 0), 28, 5).fill(PDF_THEME.navy);
-  doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.goldSoft).text("เกณฑ์การประเมินรอบที่ 2", scoreTableX + 8, scoreTableY + 9, { width: columns[0] - 16, lineBreak: false });
-  doc.text("คะแนนเต็ม", scoreTableX + columns[0] + 5, scoreTableY + 9, { width: columns[1] - 10, align: "center", lineBreak: false });
-  doc.text("คะแนนที่ได้", scoreTableX + columns[0] + columns[1] + 5, scoreTableY + 9, { width: columns[2] - 10, align: "center", lineBreak: false });
-  let y = scoreTableY + 28;
-  for (const [index, criterion] of presentationScoreCriteria.entries()) {
-    const rowHeight = 52;
-    doc.rect(scoreTableX, y, columns.reduce((sum, value) => sum + value, 0), rowHeight).fillAndStroke(index % 2 ? PDF_THEME.paleBlue : PDF_THEME.white, PDF_THEME.line);
-    doc.font(fonts.regular).fontSize(9.4).fillColor(PDF_THEME.text).text(`${index + 1}. ${criterion.label}`, scoreTableX + 8, y + 17, { width: columns[0] - 16, height: rowHeight - 10, ellipsis: true, lineBreak: false });
-    doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text(String(criterion.max), scoreTableX + columns[0] + 5, y + 17, { width: columns[1] - 10, align: "center", lineBreak: false });
-    doc.roundedRect(scoreTableX + columns[0] + columns[1] + 18, y + 10, columns[2] - 36, 31, 4).fillAndStroke(PDF_THEME.white, PDF_THEME.navy);
-    y += rowHeight;
-  }
-  doc.rect(scoreTableX, y, columns.reduce((sum, value) => sum + value, 0), 32).fillAndStroke(PDF_THEME.goldSoft, PDF_THEME.line);
-  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("รวมคะแนนรอบที่ 2", scoreTableX + 8, y + 10, { width: columns[0] + columns[1] - 16, lineBreak: false });
-  doc.font(fonts.bold).fontSize(12).fillColor(PDF_THEME.navy).text("/ 100", scoreTableX + columns[0] + columns[1] + 5, y + 10, { width: columns[2] - 10, align: "center", lineBreak: false });
+  drawProjectInfo(doc, submission, 24, 86, pageNumber, totalPages);
+  drawPresentationScoreTable(doc, 24, 150);
 
   const weighted = round1WeightedScore(round1Records, submission.submission_code);
-  const summaryY = y + 48;
-  drawSummaryBox(doc, 38, summaryY, 165, "รอบที่ 1 เฉลี่ย", weighted.average === null ? "- / 100" : `${weighted.average.toFixed(2)} / 100`);
-  drawSummaryBox(doc, 213, summaryY, 165, "รอบที่ 1 × 40%", weighted.weighted === null ? "-" : `${weighted.weighted.toFixed(2)} คะแนน`);
-  drawSummaryBox(doc, 388, summaryY, 165, "รอบที่ 2 × 60%", "รอกรอกคะแนน");
-  drawSummaryBox(doc, 38, summaryY + 66, 515, "คะแนนรวมถ่วงน้ำหนัก = (รอบที่ 1 × 0.40) + (รอบที่ 2 × 0.60)", "รอกรอกคะแนนรอบที่ 2");
-  doc.font(fonts.regular).fontSize(8).fillColor(PDF_THEME.muted).text(`ลงชื่อกรรมการ ${formatPresentationJudge(judge)}  ____________________________________    วันที่ ____________________`, 38, summaryY + 146, { width: 515, lineBreak: false });
+  drawWeightedBoxes(doc, weighted, 24, 468);
+  drawNotesAndSignature(doc, judge, 24, 636);
+  drawWatermark(doc);
   drawDocumentFooter(doc, pageNumber, totalPages, `${submission.submission_code} • รอบที่ 2 Presentation`, fonts);
 }
 
-function drawSummaryBox(doc: PDFKit.PDFDocument, x: number, y: number, width: number, label: string, value: string) {
-  doc.roundedRect(x, y, width, 54, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(fonts.bold).fontSize(8).fillColor(PDF_THEME.muted).text(label, x + 9, y + 10, { width: width - 18, lineBreak: false });
-  doc.font(fonts.bold).fontSize(12).fillColor(PDF_THEME.navy).text(value, x + 9, y + 29, { width: width - 18, ellipsis: true, lineBreak: false });
+function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null, judge: PresentationJudgeProfile | null) {
+  const margin = 24;
+  const width = doc.page.width - margin * 2;
+  doc.font(fonts.bold).fontSize(14.2).fillColor(PRINT.black).text(
+    "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)",
+    margin,
+    24,
+    { width, align: "center", lineBreak: false },
+  );
+  doc.font(fonts.bold).fontSize(10.2).fillColor(PRINT.black).text(
+    submission ? `รหัสโครงการ: ${submission.submission_code}` : "ผลงานที่ผ่านเข้ารอบการนำเสนอ",
+    margin,
+    47,
+    { width, align: "center", lineBreak: false },
+  );
+  doc.font(fonts.regular).fontSize(8.5).fillColor(PRINT.muted).text(
+    judge ? `กรรมการ: ${formatPresentationJudge(judge)}` : "กรรมการ: คณะกรรมการรอบที่ 2",
+    margin,
+    60,
+    { width, align: "center", lineBreak: false },
+  );
+  doc.moveTo(margin, 78).lineTo(doc.page.width - margin, 78).lineWidth(0.8).stroke(PRINT.line);
 }
 
-function pdfHeaders(filename: string) {
-  return { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" };
+function drawProjectInfo(doc: PDFKit.PDFDocument, submission: SubmissionListItem, x: number, y: number, itemNumber: number, totalItems: number) {
+  const width = doc.page.width - x * 2;
+  doc.rect(x, y, width, 48).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text("ข้อมูลโครงการ", x + 14, y + 9, { width: 88, lineBreak: false });
+  doc.font(fonts.bold).fontSize(8.4).fillColor(PRINT.black).text("ลำดับผลงาน", x + 14, y + 24, { width: 88, lineBreak: false });
+  doc.font(fonts.bold).fontSize(8.7).fillColor(PRINT.black).text(`รายการที่ ${itemNumber} จาก ${totalItems}`, x + 14, y + 36, { width: 92, lineBreak: false });
+  doc.font(fonts.bold).fontSize(11.3).fillColor(PRINT.black).text(clean(submission.title_th), x + 116, y + 9, { width: width - 130, height: 15, ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8).fillColor(PRINT.text).text(
+    `ผู้สมัคร/ทีม: ${formatApplicantName(submission)} • ประเภท: ${submission.submission_type === "team" ? `ทีม${submission.team_name ? ` ${submission.team_name}` : ""}` : "ส่งเดี่ยว"}`,
+    x + 116,
+    y + 30,
+    { width: width - 130, height: 11, ellipsis: true, lineBreak: false },
+  );
 }
 
-function collectPdf(doc: PDFKit.PDFDocument) {
-  const chunks: Buffer[] = [];
-  return new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); });
+function drawPresentationScoreTable(doc: PDFKit.PDFDocument, x: number, y: number) {
+  const headerHeight = 26;
+  const rowHeight = 48;
+  let cursorY = y;
+  doc.rect(x, cursorY, tableWidth, headerHeight).fillAndStroke(PRINT.white, PRINT.black);
+  drawTableColumns(doc, x, cursorY, headerHeight, true);
+  cursorY += headerHeight;
+
+  presentationScoreCriteria.forEach((criterion, index) => {
+    doc.rect(x, cursorY, tableWidth, rowHeight).fillAndStroke(PRINT.white, PRINT.lineLight);
+    drawTableColumns(doc, x, cursorY, rowHeight, false);
+    doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text(String(index + 1), x + 6, cursorY + 18, { width: columns[0][1] - 12, align: "center", lineBreak: false });
+    doc.font(fonts.regular).fontSize(9.1).fillColor(PRINT.text).text(criterion.label, x + columns[0][1] + 8, cursorY + 10, { width: columns[1][1] - 14, height: 28, ellipsis: true, lineBreak: false });
+    doc.font(fonts.bold).fontSize(9.4).fillColor(PRINT.text).text(String(criterion.max), x + columns[0][1] + columns[1][1] + 5, cursorY + 18, { width: columns[2][1] - 10, align: "center", lineBreak: false });
+    doc.rect(x + columns[0][1] + columns[1][1] + columns[2][1] + 13, cursorY + 9, columns[3][1] - 26, 30).fillAndStroke(PRINT.white, PRINT.line);
+    cursorY += rowHeight;
+  });
+
+  doc.rect(x, cursorY, tableWidth, 28).fillAndStroke(PRINT.white, PRINT.black);
+  drawTableColumns(doc, x, cursorY, 28, false);
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PRINT.black).text("รวมคะแนนรอบที่ 2", x + 8, cursorY + 8, { width: columns[0][1] + columns[1][1] - 16, lineBreak: false });
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PRINT.black).text("100", x + columns[0][1] + columns[1][1] + 5, cursorY + 8, { width: columns[2][1] - 10, align: "center", lineBreak: false });
 }
+
+function drawTableColumns(doc: PDFKit.PDFDocument, x: number, y: number, height: number, header: boolean) {
+  let cursorX = x;
+  doc.font(fonts.bold).fontSize(header ? 9.3 : 8.5).fillColor(PRINT.black);
+  columns.forEach(([label, width], index) => {
+    if (index > 0) doc.moveTo(cursorX, y).lineTo(cursorX, y + height).lineWidth(0.45).stroke(PRINT.line);
+    if (header) doc.text(label, cursorX + 5, y + 7, { width: width - 10, align: index === 1 ? "left" : "center", lineBreak: false });
+    cursorX += width;
+  });
+}
+
+function drawWeightedBoxes(doc: PDFKit.PDFDocument, weighted: { average: number | null; weighted: number | null }, x: number, y: number) {
+  const gap = 10;
+  const width = (tableWidth - gap * 2) / 3;
+  drawBox(doc, x, y, width, 58, "คะแนนรอบที่ 1 (เฉลี่ย)", weighted.average === null ? "- / 100" : `${weighted.average.toFixed(2)} / 100`);
+  drawBox(doc, x + width + gap, y, width, 58, "คะแนนรอบที่ 1 × 40%", weighted.weighted === null ? "-" : `${weighted.weighted.toFixed(2)} คะแนน`);
+  drawBox(doc, x + (width + gap) * 2, y, width, 58, "คะแนนรอบที่ 2 × 60%", "________________");
+  doc.rect(x, y + 68, tableWidth, 58).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text("คะแนนรวมถ่วงน้ำหนัก", x + 10, y + 79, { width: 145, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.2).fillColor(PRINT.text).text("(คะแนนรอบที่ 1 × 0.40) + (คะแนนรอบที่ 2 × 0.60)", x + 10, y + 97, { width: 260, lineBreak: false });
+  doc.rect(x + tableWidth - 168, y + 80, 150, 32).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(11).fillColor(PRINT.black).text("________________ / 100", x + tableWidth - 160, y + 90, { width: 134, align: "center", lineBreak: false });
+}
+
+function drawBox(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number, label: string, value: string) {
+  doc.rect(x, y, width, height).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(8).fillColor(PRINT.black).text(label, x + 8, y + 10, { width: width - 16, lineBreak: false });
+  doc.font(fonts.bold).fontSize(10.5).fillColor(PRINT.black).text(value, x + 8, y + 32, { width: width - 16, align: "center", ellipsis: true, lineBreak: false });
+}
+
+function drawNotesAndSignature(doc: PDFKit.PDFDocument, judge: PresentationJudgeProfile | null, x: number, y: number) {
+  const notesWidth = 280;
+  const signatureX = x + notesWidth + 12;
+  const signatureWidth = tableWidth - notesWidth - 12;
+  doc.rect(x, y, notesWidth, 92).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text("หมายเหตุกรรมการ", x + 10, y + 10, { width: notesWidth - 20, lineBreak: false });
+  for (let index = 0; index < 3; index += 1) {
+    const lineY = y + 39 + index * 17;
+    doc.moveTo(x + 10, lineY).lineTo(x + notesWidth - 10, lineY).lineWidth(0.45).stroke(PRINT.line);
+  }
+  doc.rect(signatureX, y, signatureWidth, 92).fillAndStroke(PRINT.white, PRINT.line);
+  doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text("ลงชื่อกรรมการ", signatureX + 10, y + 10, { width: signatureWidth - 20, align: "center", lineBreak: false });
+  doc.moveTo(signatureX + 15, y + 44).lineTo(signatureX + signatureWidth - 15, y + 44).lineWidth(0.5).stroke(PRINT.line);
+  doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text(judge ? formatPresentationJudge(judge) : "คณะกรรมการรอบที่ 2", signatureX + 8, y + 57, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text("วันที่ ____________________", signatureX + 8, y + 73, { width: signatureWidth - 16, align: "center", lineBreak: false });
+}
+
+function drawWatermark(doc: PDFKit.PDFDocument) {
+  doc.save();
+  doc.rotate(-38, { origin: [doc.page.width / 2, doc.page.height / 2] });
+  doc.font(fonts.bold).fontSize(34).fillColor(PRINT.watermark).fillOpacity(0.18).text("Police Innovation Contest 2026", -80, doc.page.height / 2 - 18, { width: doc.page.width + 160, align: "center", lineBreak: false });
+  doc.restore();
+}
+
+function clean(value: string) { return value.replace(/\s+/g, " ").trim(); }
+function safeFilePart(value: string) { return value.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "judge"; }
+function pdfHeaders(filename: string) { return { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" }; }
+function collectPdf(doc: PDFKit.PDFDocument) { const chunks: Buffer[] = []; return new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); }); }

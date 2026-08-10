@@ -250,7 +250,7 @@ function drawScoreSheet(
 function drawWatermark(doc: PDFKit.PDFDocument) {
   doc.save();
   doc.rotate(-38, { origin: [doc.page.width / 2, doc.page.height / 2] });
-  doc.font(fonts.bold).fontSize(38).fillColor(PRINT.watermark).fillOpacity(0.22).text(
+  doc.font(fonts.bold).fontSize(38).fillColor(PRINT.watermark).fillOpacity(0.44).text(
     "Police Innovation Contest 2026",
     -80,
     doc.page.height / 2 - 18,

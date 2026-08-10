@@ -20981,6 +20981,53 @@ footer {
   overflow-wrap: anywhere;
 }
 
+.presentation-score-panel .committee-score-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.presentation-score-panel .committee-score-actions > a,
+.presentation-score-panel .committee-score-actions > label {
+  min-height: 62px;
+  padding: 12px 14px;
+  gap: 9px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.presentation-score-panel .committee-score-actions > a span,
+.presentation-score-panel .committee-score-actions > label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.presentation-score-panel .committee-score-actions svg {
+  flex: 0 0 auto;
+}
+
+.admin-submissions-page .admin-topline {
+  align-items: stretch;
+}
+
+.admin-submissions-page .admin-topline .admin-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  min-width: min(440px, 100%);
+  align-content: start;
+}
+
+.admin-submissions-page .admin-topline .admin-actions > :is(a, button) {
+  min-width: 0;
+  min-height: 48px;
+  justify-content: center;
+  padding: 10px 14px;
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .committee-upload-button {
   position: relative;
   cursor: pointer;

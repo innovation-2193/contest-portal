@@ -66,7 +66,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
   const items = all.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const currentListPath = submissionListHref({ q, sort, review, reviewer, page: currentPage });
 
-  return <div className="admin-page">
+  return <div className="admin-page admin-submissions-page">
     <div className="wide">
       <div className="admin-topline">
         <div><span className="eyebrow">Submissions</span><h1>ผู้สมัครประกวดนวัตกรรมทั้งหมด</h1><p>{isSuperAdmin ? "ดูคะแนน Assign ผู้ตรวจเอกสาร และเปิดรายละเอียดใบสมัครทั้งหมด" : "รายการที่ Super Admin assign ให้ตรวจรอบแรก"}</p></div>
