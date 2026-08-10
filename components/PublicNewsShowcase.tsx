@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Newspaper } from "lucide-react";
+import { parseThaiDate } from "../lib/thai-time";
 
 export type PublicNewsItem = {
   id: string;
@@ -106,10 +107,12 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
 }
 
 function formatThaiDate(value: string) {
+  const date = parseThaiDate(value);
+  if (!date) return "-";
   return new Intl.DateTimeFormat("th-TH", {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "Asia/Bangkok",
-  }).format(new Date(value));
+  }).format(date);
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Download, Newspaper } from "lucide-react";
 import { listNews } from "../../../lib/admin-store";
+import { parseThaiDate } from "../../../lib/thai-time";
 
 export const dynamic = "force-dynamic";
 
@@ -58,10 +59,12 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
 }
 
 function formatThaiDate(value: string) {
+  const date = parseThaiDate(value);
+  if (!date) return "-";
   return new Intl.DateTimeFormat("th-TH", {
     day: "numeric",
     month: "long",
     year: "numeric",
     timeZone: "Asia/Bangkok",
-  }).format(new Date(value));
+  }).format(date);
 }

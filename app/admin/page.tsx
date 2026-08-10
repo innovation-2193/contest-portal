@@ -62,6 +62,7 @@ import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluati
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
 import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
+import { formatThaiDateTimeInput, parseThaiDate, thaiLocalDateTimeToIso } from "../../lib/thai-time";
 
 export const dynamic = "force-dynamic";
 
@@ -187,7 +188,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <form action={addNewsAction} className="admin-form news-form">
         <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
         <label className="field-wide news-attachment-field"><span><Paperclip/>ไฟล์แนบข่าว / รายชื่อผู้ผ่านการประกวด</span><input type="file" name="attachment" accept=".pdf,.xlsx,.xls,.docx,.doc,.csv"/><small>แนบ PDF, Excel, Word หรือ CSV ขนาดไม่เกิน 20 MB</small></label>
-        <label>วันที่ต้องการโพสต์<input type="datetime-local" name="publishAt" defaultValue={toInputDate(new Date().toISOString())} required/></label>
+        <label>วันที่ต้องการโพสต์ (GMT+7)<input type="datetime-local" name="publishAt" defaultValue={formatThaiDateTimeInput(new Date())} required/></label>
         <label className="field-wide">หัวข้อข่าว<input name="title" placeholder="เช่น เปิดรับสมัครผลงานนวัตกรรมตำรวจ ประจำปี 2569" required maxLength={255}/></label>
         <label className="field-wide">ข้อความสรุป<input name="excerpt" placeholder="ข้อความสั้นสำหรับแสดงบนการ์ดข่าว" required maxLength={500}/></label>
         <label className="field-wide">เนื้อหา<textarea name="body" placeholder="รายละเอียดข่าวประชาสัมพันธ์" required rows={5}/></label>
@@ -229,7 +230,7 @@ const fallbackAdminSettings: Awaited<ReturnType<typeof getAdminSettings>> = {
   checkInShortcutVisibleForAdmin: true,
   checkInShortcutVisibleForSuperAdmin: true,
   homeCountdownEnabled: true,
-  homeCountdownTarget: "2026-08-24T09:00",
+  homeCountdownTarget: "2026-08-24T09:00:00+07:00",
   homeCountdownTitle: "นับถอยหลังสู่วันงาน",
   homeCountdownNote: "",
   openAt: "",
@@ -369,7 +370,7 @@ function SettingsControlPanel({ settings }: { settings: Awaited<ReturnType<typeo
           <span><b>แสดงตัวนับถอยหลังหน้าโฮม</b><small>แสดง timer บน banner หน้าเว็บไซต์ โดยใช้เวลาปลายทางที่กำหนดด้านล่าง</small></span>
         </label>
       </div>
-      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ<input type="datetime-local" name="openAt" defaultValue={toInputDate(settings.openAt)}/></label><label>ปิดระบบเมื่อ<input type="datetime-local" name="closeAt" defaultValue={toInputDate(settings.closeAt)}/></label><label>เวลานับถอยหลังหน้าโฮม<input type="datetime-local" name="homeCountdownTarget" defaultValue={toInputDate(settings.homeCountdownTarget)}/></label><label>ข้อความเหนือ timer<input name="homeCountdownTitle" defaultValue={settings.homeCountdownTitle} maxLength={120} placeholder="เช่น นับถอยหลังสู่วันงาน"/></label><label>ข้อความใต้ timer<input name="homeCountdownNote" defaultValue={settings.homeCountdownNote} maxLength={160} placeholder="เว้นว่างได้"/></label></div>
+      <div className="form-grid compact-grid"><label>เปิดระบบเมื่อ (GMT+7)<input type="datetime-local" name="openAt" defaultValue={formatThaiDateTimeInput(settings.openAt)}/></label><label>ปิดระบบเมื่อ (GMT+7)<input type="datetime-local" name="closeAt" defaultValue={formatThaiDateTimeInput(settings.closeAt)}/></label><label>เวลานับถอยหลังหน้าโฮม (GMT+7)<input type="datetime-local" name="homeCountdownTarget" defaultValue={formatThaiDateTimeInput(settings.homeCountdownTarget)}/></label><label>ข้อความเหนือ timer<input name="homeCountdownTitle" defaultValue={settings.homeCountdownTitle} maxLength={120} placeholder="เช่น นับถอยหลังสู่วันงาน"/></label><label>ข้อความใต้ timer<input name="homeCountdownNote" defaultValue={settings.homeCountdownNote} maxLength={160} placeholder="เว้นว่างได้"/></label></div>
       <label>หัวข้อ<input name="prelanderTitle" defaultValue={settings.prelanderTitle}/></label>
       <label>ข้อความ<textarea name="prelanderMessage" defaultValue={settings.prelanderMessage}/></label>
       <button className="primary" type="submit"><Settings/>บันทึกการตั้งค่า</button>
@@ -738,7 +739,7 @@ function ReviewQueueTable({ submissions }: { submissions: Awaited<ReturnType<typ
 
 function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>; total: number }) {
   return <div className="admin-news-list">{news.length ? news.map((item) => {
-    const isLive = item.published && (new Date(item.publishAt).getTime() <= Date.now());
+    const isLive = item.published && (parseThaiDate(item.publishAt)?.getTime() ?? Number.POSITIVE_INFINITY) <= Date.now();
     return <article className="admin-news-card" key={item.id}>
       <div className="admin-news-thumb">{item.imageName ? <img src={`/api/news-images/${encodeURIComponent(item.imageName)}`} alt={item.title}/> : <ImageIcon/>}</div>
       <div>
@@ -917,11 +918,11 @@ async function saveSettingsAction(formData: FormData) {
     checkInShortcutVisibleForSuperAdmin: formData.get("checkInShortcutVisibleForSuperAdmin") === "on",
     checkInShortcutVisibleForAdmin: formData.get("checkInShortcutVisibleForAdmin") === "on",
     homeCountdownEnabled: formData.get("homeCountdownEnabled") === "on",
-    homeCountdownTarget: String(formData.get("homeCountdownTarget") ?? ""),
+    homeCountdownTarget: normalizeOptionalThaiDate(formData.get("homeCountdownTarget"), "เวลานับถอยหลังหน้าโฮม"),
     homeCountdownTitle: String(formData.get("homeCountdownTitle") ?? ""),
     homeCountdownNote: String(formData.get("homeCountdownNote") ?? ""),
-    openAt: String(formData.get("openAt") ?? ""),
-    closeAt: String(formData.get("closeAt") ?? ""),
+    openAt: normalizeOptionalThaiDate(formData.get("openAt"), "เวลาเปิดระบบ"),
+    closeAt: normalizeOptionalThaiDate(formData.get("closeAt"), "เวลาปิดระบบ"),
     prelanderTitle: String(formData.get("prelanderTitle") ?? ""),
     prelanderMessage: String(formData.get("prelanderMessage") ?? ""),
   });
@@ -1097,8 +1098,9 @@ async function addNewsAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
-  const publishAt = String(formData.get("publishAt") ?? "").trim();
-  if (!title || !excerpt || !body || !publishAt) throw new Error("กรุณากรอกข้อมูลข่าวให้ครบถ้วน");
+  const publishAtInput = String(formData.get("publishAt") ?? "").trim();
+  const publishAt = thaiLocalDateTimeToIso(publishAtInput);
+  if (!title || !excerpt || !body || !publishAt) throw new Error("กรุณากรอกข้อมูลข่าวให้ครบถ้วน และระบุเวลาเป็น GMT+7");
   const createdNews = await addNews({
     title,
     excerpt,
@@ -1290,11 +1292,12 @@ function submissionListHref(search: string, review: ReviewFilter, sort: Submissi
   return query ? `/admin/submissions?${query}` : "/admin/submissions";
 }
 
-function toInputDate(value: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+function normalizeOptionalThaiDate(value: FormDataEntryValue | null, label: string) {
+  const rawValue = String(value ?? "").trim();
+  if (!rawValue) return "";
+  const normalized = thaiLocalDateTimeToIso(rawValue);
+  if (!normalized) throw new Error(`กรุณาระบุ${label}เป็นเวลาไทย GMT+7`);
+  return normalized;
 }
 
 function submissionOwnerName(submission: Pick<Awaited<ReturnType<typeof listSubmissions>>[number], "submission_type" | "team_name" | "first_name" | "last_name">) {
@@ -1404,8 +1407,8 @@ function auditEntityLabel(entityType: string) {
 
 function formatAdminDate(value?: string | Date | null) {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  const date = parseThaiDate(value);
+  if (!date) return "-";
   return new Intl.DateTimeFormat("th-TH", {
     dateStyle: "short",
     timeStyle: "short",

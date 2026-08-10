@@ -45,6 +45,7 @@ import {
 import { formatApplicantName } from "./thai-rank-title";
 import { findRegistrationByName } from "./registration-lookup";
 import { participantNameKey } from "./participant-name";
+import { normalizeThaiDateValue, parseThaiDate } from "./thai-time";
 
 export type AdminSettings = {
   prelanderEnabled: boolean;
@@ -296,7 +297,7 @@ const defaultSettings: AdminSettings = {
   checkInShortcutVisibleForAdmin: true,
   checkInShortcutVisibleForSuperAdmin: true,
   homeCountdownEnabled: true,
-  homeCountdownTarget: "2026-08-24T09:00",
+  homeCountdownTarget: "2026-08-24T09:00:00+07:00",
   homeCountdownTitle: "นับถอยหลังสู่วันงาน",
   homeCountdownNote: "",
   openAt: "",
@@ -306,7 +307,13 @@ const defaultSettings: AdminSettings = {
 };
 
 export async function getAdminSettings() {
-  return { ...defaultSettings, ...await readJson<Partial<AdminSettings>>(adminStorePath, {}) };
+  const settings = { ...defaultSettings, ...await readJson<Partial<AdminSettings>>(adminStorePath, {}) };
+  return {
+    ...settings,
+    homeCountdownTarget: normalizeThaiDateValue(settings.homeCountdownTarget) || defaultSettings.homeCountdownTarget,
+    openAt: settings.openAt ? normalizeThaiDateValue(settings.openAt) : "",
+    closeAt: settings.closeAt ? normalizeThaiDateValue(settings.closeAt) : "",
+  };
 }
 
 export async function saveAdminSettings(input: Partial<AdminSettings>) {
@@ -319,11 +326,11 @@ export async function saveAdminSettings(input: Partial<AdminSettings>) {
     checkInShortcutVisibleForAdmin: input.checkInShortcutVisibleForAdmin !== false,
     checkInShortcutVisibleForSuperAdmin: input.checkInShortcutVisibleForSuperAdmin !== false,
     homeCountdownEnabled: input.homeCountdownEnabled !== false,
-    homeCountdownTarget: typeof input.homeCountdownTarget === "string" ? input.homeCountdownTarget.trim() : defaultSettings.homeCountdownTarget,
+    homeCountdownTarget: typeof input.homeCountdownTarget === "string" ? normalizeThaiDateValue(input.homeCountdownTarget) || defaultSettings.homeCountdownTarget : defaultSettings.homeCountdownTarget,
     homeCountdownTitle: typeof input.homeCountdownTitle === "string" ? input.homeCountdownTitle.trim() : defaultSettings.homeCountdownTitle,
     homeCountdownNote: typeof input.homeCountdownNote === "string" ? input.homeCountdownNote.trim() : defaultSettings.homeCountdownNote,
-    openAt: input.openAt ?? "",
-    closeAt: input.closeAt ?? "",
+    openAt: input.openAt ? normalizeThaiDateValue(input.openAt) : "",
+    closeAt: input.closeAt ? normalizeThaiDateValue(input.closeAt) : "",
     prelanderTitle: input.prelanderTitle?.trim() || defaultSettings.prelanderTitle,
     prelanderMessage: input.prelanderMessage?.trim() || defaultSettings.prelanderMessage,
   };
@@ -1675,9 +1682,7 @@ async function writeJson(filePath: string, value: unknown) {
 }
 
 function parseDate(value: string) {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseThaiDate(value);
 }
 
 function rankWeight(rank: string) {

@@ -9,6 +9,7 @@ import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { deleteNews, listNews } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
+import { parseThaiDate } from "../../../lib/thai-time";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/news">ล้าง</Link></div>
         </form>
         <div className="admin-news-list">{items.length ? items.map((item) => {
-          const isLive = item.published && new Date(item.publishAt).getTime() <= Date.now();
+          const isLive = item.published && (parseThaiDate(item.publishAt)?.getTime() ?? Number.POSITIVE_INFINITY) <= Date.now();
           return <article className="admin-news-card" key={item.id}>
             <div className="admin-news-thumb">{item.imageName ? <img src={`/api/news-images/${encodeURIComponent(item.imageName)}`} alt={item.title}/> : <ImageIcon/>}</div>
             <div>
@@ -100,7 +101,7 @@ function filterRecords<T>(records: T[], query: string, pickFields: (record: T) =
 
 function formatAdminDate(value?: string | Date | null) {
   if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  const date = parseThaiDate(value);
+  if (!date) return "-";
   return new Intl.DateTimeFormat("th-TH", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Bangkok" }).format(date);
 }
