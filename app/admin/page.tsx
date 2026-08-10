@@ -188,10 +188,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <form action={addNewsAction} className="admin-form news-form">
         <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
         <label className="field-wide news-attachment-field"><span><Paperclip/>ไฟล์แนบข่าว / รายชื่อผู้ผ่านการประกวด</span><input type="file" name="attachment" accept=".pdf,.xlsx,.xls,.docx,.doc,.csv"/><small>แนบ PDF, Excel, Word หรือ CSV ขนาดไม่เกิน 20 MB</small></label>
-        <label>วันที่ต้องการโพสต์ (GMT+7)<input type="datetime-local" name="publishAt" defaultValue={formatThaiDateTimeInput(new Date())} required/></label>
+        <label>วันที่ต้องการโพสต์ (GMT+7)<input type="datetime-local" name="publishAt" defaultValue={formatThaiDateTimeInput(new Date())}/></label>
         <label className="field-wide">หัวข้อข่าว<input name="title" placeholder="เช่น เปิดรับสมัครผลงานนวัตกรรมตำรวจ ประจำปี 2569" required maxLength={255}/></label>
-        <label className="field-wide">ข้อความสรุป<input name="excerpt" placeholder="ข้อความสั้นสำหรับแสดงบนการ์ดข่าว" required maxLength={500}/></label>
-        <label className="field-wide">เนื้อหา<textarea name="body" placeholder="รายละเอียดข่าวประชาสัมพันธ์" required rows={5}/></label>
+        <label className="field-wide">ข้อความสรุป<input name="excerpt" placeholder="ข้อความสั้นสำหรับแสดงบนการ์ดข่าว (เว้นว่างได้)" maxLength={500}/></label>
+        <label className="field-wide">เนื้อหา<textarea name="body" placeholder="รายละเอียดข่าวประชาสัมพันธ์ (เว้นว่างได้)" rows={5}/></label>
         <label className="inline-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่เมื่อถึงวันที่กำหนด</label>
         <button className="primary" type="submit"><Megaphone/>เพิ่มข่าวประชาสัมพันธ์</button>
       </form>
@@ -748,10 +748,7 @@ function NewsTable({ news, total }: { news: Awaited<ReturnType<typeof listNews>>
         <p>{item.excerpt}</p>
       <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>{item.attachmentOriginalName && <small><Paperclip/>ไฟล์แนบ: {item.attachmentOriginalName}</small>}
       </div>
-      <form action={deleteNewsAction}>
-        <input type="hidden" name="id" value={item.id}/>
-        <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton>
-      </form>
+      <div className="admin-news-actions"><Link className="secondary small-action" href={`/admin/news/${encodeURIComponent(item.id)}`}><Pencil/>แก้ไข</Link><form action={deleteNewsAction}><input type="hidden" name="id" value={item.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton></form></div>
     </article>;
   }) : <div className="participant-empty">ยังไม่มีข่าวประชาสัมพันธ์</div>}<CardMore total={total} shown={news.length} href="/admin/news"/></div>;
 }
@@ -1099,8 +1096,8 @@ async function addNewsAction(formData: FormData) {
   const excerpt = String(formData.get("excerpt") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
   const publishAtInput = String(formData.get("publishAt") ?? "").trim();
-  const publishAt = thaiLocalDateTimeToIso(publishAtInput);
-  if (!title || !excerpt || !body || !publishAt) throw new Error("กรุณากรอกข้อมูลข่าวให้ครบถ้วน และระบุเวลาเป็น GMT+7");
+  const publishAt = publishAtInput ? thaiLocalDateTimeToIso(publishAtInput) : new Date().toISOString();
+  if (!title || !publishAt) throw new Error("กรุณากรอกหัวข้อข่าว และระบุเวลาเป็น GMT+7");
   const createdNews = await addNews({
     title,
     excerpt,

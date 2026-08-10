@@ -2652,6 +2652,8 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 }
 
 .public-news-media img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2902,17 +2904,30 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   box-shadow: none;
 }
 
-.news-post-image,
+.news-post-media,
 .news-post-placeholder {
   display: block;
   width: 100%;
-  max-height: 460px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+.news-post-media {
+  position: relative;
+  background: #071a3a;
+}
+
+.news-post-image {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
 .news-post-placeholder {
   display: grid;
-  min-height: 260px;
   place-items: center;
   color: var(--gold);
   background: linear-gradient(135deg, rgba(223, 186, 51, 0.14), rgba(2, 11, 27, 0.92));
@@ -6601,6 +6616,17 @@ body:has(.prelander-page)::before {
 .admin-news-card small {
   color: #aeb9cc;
   font-weight: 800;
+}
+
+.admin-news-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.admin-news-actions form {
+  margin: 0;
 }
 
 .home-popup-admin-grid {
@@ -16986,6 +17012,14 @@ body:has(.report-page) .brand b {
   }
   .admin-news-card form,
   .admin-news-card button {
+    width: 100%;
+  }
+  .admin-news-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .admin-news-actions :is(a, form, button) {
     width: 100%;
   }
   .participant-name-grid {

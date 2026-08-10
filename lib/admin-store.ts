@@ -101,6 +101,17 @@ export type NewsInput = {
   attachment?: File | null;
 };
 
+export type NewsUpdateInput = {
+  title: string;
+  excerpt: string;
+  body: string;
+  publishAt?: string;
+  published: boolean;
+  image?: File | null;
+  attachment?: File | null;
+  removeAttachment?: boolean;
+};
+
 export type HomePopupRecord = {
   id: string;
   imageName: string;
@@ -1614,6 +1625,67 @@ export async function deleteNews(id: string) {
   }
   if (imageName) await deleteNewsImage(imageName);
   if (attachmentName) await deleteNewsAttachment(attachmentName);
+}
+
+export async function updateNews(id: string, input: NewsUpdateInput) {
+  const targetId = id.trim();
+  const current = (await listNews()).find((item) => item.id === targetId);
+  if (!current) throw new Error("ไม่พบข่าวประชาสัมพันธ์ที่ต้องการแก้ไข");
+
+  const image = input.image && input.image.size > 0 ? await saveNewsImage(input.image) : null;
+  const attachment = input.attachment && input.attachment.size > 0 ? await saveNewsAttachment(input.attachment) : null;
+  const nextImageName = image?.storedName ?? current.imageName;
+  const nextImageOriginalName = image?.originalName ?? current.imageOriginalName;
+  const nextAttachmentName = attachment
+    ? attachment.storedName
+    : input.removeAttachment
+      ? null
+      : current.attachmentName;
+  const nextAttachmentOriginalName = attachment
+    ? attachment.originalName
+    : input.removeAttachment
+      ? null
+      : current.attachmentOriginalName;
+  const next: NewsRecord = {
+    ...current,
+    title: input.title.trim(),
+    excerpt: input.excerpt.trim(),
+    body: input.body.trim(),
+    imageName: nextImageName,
+    imageOriginalName: nextImageOriginalName,
+    attachmentName: nextAttachmentName,
+    attachmentOriginalName: nextAttachmentOriginalName,
+    publishAt: input.publishAt?.trim() || current.publishAt,
+    published: input.published,
+  };
+
+  try {
+    await ensureNewsTable();
+    await db.execute(
+      "UPDATE news_posts SET title=?,excerpt=?,body=?,image_name=?,image_original_name=?,attachment_name=?,attachment_original_name=?,publish_at=?,published=? WHERE id=?",
+      [
+        next.title,
+        next.excerpt,
+        next.body,
+        next.imageName,
+        next.imageOriginalName,
+        next.attachmentName,
+        next.attachmentOriginalName,
+        next.publishAt,
+        next.published,
+        targetId,
+      ],
+    );
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    const news = await readJson<NewsRecord[]>(newsStorePath, []);
+    await writeJson(newsStorePath, news.map((item) => item.id === targetId ? next : item));
+  }
+
+  if (image?.storedName && current.imageName) await deleteNewsImage(current.imageName);
+  if (attachment?.storedName && current.attachmentName) await deleteNewsAttachment(current.attachmentName);
+  if (input.removeAttachment && current.attachmentName && !attachment) await deleteNewsAttachment(current.attachmentName);
+  return next;
 }
 
 export async function getHomePopup() {

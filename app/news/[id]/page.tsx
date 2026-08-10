@@ -44,7 +44,7 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
     <div className="wide">
       <Link className="news-post-back" href="/#news"><ArrowLeft/>กลับไปข่าวประชาสัมพันธ์</Link>
       <article className="news-post-card">
-        {item.imageName ? <img className="news-post-image" src={"/api/news-images/" + encodeURIComponent(item.imageName)} alt={item.title}/> : <div className="news-post-placeholder"><Newspaper/></div>}
+        {item.imageName ? <div className="news-post-media"><img className="news-post-image" src={"/api/news-images/" + encodeURIComponent(item.imageName)} alt={item.title}/></div> : <div className="news-post-placeholder"><Newspaper/></div>}
         <div className="news-post-content">
           <span className="eyebrow">News &amp; Updates</span>
           <span className="news-post-date"><CalendarDays/>{formatThaiDate(item.publishAt)}</span>

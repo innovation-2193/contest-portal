@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { ArrowLeft, Image as ImageIcon, Newspaper, Paperclip, Search } from "lucide-react";
+import { ArrowLeft, Image as ImageIcon, Newspaper, Paperclip, Pencil, Search } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
@@ -51,10 +51,7 @@ export default async function AdminNewsPage({ searchParams }: { searchParams: Pr
               <p>{item.excerpt}</p>
               <small>วันที่โพสต์ {formatAdminDate(item.publishAt)}</small>{item.attachmentOriginalName && <small><Paperclip/>ไฟล์แนบ: {item.attachmentOriginalName}</small>}
             </div>
-            <form action={deleteNewsAction}>
-              <input type="hidden" name="id" value={item.id}/>
-              <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton>
-            </form>
+            <div className="admin-news-actions"><Link className="secondary small-action" href={`/admin/news/${encodeURIComponent(item.id)}`}><Pencil/>แก้ไข</Link><form action={deleteNewsAction}><input type="hidden" name="id" value={item.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบข่าวประชาสัมพันธ์รายการนี้?">ลบ</ConfirmSubmitButton></form></div>
           </article>;
         }) : <div className="participant-empty">ไม่พบข่าวประชาสัมพันธ์</div>}</div>
         <Pagination basePath="/admin/news" q={q} page={currentPage} totalPages={totalPages}/>
