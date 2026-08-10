@@ -27,6 +27,7 @@ import { buildAnnouncedFinalistSources } from "../../lib/announced-finalists";
 import { buildBoothUnitStats, type BoothUnitStat } from "../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
 import { getSiteStats } from "../../lib/site-analytics";
+import { formatApplicantName } from "../../lib/thai-rank-title";
 
 export const dynamic = "force-dynamic";
 
@@ -399,8 +400,8 @@ function SubmissionReportItem({ item }: { item: SubmissionListItem }) {
       <b>{item.title_th}</b>
       <small>{item.submission_code} • {formatShortThaiDate(item.submitted_at)}</small>
     </div>
-    <span>{item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว"}</span>
-    <p>{item.first_name} {item.last_name}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
+    <span>{item.submission_type === "team" ? `ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว"}</span>
+    <p>ส่งผลงานโดย: {formatApplicantName(item)}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
     <em>{statusLabel(item.status)}</em>
   </article>;
 }

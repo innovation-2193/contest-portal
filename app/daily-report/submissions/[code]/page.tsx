@@ -24,12 +24,12 @@ export default async function DailyReportSubmissionDetailPage({ params }: { para
       </div>
 
       <article className="admin-panel report-panel">
-        <header><FileText/><div><h2>{item.title_th}</h2><p>{item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว"} • ส่งเมื่อ {formatReportDate(item.submitted_at)}</p></div></header>
+        <header><FileText/><div><h2>{item.title_th}</h2><p>{item.submission_type === "team" ? `ส่งแบบทีม • ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว"} • ส่งเมื่อ {formatReportDate(item.submitted_at)}</p></div></header>
         <dl className="admin-detail-list report-detail-list">
           <Detail label="ชื่อผลงานภาษาไทย" value={item.title_th} wide/>
           <Detail label="Innovation Title" value={item.title_en || "-"}/>
           <Detail label="รหัสผลงาน" value={item.submission_code}/>
-          <Detail label="ประเภทการส่ง" value={item.submission_type === "team" ? `ส่งแบบทีม${item.team_name ? ` (${item.team_name})` : ""}` : "ส่งเดี่ยว"}/>
+          <Detail label="ประเภทการส่ง" value={item.submission_type === "team" ? `ส่งแบบทีม • ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว"}/>
           <Detail label="สถานะ" value={statusLabel(item.status)}/>
           <Detail label="อีเมลผู้สมัคร" value={item.email}/>
           <Detail label="Link Video" value={item.video_url || "-"} wide/>

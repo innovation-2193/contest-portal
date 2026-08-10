@@ -88,6 +88,7 @@ export type NewsRecord = {
   attachmentOriginalName: string | null;
   publishAt: string;
   published: boolean;
+  viewCount: number;
   createdAt: string;
 };
 
@@ -1550,12 +1551,36 @@ export async function listNews(options?: { publicOnly?: boolean }) {
   try {
     await ensureNewsTable();
     const [rows] = await db.execute(
-      "SELECT id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
+      "SELECT id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,view_count,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
     );
     return filterAndSortNews((rows as NewsDbRow[]).map(newsDbRowToRecord), options?.publicOnly);
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
-    return filterAndSortNews(await readJson<NewsRecord[]>(newsStorePath, []), options?.publicOnly);
+    const news = (await readJson<NewsRecord[]>(newsStorePath, [])).map(normalizeNewsRecord);
+    return filterAndSortNews(news, options?.publicOnly);
+  }
+}
+
+export async function incrementNewsViewCount(id: string) {
+  const targetId = id.trim();
+  if (!targetId) return 0;
+
+  try {
+    await ensureNewsTable();
+    await db.execute("UPDATE news_posts SET view_count=view_count+1 WHERE id=?", [targetId]);
+    const [rows] = await db.execute("SELECT view_count FROM news_posts WHERE id=? LIMIT 1", [targetId]);
+    return Math.max(0, Number((rows as Array<{ view_count: number | null }>)[0]?.view_count ?? 0));
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    const news = await readJson<NewsRecord[]>(newsStorePath, []);
+    let viewCount = 0;
+    await writeJson(newsStorePath, news.map((item) => {
+      const normalized = normalizeNewsRecord(item);
+      if (normalized.id !== targetId) return normalized;
+      viewCount = normalized.viewCount + 1;
+      return { ...normalized, viewCount };
+    }));
+    return viewCount;
   }
 }
 
@@ -1575,13 +1600,14 @@ export async function addNews(input: NewsInput) {
     attachmentOriginalName: attachment?.originalName ?? null,
     publishAt: input.publishAt || now,
     published: input.published,
+    viewCount: 0,
     createdAt: now,
   };
 
   try {
     await ensureNewsTable();
     await db.execute(
-      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,view_count,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
       [
         record.id,
         record.title,
@@ -1590,10 +1616,11 @@ export async function addNews(input: NewsInput) {
         record.imageName,
         record.imageOriginalName,
         record.attachmentName,
-        record.attachmentOriginalName,
-        record.publishAt,
-        record.published,
-        record.createdAt,
+      record.attachmentOriginalName,
+      record.publishAt,
+      record.published,
+      record.viewCount,
+      record.createdAt,
       ],
     );
   } catch (error) {
@@ -1777,6 +1804,7 @@ type NewsDbRow = {
   attachment_original_name: string | null;
   publish_at: string | Date;
   published: boolean | number;
+  view_count: number | null;
   created_at: string | Date;
 };
 
@@ -1812,7 +1840,15 @@ function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
     attachmentOriginalName: row.attachment_original_name,
     publishAt: normalizeStoredDate(row.publish_at),
     published: Boolean(row.published),
+    viewCount: Math.max(0, Number(row.view_count ?? 0)),
     createdAt: normalizeStoredDate(row.created_at),
+  };
+}
+
+function normalizeNewsRecord(record: NewsRecord): NewsRecord {
+  return {
+    ...record,
+    viewCount: Math.max(0, Number(record.viewCount ?? 0)),
   };
 }
 
@@ -2029,6 +2065,7 @@ async function ensureNewsTable() {
       attachment_original_name VARCHAR(255) NULL,
       publish_at VARCHAR(40) NOT NULL,
       published BOOLEAN NOT NULL DEFAULT TRUE,
+      view_count INT UNSIGNED NOT NULL DEFAULT 0,
       created_at VARCHAR(40) NOT NULL,
       INDEX idx_news_publish (published, publish_at)
     ) ENGINE=InnoDB
@@ -2036,6 +2073,7 @@ async function ensureNewsTable() {
   for (const column of [
     "ALTER TABLE news_posts ADD COLUMN attachment_name VARCHAR(255) NULL",
     "ALTER TABLE news_posts ADD COLUMN attachment_original_name VARCHAR(255) NULL",
+    "ALTER TABLE news_posts ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0",
   ]) {
     try {
       await db.execute(column);

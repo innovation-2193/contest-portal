@@ -193,10 +193,12 @@ async function ensureNewsPostsTable() {
       attachment_original_name VARCHAR(255) NULL,
       publish_at VARCHAR(40) NOT NULL,
       published BOOLEAN NOT NULL DEFAULT TRUE,
+      view_count INT UNSIGNED NOT NULL DEFAULT 0,
       created_at VARCHAR(40) NOT NULL,
       INDEX idx_news_publish (published, publish_at)
     ) ENGINE=InnoDB
   `);
+  await ensureColumn("news_posts", "view_count", "ALTER TABLE news_posts ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER published");
 }
 
 export async function ensureAppAuditEventsTable() {

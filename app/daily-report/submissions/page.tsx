@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, FileText, Search, X } from "lucide-react";
 import { listSubmissions, type SubmissionListItem } from "../../../lib/admin-store";
+import { formatApplicantName } from "../../../lib/thai-rank-title";
 
 export const dynamic = "force-dynamic";
 
@@ -85,8 +86,8 @@ function SubmissionReportCard({ item }: { item: SubmissionListItem }) {
       <b>{item.title_th}</b>
       <small>{item.submission_code} • {formatReportDate(item.submitted_at)}</small>
     </div>
-    <span>{item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว"}</span>
-    <p>{item.first_name} {item.last_name}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
+    <span>{item.submission_type === "team" ? `ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว"}</span>
+    <p>ส่งผลงานโดย: {formatApplicantName(item)}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
     <em>{statusLabel(item.status)}</em>
   </article>;
 }

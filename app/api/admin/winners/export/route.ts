@@ -33,7 +33,6 @@ type WinnerSummaryRow = {
   projectTitle: string;
   ownerName: string;
   score: string;
-  hashtags: string[];
 };
 
 export async function GET(request: Request) {
@@ -102,7 +101,7 @@ function drawSummaryNote(doc: PDFKit.PDFDocument, count: number) {
     lineBreak: false,
   });
   doc.font(fonts.regular).fontSize(8.8).fillColor(PDF_THEME.text).text(
-    `รายงานนี้แสดงรายชื่อผลงานที่ประกาศผลเป็น 10 ทีมรอบสุดท้าย จำนวน ${count} รายการ พร้อมคะแนนรวมจากระบบและ Hashtag เพื่อใช้สรุปภาพรวมการคัดเลือกเข้าสู่การแข่งขันรอบที่ 2`,
+    `รายงานนี้แสดงรายชื่อผลงานที่ประกาศผลเป็น 10 ทีมรอบสุดท้าย จำนวน ${count} รายการ พร้อมคะแนนรวมจากระบบ เพื่อใช้สรุปภาพรวมการคัดเลือกเข้าสู่การแข่งขันรอบที่ 2`,
     x + 16,
     y + 23,
     { width: width - 32, lineBreak: false },
@@ -115,7 +114,6 @@ function drawWinnerTable(doc: PDFKit.PDFDocument, rows: WinnerSummaryRow[]) {
     ["ชื่อโครงการ", 300],
     ["ผู้รับผิดชอบหลัก", 170],
     ["คะแนนรวม", 82],
-    ["Hashtag", 187],
   ] as const;
   const x = marginX;
   let y = 174;
@@ -169,16 +167,14 @@ function drawWinnerRow(
     row.projectTitle,
     row.ownerName,
     row.score,
-    row.hashtags.map((tag) => `#${tag}`).join("  "),
   ];
   let cursor = x;
   values.forEach((value, valueIndex) => {
     const [, width] = columns[valueIndex];
     const isNo = valueIndex === 0;
     const isScore = valueIndex === 3;
-    const isTag = valueIndex === 4;
-    const font = isNo || isScore || isTag ? fonts.bold : fonts.regular;
-    const color = isNo || isScore ? PDF_THEME.navy : isTag ? PDF_THEME.green : PDF_THEME.text;
+    const font = isNo || isScore ? fonts.bold : fonts.regular;
+    const color = isNo || isScore ? PDF_THEME.navy : PDF_THEME.text;
     doc.font(font).fontSize(isScore ? 10 : 7.8).fillColor(color).text(clean(value), cursor + 8, y + 7, {
       width: width - 16,
       align: isScore ? "right" : "left",
@@ -230,7 +226,6 @@ function buildWinnerSummaryRows(winners: WinnerRecord[], submissions: Submission
       score: submission?.review_total_score !== null && submission?.review_total_score !== undefined
         ? `${submission.review_total_score}/100`
         : "-",
-      hashtags: submission?.hashtags?.length ? submission.hashtags.slice(0, 3) : ["นวัตกรรมตำรวจ", "รอบสุดท้าย", "พร้อมนำเสนอ"],
     }));
 }
 

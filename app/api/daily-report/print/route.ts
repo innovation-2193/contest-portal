@@ -412,7 +412,7 @@ function drawAllSubmissionsTable(
     const values = [
       item.submission_code,
       item.title_th,
-      item.submission_type === "team" ? `ทีม ${item.team_name || "-"}` : "ส่งเดี่ยว",
+      item.submission_type === "team" ? `ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว",
       formatApplicantName(item),
       compactOrg(item),
       statusLabel(item.status),

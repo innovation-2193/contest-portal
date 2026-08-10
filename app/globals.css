@@ -2678,6 +2678,29 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   backdrop-filter: blur(8px);
 }
 
+.public-news-views {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 237, 171, 0.48);
+  border-radius: 999px;
+  background: rgba(5, 16, 37, 0.84);
+  color: #ffe797;
+  font-size: 12px;
+  font-weight: 900;
+  backdrop-filter: blur(8px);
+}
+
+.public-news-views svg {
+  width: 15px;
+  height: 15px;
+}
+
 .public-news-copy {
   display: grid;
   grid-template-rows: auto auto minmax(3em, auto) auto;
@@ -2691,6 +2714,10 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid rgba(223, 186, 51, 0.3);
+  border-radius: 999px;
+  background: rgba(223, 186, 51, 0.08);
   width: fit-content;
   color: var(--gold);
   font-size: 12px;
@@ -2940,11 +2967,42 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   padding: 38px 0 46px;
 }
 
+.news-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-bottom: 18px;
+}
+
+.news-post-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.news-post-category::before {
+  content: "";
+  width: 28px;
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--gold), rgba(223, 186, 51, 0.22));
+}
+
 .news-post-date {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-top: 12px;
+  margin: 0;
+  padding: 8px 13px;
+  border: 1px solid rgba(112, 143, 187, 0.42);
+  border-radius: 999px;
+  background: rgba(8, 26, 57, 0.72);
   color: #aebbd0;
   font-size: 14px;
   font-weight: 800;
@@ -2954,6 +3012,24 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   width: 17px;
   height: 17px;
   color: var(--gold);
+}
+
+.news-post-views {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid rgba(64, 208, 255, 0.38);
+  border-radius: 999px;
+  background: rgba(16, 91, 133, 0.18);
+  color: #a8e8ff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.news-post-views svg {
+  width: 16px;
+  height: 16px;
 }
 
 .news-post-content h1 {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import { ChevronDown, Download, Eye, FileText, Hash, MessageSquareText, Trophy } from "lucide-react";
+import { ChevronDown, Download, Eye, FileText, MessageSquareText, Trophy } from "lucide-react";
 import type { SubmissionListItem } from "../lib/admin-store";
 import { formatProgressDate, percent, progressScoreCriteria } from "../lib/progress-review";
 
@@ -52,7 +52,6 @@ export function ProgressScoreboardList({ submissions, isSearching = false }: { s
         <div>
           <strong>{submission.title_th}</strong>
           <small>{submission.submission_code} • {ownerName(submission)} • ผู้ตรวจเอกสาร {reviewerName(submission)}</small>
-          <HashtagPills tags={submission.hashtags}/>
         </div>
         <span>{reviewed ? `${submission.review_total_score ?? "-"}/100` : "รอตรวจ"}</span>
         <i><ChevronDown/>{reviewed ? "รายละเอียดคะแนน" : "ยังไม่ได้ตรวจ"}</i>
@@ -95,11 +94,6 @@ export function ProgressScoreboardList({ submissions, isSearching = false }: { s
     </details>;
     }) : <div className="participant-empty">{isSearching ? "ไม่พบโครงการหรือผู้สมัครตามคำค้น" : "ยังไม่มีคะแนนที่ส่งเข้ามา"}</div>}
   </div>;
-}
-
-function HashtagPills({ tags }: { tags: string[] }) {
-  if (!tags.length) return null;
-  return <span className="admin-hashtag-list" aria-label="Hashtags"><Hash aria-hidden="true"/>{tags.map((tag) => <em key={tag}>#{tag}</em>)}</span>;
 }
 
 function ownerName(submission: SubmissionListItem) {

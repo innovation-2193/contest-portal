@@ -199,7 +199,6 @@ async function submissionDetailPdf(submission: AdminSubmissionDetail, options: S
     ["สถานะ", submission.status],
     ["บัญชีอีเมล", submission.email],
     ["Link Video", submission.video_url || "-"],
-    ["Hashtag", submission.hashtags.map((tag) => `#${tag}`).join(" ") || "-"],
     ...(options.reviewerLabel ? [["แอดมินผู้ตรวจเอกสาร", options.reviewerLabel] as [string, string]] : []),
     ["คำอธิบายย่อ", submission.summary],
   ];

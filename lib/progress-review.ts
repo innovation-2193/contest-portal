@@ -92,7 +92,6 @@ export function submissionMatchesProgressSearch(item: SubmissionListItem, query:
     item.bureau,
     item.review_assigned_admin_email,
     item.review_scored_by_email,
-    ...item.hashtags,
   ].filter(Boolean).join(" "));
   return terms.every((term) => haystack.includes(term));
 }

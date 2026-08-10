@@ -161,7 +161,6 @@ function publicSubmissionMatchesSearch(item: SubmissionListItem, query: string) 
     item.division,
     item.bureau,
     workCategoryLabel(item.work_category),
-    ...item.hashtags,
   ].filter(Boolean).join(" "));
   return terms.every((term) => haystack.includes(term));
 }

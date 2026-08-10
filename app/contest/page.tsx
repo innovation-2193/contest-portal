@@ -3,8 +3,9 @@ import { Download, FileText, Search } from "lucide-react";
 import { ContestDocumentReplaceControl } from "../../components/ContestDocumentReplaceControl";
 import { ContestVideoButton } from "../../components/ContestVideoButton";
 import { cookieName, getAdminSession } from "../../lib/admin-auth";
-import { listSubmissions, type SubmissionListItem } from "../../lib/admin-store";
+import { listSubmissionApplicantsForExport, listSubmissions, type SubmissionApplicantExportRow, type SubmissionListItem } from "../../lib/admin-store";
 import { listAdminAccounts } from "../../lib/admin-users";
+import { formatApplicantName } from "../../lib/thai-rank-title";
 import { checkVideoLink } from "../../lib/video-link-status";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ export const revalidate = 0;
 type ContestRow = {
   hasUsableVideoLink: boolean;
   reviewerName: string;
+  submitterName: string;
+  teamMemberNames: string[];
   submission: SubmissionListItem;
 };
 
@@ -26,21 +29,28 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
   const q = (params.q ?? "").replace(/\s+/g, " ").trim();
   const reviewer = (params.reviewer ?? "").trim().toLowerCase();
   const videoStatus = normalizeVideoStatus(params.video);
-  const [submissions, admins] = await Promise.all([
+  const [submissions, admins, applicantRows] = await Promise.all([
     listSubmissions(),
     listAdminAccounts(),
+    listSubmissionApplicantsForExport(),
   ]);
+  const memberNamesBySubmission = buildMemberNamesBySubmission(applicantRows);
   const reviewerContacts = new Map(admins.map((admin) => [
     admin.email.toLowerCase(),
     { name: admin.name || admin.email, phone: admin.phone },
   ]));
   const reviewerOptions = buildReviewerOptions(submissions, reviewerContacts);
   const prefilteredSubmissions = filterByReviewer(filterByInnovationName(submissions, q), reviewer);
-  const rows = await Promise.all(prefilteredSubmissions.map(async (submission) => ({
-    hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
-    reviewerName: reviewerName(submission, reviewerContacts),
-    submission,
-  } satisfies ContestRow)))
+  const rows = await Promise.all(prefilteredSubmissions.map(async (submission) => {
+    const memberNames = memberNamesBySubmission.get(submission.submission_code) ?? [formatApplicantName(submission)];
+    return {
+      hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
+      reviewerName: reviewerName(submission, reviewerContacts),
+      submitterName: memberNames[0] || "-",
+      teamMemberNames: memberNames.slice(1),
+      submission,
+    } satisfies ContestRow;
+  }))
     .then((items) => filterByVideoStatus(items, videoStatus))
     .then((items) => items.sort((left, right) => compareSubmittedAt(left.submission, right.submission)));
 
@@ -102,6 +112,9 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                   <div className="contest-title-cell">
                     <b>{row.submission.title_th}</b>
                     {row.submission.title_en?.trim() && <small>{row.submission.title_en.trim()}</small>}
+                    {row.submission.submission_type === "team" && <small>ชื่อทีม: {row.submission.team_name?.trim() || "ไม่ระบุชื่อทีม"}</small>}
+                    <small>ส่งผลงานโดย: {row.submitterName}</small>
+                    {row.submission.submission_type === "team" && row.teamMemberNames.length > 0 && <small>สมาชิกทีม: {row.teamMemberNames.join(" • ")}</small>}
                     <em>ผู้ตรวจเอกสารเบื้องต้น: {row.reviewerName}</em>
                   </div>
                 </td>
@@ -175,4 +188,17 @@ function buildReviewerOptions(submissions: SubmissionListItem[], reviewerContact
   return [...emails]
     .map((email) => ({ value: email, label: reviewerContacts.get(email)?.name || email }))
     .sort((left, right) => left.label.localeCompare(right.label, "th"));
+}
+
+function buildMemberNamesBySubmission(rows: SubmissionApplicantExportRow[]) {
+  const names = new Map<string, string[]>();
+  for (const row of rows) {
+    const name = formatApplicantName(row);
+    if (!name || name === "-") continue;
+    const current = names.get(row.submission_code) ?? [];
+    current[row.member_order - 1] = name;
+    names.set(row.submission_code, current);
+  }
+  for (const [code, members] of names) names.set(code, members.filter(Boolean));
+  return names;
 }

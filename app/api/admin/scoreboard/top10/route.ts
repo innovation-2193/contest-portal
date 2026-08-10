@@ -286,7 +286,6 @@ function submissionInfoRows(submission: AdminSubmissionDetail): Array<[string, s
     ["ผู้ส่งหลัก", ownerName(submission)],
     ["หน่วยงานหลัก", [submission.division, submission.bureau].filter(Boolean).join(" / ") || "-"],
     ["Link Video", submission.video_url || "-"],
-    ["Hashtag", submission.hashtags.map((tag) => `#${tag}`).join(" ") || "-"],
     ["คำอธิบายย่อ", submission.summary],
   ];
 }

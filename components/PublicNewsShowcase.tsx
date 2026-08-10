@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Newspaper } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Eye, Newspaper } from "lucide-react";
 import { parseThaiDate } from "../lib/thai-time";
 
 export type PublicNewsItem = {
@@ -14,6 +14,7 @@ export type PublicNewsItem = {
   attachmentName?: string | null;
   attachmentOriginalName?: string | null;
   publishAt: string;
+  viewCount: number;
 };
 
 export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
@@ -73,6 +74,7 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
                   <Newspaper aria-hidden="true" />
                 )}
                 {index === 0 && <span className="public-news-featured">ข่าวล่าสุด</span>}
+                <span className="public-news-views"><Eye />ยอดผู้ชม {formatViewCount(item.viewCount)} คน</span>
               </div>
               <div className="public-news-copy">
                 <span className="public-news-date"><CalendarDays />{formatThaiDate(item.publishAt)}</span>
@@ -104,6 +106,10 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
 
     </section>
   );
+}
+
+function formatViewCount(value: number) {
+  return Math.max(0, Number(value ?? 0)).toLocaleString("th-TH");
 }
 
 function formatThaiDate(value: string) {
