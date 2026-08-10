@@ -2600,7 +2600,7 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 }
 
 .public-news-track.public-news-count-1 {
-  grid-auto-columns: minmax(320px, min(560px, 100%));
+  grid-auto-columns: minmax(320px, 100%);
 }
 
 .public-news-track.public-news-count-2 {
@@ -2641,6 +2641,7 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 .public-news-media {
   position: relative;
   display: grid;
+  width: 100%;
   min-height: 0;
   aspect-ratio: 16 / 9;
   max-height: 260px;
@@ -15821,7 +15822,7 @@ body:has(.report-page) .brand b {
     grid-auto-columns: minmax(300px, calc((100% - 16px) / 2));
   }
   .public-news-track.public-news-count-1 {
-    grid-auto-columns: minmax(300px, min(520px, 100%));
+    grid-auto-columns: minmax(300px, 100%);
   }
   .public-news-track.public-news-count-2 {
     grid-auto-columns: minmax(300px, calc((100% - 16px) / 2));
