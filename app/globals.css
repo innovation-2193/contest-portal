@@ -5030,6 +5030,33 @@ body:has(.prelander-page)::before {
   font-size: 16px;
 }
 
+.admin-walkin-cta {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(83, 194, 255, 0.72);
+  background:
+    radial-gradient(circle at left center, rgba(83, 194, 255, 0.2), transparent 38%),
+    linear-gradient(135deg, rgba(5, 42, 72, 0.84), rgba(2, 11, 27, 0.94));
+  box-shadow: 0 18px 46px rgba(52, 176, 242, 0.1);
+}
+
+.admin-walkin-cta > div > svg {
+  color: #71d7ff;
+  filter: drop-shadow(0 0 12px rgba(113, 215, 255, 0.36));
+}
+
+.admin-walkin-cta .eyebrow {
+  color: #71d7ff;
+}
+
+.admin-walkin-cta .primary {
+  position: relative;
+  z-index: 1;
+  border-color: #b8edff;
+  background: #20a9e8;
+  box-shadow: 0 14px 34px rgba(32, 169, 232, 0.25);
+}
+
 .admin-report-cta {
   grid-template-columns: minmax(0, 1fr) minmax(320px, auto);
 }

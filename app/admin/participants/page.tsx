@@ -7,7 +7,7 @@ import { AdminNotice } from "../../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { createParticipant, deleteParticipants, findExistingUserEmails, listParticipants } from "../../../lib/admin-store";
+import { checkInParticipant, createParticipant, deleteParticipants, findExistingUserEmails, listParticipants } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { participantRoles, type ParticipantRole, type RegistrationRecord } from "../../../lib/local-registrations";
@@ -59,7 +59,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
       <section className="admin-panel">
         <header className="admin-section-head"><Users/><div><h2>รายการผู้เข้าร่วมงาน</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <details className="admin-edit-disclosure participant-create-disclosure">
-          <summary><UserPlus/>ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน</summary>
+          <summary><UserPlus/>{session.role === "uci" ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (เช็คอินอัตโนมัติ)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</summary>
           <form action={createParticipantAction} className="admin-form admin-participant-detail-form participant-create-form">
             <div className="form-grid compact-grid">
               <label>คำนำหน้า<input name="title" required placeholder="เช่น นาย / พ.ต.อ."/></label>
@@ -73,12 +73,12 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
               <label>สังกัด / กองบังคับการ<input name="division" placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
               <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ<input name="bureau" placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required/></label>
             </div>
-            <button className="primary" type="submit"><UserPlus/>บันทึกผู้เข้าร่วมงาน</button>
+            <button className="primary" type="submit"><UserPlus/>{session.role === "uci" ? "ลงทะเบียนและเช็คอินทันที" : "บันทึกผู้เข้าร่วมงาน"}</button>
           </form>
           <form action={bulkCreateParticipantsAction} className="admin-form participant-bulk-form">
             <div>
               <b><FileSpreadsheet/>Bulk Import Excel</b>
-              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมล และชื่อ+นามสกุลห้ามซ้ำกับข้อมูลในระบบ</small>
+              <small>ใช้ไฟล์ .xlsx หรือ .csv คอลัมน์ คำนำหน้า, ชื่อ, นามสกุล, Role ผู้เข้าร่วม, ตำแหน่ง, สังกัด / กองบังคับการ, กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ, อีเมล, เบอร์โทร ทุกช่องไม่บังคับ แต่อีเมล และชื่อ+นามสกุลห้ามซ้ำกับข้อมูลในระบบ{session.role === "uci" ? " และรายชื่อที่นำเข้าจะเช็คอินอัตโนมัติ" : ""}</small>
             </div>
             <label>ไฟล์รายชื่อ<input type="file" name="file" accept=".xlsx,.csv"/></label>
             <div className="participant-bulk-actions">
@@ -171,6 +171,12 @@ async function bulkCreateParticipantsAction(formData: FormData) {
     createdCodes.push(result.record.registration_code);
   }
 
+  if (session.role === "uci") {
+    for (const registrationCode of createdCodes) {
+      await recordUciAutoCheckIn(registrationCode, session, requestHeaders);
+    }
+  }
+
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "registration.bulk_import.by_admin",
@@ -180,7 +186,7 @@ async function bulkCreateParticipantsAction(formData: FormData) {
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
-  redirect(adminNoticePath("/admin/participants", "participants_imported"));
+  redirect(adminNoticePath("/admin/participants", session.role === "uci" ? "participants_imported_checked_in" : "participants_imported"));
 }
 
 async function createParticipantAction(formData: FormData) {
@@ -208,17 +214,41 @@ async function createParticipantAction(formData: FormData) {
     division: text(formData, "division"),
     bureau: text(formData, "bureau"),
   });
+  const autoCheckedIn = session.role === "uci"
+    ? Boolean(await recordUciAutoCheckIn(result.record.registration_code, session, requestHeaders))
+    : false;
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "registration.created.by_admin",
     entityType: "registration",
     entityId: result.record.registration_code,
     summary: `แอดมินลงทะเบียนผู้เข้าร่วมงาน ${result.record.registration_code}`,
-    payload: { registrationCode: result.record.registration_code, emailStatus: result.emailStatus },
+    payload: { registrationCode: result.record.registration_code, emailStatus: result.emailStatus, autoCheckedIn },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
-  redirect(adminNoticePath(`/admin/participants/${encodeURIComponent(result.record.registration_code)}`, "participant_created"));
+  redirect(adminNoticePath(`/admin/participants/${encodeURIComponent(result.record.registration_code)}`, autoCheckedIn ? "participant_created_checked_in" : "participant_created"));
+}
+
+async function recordUciAutoCheckIn(registrationCode: string, session: NonNullable<ReturnType<typeof getAdminSession>>, requestHeaders: Headers) {
+  if (session.role !== "uci") return null;
+  const checkedIn = await checkInParticipant(registrationCode, session.email);
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.checked_in",
+    entityType: "registration",
+    entityId: registrationCode,
+    summary: `เช็คอินอัตโนมัติหลังลงทะเบียนผู้เข้าร่วมงาน ${registrationCode}`,
+    payload: {
+      registrationCode,
+      checkedInByEmail: checkedIn.checked_in_by_email ?? session.email,
+      checkedInAt: checkedIn.checked_in_at,
+      wasAlreadyCheckedIn: Boolean(checkedIn.wasAlreadyCheckedIn),
+      teamSubmissionCode: checkedIn.teamSubmissionCode,
+      teamCheckInCount: checkedIn.teamCheckIns?.length ?? 0,
+    },
+  }, requestHeaders);
+  return checkedIn;
 }
 
 async function deleteParticipantsAction(formData: FormData) {

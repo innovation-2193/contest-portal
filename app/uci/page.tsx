@@ -77,6 +77,11 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/admin/scan"><QrCode/>เปิดหน้าเช็คอิน</Link>
     </section>
 
+    <section className="admin-panel admin-checkin-cta admin-walkin-cta">
+      <div className="admin-checkin-copy"><UserPlus/><div><span className="eyebrow">Walk-in Registration</span><h2>ลงทะเบียน Walk-in หน้างาน</h2><p>กรอกข้อมูลผู้เข้าร่วมที่มาหน้างาน แล้วระบบจะเช็คอินให้อัตโนมัติทันที</p></div></div>
+      <Link className="primary" href="/admin/participants"><UserPlus/>เปิด Walk-in</Link>
+    </section>
+
     {(session.role === "uci" || session.role === "super_admin") && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Live Lucky Draw</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการเหมือน Super Admin</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
@@ -85,7 +90,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     <UciVideoCarousel videos={videos.map((video) => ({ ...video, thumbnailUrl: video.thumbnailName ? `/api/uci-video-images/${encodeURIComponent(video.thumbnailName)}` : youtubeThumbnailUrl(video.url), sourceLabel: uciVideoPlatform(video.url) ?? "วิดีโอ" }))}/>
 
     <section className="admin-panel"><header className="admin-section-head"><Users/><div><h2>งานที่ UCI ดูแล</h2><p>เปิดเครื่องมือที่ใช้ในวันงานได้ทันที</p></div></header><div className="admin-detail-actions uci-action-grid">
-      <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนและจัดการผู้เข้าร่วม</Link>
+      <Link className="primary" href="/admin/participants"><UserPlus/>ลงทะเบียนหน้างานและเช็คอิน</Link>
       <Link className="secondary" href="/admin/evaluations"><ClipboardList/>ดูแบบสอบถามและผล Lucky Draw</Link>
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
       <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>

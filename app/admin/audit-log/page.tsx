@@ -114,7 +114,7 @@ export default async function AuditLogPage({ searchParams }: { searchParams: Pro
           <p>แสดงเฉพาะรายการที่เกี่ยวข้องกับการสร้าง แก้ไข ลบ หรือเปลี่ยนสถานะข้อมูลในระบบ ย้อนหลังได้ไม่เกิน 90 วัน</p>
           <small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small>
         </div>
-        <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+        <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
       </div>
 
       <section className="admin-panel">

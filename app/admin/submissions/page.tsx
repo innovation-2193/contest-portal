@@ -76,7 +76,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           {isSuperAdmin && <Link className="secondary" href="#committee-score-form2"><FileText/>แบบฟอร์มให้คะแนนกรรมการ 2</Link>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-packets"><FileText/>ZIP PDF ทุกโครงการ</a>}
           {isSuperAdmin && <Link className="secondary" href="/progress2"><Eye/>สถานะตรวจ</Link>}
-          <Link className="secondary" href="/admin"><ArrowLeft/>กลับหลังบ้าน</Link>
+          <Link className="secondary" href={session.role === "uci" ? "/uci" : "/admin"}><ArrowLeft/>{session.role === "uci" ? "ย้อนกลับ" : "กลับหลังบ้าน"}</Link>
         </div>
       </div>
       <AdminNotice code={params.notice}/>
