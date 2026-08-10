@@ -114,6 +114,7 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                     {row.submission.title_en?.trim() && <small>{row.submission.title_en.trim()}</small>}
                     {row.submission.submission_type === "team" && <small>ชื่อทีม: {row.submission.team_name?.trim() || "ไม่ระบุชื่อทีม"}</small>}
                     <small>ส่งผลงานโดย: {row.submitterName}</small>
+                    <small>หน่วยงาน: {[row.submission.division, row.submission.bureau].filter((value) => value?.trim()).join(" / ") || "ไม่ระบุหน่วยงาน"}</small>
                     {row.submission.submission_type === "team" && row.teamMemberNames.length > 0 && <small>สมาชิกทีม: {row.teamMemberNames.join(" • ")}</small>}
                     <em>ผู้ตรวจเอกสารเบื้องต้น: {row.reviewerName}</em>
                   </div>
