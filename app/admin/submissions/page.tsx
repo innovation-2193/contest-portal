@@ -6,6 +6,7 @@ import { Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, 
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { CommitteeScoreImportPanel } from "../../../components/CommitteeScoreImportPanel";
+import { PresentationScorePanel } from "../../../components/PresentationScorePanel";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { listAdminAccounts } from "../../../lib/admin-users";
 import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
@@ -73,7 +74,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           {isSuperAdmin && <a className="primary" href="/api/admin/submissions/export"><FileText/>Export PDF รายชื่อผู้สมัคร</a>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/export/xlsx"><FileSpreadsheet/>Export Excel รายชื่อผู้สมัคร</a>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-score-form" target="_blank" rel="noreferrer"><FileText/>แบบฟอร์มให้คะแนนกรรมการ</a>}
-          {isSuperAdmin && <Link className="secondary" href="#committee-score-form2"><FileText/>แบบฟอร์มให้คะแนนกรรมการ 2</Link>}
+          {isSuperAdmin && <Link className="secondary" href="#presentation-score-form2"><FileText/>แบบฟอร์มให้คะแนนรอบที่ 2</Link>}
           {isSuperAdmin && <a className="secondary" href="/api/admin/submissions/review-packets"><FileText/>ZIP PDF ทุกโครงการ</a>}
           {isSuperAdmin && <Link className="secondary" href="/progress2"><Eye/>สถานะตรวจ</Link>}
           <BackButton />
@@ -82,6 +83,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       <AdminNotice code={params.notice}/>
       {isSuperAdmin && <CommitteeScoreForm2Panel totalSubmissions={submissions.length}/>}
       {isSuperAdmin && <CommitteeScoreImportPanel/>}
+      {isSuperAdmin && <PresentationScorePanel/>}
       <section className="admin-panel">
         <header className="admin-section-head"><Settings/><div><h2>รายการใบสมัครประกวด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
         <form className="audit-filter-form" method="get">
@@ -130,7 +132,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
 
 function CommitteeScoreForm2Panel({ totalSubmissions }: { totalSubmissions: number }) {
   return <section className="admin-panel" id="committee-score-form2">
-    <header className="admin-section-head"><FileText/><div><h2>แบบฟอร์มให้คะแนนกรรมการ 2</h2><p>กรอกข้อมูลผู้พิจารณาและช่วงลำดับนวัตกรรมก่อน export</p></div></header>
+    <header className="admin-section-head"><FileText/><div><h2>แบบฟอร์ม PDF รอบที่ 1 แบบกำหนดช่วงรายการ</h2><p>กรอกข้อมูลผู้พิจารณาและช่วงลำดับนวัตกรรมของ Paper Screening ก่อน export</p></div></header>
     <form className="audit-filter-form committee-score-form2-filter" method="get" action="/api/admin/submissions/review-score-form" target="_blank">
       <input type="hidden" name="custom" value="1"/>
       <label>ชื่อผู้พิจารณา / ผู้แทน<input name="reviewerName" defaultValue="" autoComplete="off" placeholder="คำนำหน้า ชื่อ นามสกุล" required /></label>

@@ -20803,6 +20803,66 @@ footer {
   overflow: hidden;
 }
 
+.committee-score-panel-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.committee-score-panel-subhead h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+}
+
+.committee-score-panel-subhead h3 svg {
+  width: 19px;
+  height: 19px;
+  color: var(--gold);
+}
+
+.committee-score-panel-subhead p {
+  margin: 5px 0 0;
+  color: #9fb1ca;
+  font-size: 13px;
+}
+
+.committee-judge-grid fieldset legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.committee-judge-grid fieldset legend .ghost-action {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.committee-judge-grid fieldset legend .ghost-action svg {
+  width: 13px;
+  height: 13px;
+}
+
+.presentation-score-table th,
+.presentation-score-table td {
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .committee-score-panel-subhead {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .committee-score-import-panel > *,
 .committee-judge-form,
 .committee-judge-grid,

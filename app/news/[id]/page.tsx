@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Download, Eye, Newspaper } from "lucide-react";
-import { incrementNewsViewCount, listNews } from "../../../lib/admin-store";
+import { ArrowLeft, CalendarDays, Download, Newspaper } from "lucide-react";
+import { listNews } from "../../../lib/admin-store";
+import { NewsViewCount } from "../../../components/NewsViewCount";
 import { parseThaiDate } from "../../../lib/thai-time";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,6 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
   const { id } = await params;
   const item = await findPublicNews(id);
   if (!item) notFound();
-  const viewCount = await incrementNewsViewCount(item.id);
 
   return <div className="news-post-page">
     <div className="wide">
@@ -47,7 +47,7 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
       <article className="news-post-card">
         {item.imageName ? <div className="news-post-media"><img className="news-post-image" src={"/api/news-images/" + encodeURIComponent(item.imageName)} alt={item.title}/></div> : <div className="news-post-placeholder"><Newspaper/></div>}
         <div className="news-post-content">
-          <div className="news-post-meta"><span className="news-post-category">News &amp; Updates</span><span className="news-post-date"><CalendarDays/><span>{formatThaiDate(item.publishAt)}</span></span><span className="news-post-views"><Eye/><span>ยอดผู้ชม {formatViewCount(viewCount)} คน</span></span></div>
+          <div className="news-post-meta"><span className="news-post-category">News &amp; Updates</span><span className="news-post-date"><CalendarDays/><span>{formatThaiDate(item.publishAt)}</span></span><NewsViewCount newsId={item.id} initialCount={item.viewCount}/></div>
           <h1>{item.title}</h1>
           <p className="news-post-excerpt">{item.excerpt}</p>
           <div className="news-post-body">{item.body}</div>
@@ -56,10 +56,6 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
       </article>
     </div>
   </div>;
-}
-
-function formatViewCount(value: number) {
-  return Math.max(0, Number(value ?? 0)).toLocaleString("th-TH");
 }
 
 function formatThaiDate(value: string) {

@@ -39,6 +39,12 @@ async function runSchemaRepair() {
     console.warn("committee score schema repair skipped", error);
   }
   try {
+    await ensurePresentationScoresTable();
+    await ensurePresentationJudgeProfilesTable();
+  } catch (error) {
+    console.warn("presentation score schema repair skipped", error);
+  }
+  try {
     await ensureCommitteeJudgeProfilesTable();
   } catch (error) {
     console.warn("committee judge profile schema repair skipped", error);
@@ -303,6 +309,44 @@ async function ensureCommitteeScoreReportVersionsTable() {
       rows_json LONGTEXT NOT NULL,
       UNIQUE KEY uq_committee_score_report_version (version_no),
       INDEX idx_committee_score_report_created (created_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensurePresentationScoresTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS presentation_scores (
+      id CHAR(36) PRIMARY KEY,
+      submission_code VARCHAR(32) NOT NULL,
+      submission_title VARCHAR(255) NOT NULL,
+      submission_order INT UNSIGNED NOT NULL DEFAULT 1,
+      judge_key VARCHAR(64) NOT NULL,
+      judge_name VARCHAR(255) NOT NULL,
+      item_scores JSON NULL,
+      calculated_total DECIMAL(5,2) UNSIGNED NOT NULL DEFAULT 0,
+      note VARCHAR(1000) NULL,
+      submitted_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL,
+      UNIQUE KEY uq_presentation_scores_submission_judge (submission_code, judge_key),
+      INDEX idx_presentation_scores_submission_order (submission_order),
+      INDEX idx_presentation_scores_updated_at (updated_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensurePresentationJudgeProfilesTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS presentation_judge_profiles (
+      judge_key VARCHAR(64) PRIMARY KEY,
+      prefix VARCHAR(120) NOT NULL DEFAULT '',
+      first_name VARCHAR(255) NOT NULL DEFAULT '',
+      last_name VARCHAR(255) NOT NULL DEFAULT '',
+      position VARCHAR(1000) NOT NULL DEFAULT '',
+      role VARCHAR(255) NOT NULL DEFAULT 'กรรมการ',
+      sort_order INT UNSIGNED NOT NULL DEFAULT 1,
+      updated_by_email VARCHAR(255) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL
     ) ENGINE=InnoDB
   `);
 }
