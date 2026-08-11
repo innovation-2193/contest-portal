@@ -43,6 +43,5 @@ export function formatPresentationJudge(profile: PresentationJudgeProfile) {
 }
 
 export function presentationJudgeLabel(profile: PresentationJudgeProfile) {
-  return `${formatPresentationJudge(profile)} • ${profile.role} • ${profile.position}`;
+  return `${formatPresentationJudge(profile)} • ${profile.position} • ${profile.role}`;
 }
-

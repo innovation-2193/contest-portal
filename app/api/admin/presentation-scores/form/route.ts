@@ -178,8 +178,8 @@ function drawPresentationScoreTable(doc: PDFKit.PDFDocument, x: number, y: numbe
     doc.rect(x, cursorY, tableWidth, rowHeight).fillAndStroke(PRINT.white, PRINT.lineLight);
     drawTableColumns(doc, x, cursorY, rowHeight, false);
     doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text(String(index + 1), x + 6, cursorY + 18, { width: columns[0][1] - 12, align: "center", lineBreak: false });
-    doc.font(fonts.regular).fontSize(15.5).fillColor(PRINT.text).text(criterion.label, x + columns[0][1] + 8, cursorY + 13, { width: columns[1][1] - 14, height: 20, ellipsis: true, lineBreak: false });
-    doc.font(fonts.bold).fontSize(15.5).fillColor(PRINT.text).text(String(criterion.max), x + columns[0][1] + columns[1][1] + 5, cursorY + 13, { width: columns[2][1] - 10, align: "center", lineBreak: false });
+    doc.font(fonts.regular).fontSize(14).fillColor(PRINT.text).text(criterion.label, x + columns[0][1] + 8, cursorY + 13, { width: columns[1][1] - 14, height: 20, ellipsis: true, lineBreak: false });
+    doc.font(fonts.bold).fontSize(14).fillColor(PRINT.text).text(String(criterion.max), x + columns[0][1] + columns[1][1] + 5, cursorY + 13, { width: columns[2][1] - 10, align: "center", lineBreak: false });
     doc.rect(x + columns[0][1] + columns[1][1] + columns[2][1] + 13, cursorY + 9, columns[3][1] - 26, 30).fillAndStroke(PRINT.white, PRINT.line);
     cursorY += rowHeight;
   });
@@ -236,7 +236,7 @@ function drawNotesAndSignature(doc: PDFKit.PDFDocument, judge: PresentationJudge
   doc.moveTo(signatureX + 15, y + 44).lineTo(signatureX + signatureWidth - 15, y + 44).lineWidth(0.5).stroke(PRINT.line);
   if (judge) {
     doc.font(fonts.bold).fontSize(7.5).fillColor(PRINT.black).text(formatPresentationJudge(judge), signatureX + 8, y + 55, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
-    doc.font(fonts.regular).fontSize(6.2).fillColor(PRINT.text).text(`${judge.role} / ${judge.position}`, signatureX + 8, y + 68, { width: signatureWidth - 16, height: 18, align: "center", ellipsis: true, lineGap: 0 });
+    doc.font(fonts.regular).fontSize(6.2).fillColor(PRINT.text).text(`${judge.position} / ${judge.role}`, signatureX + 8, y + 68, { width: signatureWidth - 16, height: 18, align: "center", ellipsis: true, lineGap: 0 });
   } else {
     doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text("คณะกรรมการรอบที่ 2", signatureX + 8, y + 59, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
   }
