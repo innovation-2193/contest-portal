@@ -122,6 +122,28 @@ export function CommitteeScoreImportPanel() {
     }
   }
 
+  async function importConsensusFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setWorking(true);
+    setError("");
+    setMessage("");
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const response = await fetch("/api/admin/committee-scores/consensus-import", { method: "POST", body: formData });
+      const payload = await response.json() as { ok?: boolean; message?: string; errors?: string[] };
+      if (!response.ok || !payload.ok) throw new Error([payload.message, ...(payload.errors?.slice(0, 3) ?? [])].filter(Boolean).join("\n"));
+      setMessage(payload.message || "นำเข้าคะแนนทางเลือกที่ 2 เรียบร้อยแล้ว");
+      await loadData();
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : "นำเข้าคะแนนทางเลือกที่ 2 ไม่สำเร็จ");
+    } finally {
+      setWorking(false);
+    }
+  }
+
   return <section className="admin-panel committee-score-import-panel">
     <header className="admin-section-head"><Trophy/><div><span className="eyebrow">Round 1 Committee Report</span><h2>รายงานจัดอันดับคะแนนคณะกรรมการ รอบที่ 1</h2><p>กำหนดชื่อกรรมการ ดาวน์โหลด Template กรอกคะแนน แล้วอัปโหลดไฟล์เดิมเพื่อสรุปอันดับจากคะแนนเฉลี่ย</p></div></header>
     {(message || error) && <div className={`committee-score-feedback ${error ? "is-error" : "is-success"}`} role="status">{(error || message).split("\n").map((line, index) => <span key={`${line}-${index}`}>{line}</span>)}</div>}
@@ -130,6 +152,9 @@ export function CommitteeScoreImportPanel() {
       <button className="primary" type="submit" disabled={working || loading}><Save/>บันทึกชื่อกรรมการ</button>
     </form>
     <div className="committee-score-actions"><a className="secondary" href="/api/admin/committee-scores/template"><FileSpreadsheet/>ดาวน์โหลด Template Excel</a><label className="secondary committee-upload-button"><Upload/>อัปโหลดไฟล์คะแนน<input type="file" accept=".xlsx,.csv" onChange={importFile} disabled={working}/></label><a className="primary" href="/api/admin/committee-scores/export" target="_blank" rel="noreferrer"><Download/>Export รายงานจัดอันดับ PDF</a></div>
+    <div className="committee-score-actions committee-score-consensus-actions"><a className="secondary" href="/api/admin/committee-scores/consensus-template"><FileSpreadsheet/>Template Excel ทางเลือกที่ 2</a><label className="secondary committee-upload-button"><Upload/>Import คะแนนทางเลือกที่ 2<input type="file" accept=".xlsx,.csv" onChange={importConsensusFile} disabled={working}/></label><a className="primary" href="/api/admin/committee-scores/consensus-export" target="_blank" rel="noreferrer"><Download/>แบบฟอร์มคะแนน PDF ทางเลือกที่ 2</a></div>
+    <div className="committee-score-option-label"><b>ทางเลือกที่ 3 — คะแนนหยาบ 5 ด้าน</b><span>ปริ้นท์แบบฟอร์มให้กรรมการลงนามร่วมกัน แล้ว Import Excel เพื่อออกรายงานจัดอันดับ</span></div>
+    <div className="committee-score-actions committee-score-option3-actions"><a className="secondary" href="/api/admin/committee-scores/consensus-template"><FileSpreadsheet/>Template Excel ทางเลือกที่ 3</a><label className="secondary committee-upload-button"><Upload/>Import คะแนนทางเลือกที่ 3<input type="file" accept=".xlsx,.csv" onChange={importConsensusFile} disabled={working}/></label><a className="secondary" href="/api/admin/committee-scores/coarse-form" target="_blank" rel="noreferrer"><FileText/>แบบฟอร์มกรอกคะแนน PDF</a><a className="primary" href="/api/admin/committee-scores/consensus-report" target="_blank" rel="noreferrer"><Download/>Report PDF เรียงคะแนน</a></div>
     <div className="committee-score-report-versions"><div className="committee-summary-heading"><div><h3><History/>Report PDF ตาม Version</h3><p>แสดง {Math.min(versions.length, 3).toLocaleString("th-TH")} Version ล่าสุด จากทั้งหมด {versionTotal.toLocaleString("th-TH")} Version</p></div><FileText/></div>{versions.length ? <div className="committee-report-version-list">{versions.map((version) => <article key={version.id}><div><b>Version {version.version}</b><span>{formatVersionDate(version.createdAt)} • {version.sourceFileName}</span></div><a className="secondary small-action" href={`/api/admin/committee-scores/export?versionId=${encodeURIComponent(version.id)}`} target="_blank" rel="noreferrer"><Download/>ดาวน์โหลด PDF</a></article>)}</div> : <p className="participant-empty">เมื่อ Import Excel แล้ว ระบบจะบันทึก Report เป็น Version ไว้ตรงนี้</p>}{versionTotal > 3 && !showAllVersions && <button className="ghost-action" type="button" onClick={loadAllVersions} disabled={working}>ดูทั้งหมด ({versionTotal.toLocaleString("th-TH")} Version)</button>}{showAllVersions && versionTotal > 3 && <button className="ghost-action" type="button" onClick={() => { setShowAllVersions(false); setVersions((current) => current.slice(0, 3)); }}>แสดงเฉพาะ 3 Version ล่าสุด</button>}</div>
     <div className="committee-score-summary"><div className="committee-summary-heading"><div><h3>ตัวอย่างอันดับล่าสุด</h3><p>{rows.length ? `แสดง ${Math.min(rows.length, 10).toLocaleString("th-TH")} อันดับแรกจาก ${rows.length.toLocaleString("th-TH")} ผลงานที่มีคะแนน` : "ยังไม่มีคะแนนที่นำเข้า"}</p></div><Users/></div>{loading ? <p className="participant-empty">กำลังโหลดข้อมูลคะแนน...</p> : rows.length ? <div className="admin-table-wrap"><table className="admin-table committee-score-table"><thead><tr><th>อันดับ</th><th>ชื่อโครงการ</th><th>รหัสโครงการ</th><th>คะแนนที่ได้</th><th>หมายเหตุ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.submissionCode}><td data-label="อันดับ"><b>{row.rank.toLocaleString("th-TH")}</b></td><td data-label="ชื่อโครงการ"><b>{row.submissionTitle}</b>{row.submissionTitleEnglish && <small>{row.submissionTitleEnglish}</small>}</td><td data-label="รหัสโครงการ">{row.submissionCode}</td><td data-label="คะแนนที่ได้"><strong>{row.averageScore?.toFixed(2)}</strong></td><td data-label="หมายเหตุ">{row.judgeCount === profiles.length ? "คะแนนครบ" : `กรอกแล้ว ${row.judgeCount}/${profiles.length} คน`}</td></tr>)}</tbody></table></div> : <p className="participant-empty">หลังจากอัปโหลดคะแนนแล้ว ระบบจะแสดงอันดับในส่วนนี้</p>}</div>
   </section>;

@@ -20981,6 +20981,26 @@ footer {
   overflow-wrap: anywhere;
 }
 
+.committee-score-option-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: #dce4f3;
+}
+
+.committee-score-option-label b {
+  color: #fff0a8;
+}
+
+.committee-score-option-label span {
+  color: #9fb1ca;
+  font-size: 12px;
+}
+
+.committee-score-option3-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .presentation-score-panel .committee-score-actions {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;

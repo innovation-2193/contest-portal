@@ -20,6 +20,7 @@ const PRINT = {
   watermark: "#cbd5e1",
   line: "#9ca3af",
   lineLight: "#d1d5db",
+  sectionRed: "#b91c1c",
   white: "#ffffff",
 } as const;
 
@@ -140,7 +141,7 @@ function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem
 }
 
 function drawSectionHeading(doc: PDFKit.PDFDocument, x: number, y: number, label: string) {
-  doc.font(fonts.bold).fontSize(9.5).fillColor(PRINT.black).text(label, x, y, { width: tableWidth, lineBreak: false });
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PRINT.sectionRed).text(label, x, y, { width: tableWidth, lineBreak: false });
   doc.moveTo(x, y + 15).lineTo(x + tableWidth, y + 15).lineWidth(0.45).stroke(PRINT.line);
 }
 

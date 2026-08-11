@@ -6,10 +6,13 @@ import { ensureDatabaseSchema } from "./db-schema";
 import { isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import type { SubmissionListItem } from "./admin-store";
 import {
+  committeeConsensusCriteria,
   defaultCommitteeJudgeProfiles,
   type CommitteeJudgeProfile,
   formatCommitteeJudgeProfile,
 } from "./committee-score-config";
+
+export const committeeConsensusJudgeKey = "consensus";
 
 export type CommitteeJudge = {
   key: string;
@@ -237,6 +240,17 @@ export function committeeJudgeLabel(judge: CommitteeJudge) {
 
 export function findCommitteeJudge(key: string) {
   const normalized = key.trim();
+  if (normalized === committeeConsensusJudgeKey) {
+    return {
+      key: committeeConsensusJudgeKey,
+      order: 0,
+      rank: "",
+      name: "คณะกรรมการรอบที่ 1 (พิจารณาร่วมกัน)",
+      unit: "คณะกรรมการพิจารณารางวัลนวัตกรรม",
+      role: "พิจารณาร่วมกัน",
+      fileLabel: "consensus",
+    } satisfies CommitteeJudge;
+  }
   return committeeJudges.find((judge) => judge.key === normalized || judge.fileLabel === normalized || committeeJudgeLabel(judge) === normalized) ?? null;
 }
 
@@ -617,7 +631,10 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
   return submissions.map((submission, index) => {
     const scoreRecords = bySubmission.get(submission.submission_code) ?? [];
     const judgeScores = Object.fromEntries(committeeJudges.map((judge) => [judge.key, null])) as Record<string, number | null>;
-    for (const record of scoreRecords) judgeScores[record.judgeKey] = record.calculatedTotal;
+    for (const record of scoreRecords) {
+      if (!committeeJudges.some((judge) => judge.key === record.judgeKey)) continue;
+      judgeScores[record.judgeKey] = record.calculatedTotal;
+    }
     const totals = Object.values(judgeScores).filter((score): score is number => typeof score === "number" && Number.isFinite(score));
     const latestUpdatedAt = scoreRecords.reduce((latest, record) => {
       if (!latest || safeTime(record.updatedAt) > safeTime(latest)) return record.updatedAt;
@@ -661,6 +678,7 @@ export function latestCommitteeScoreRecords(records: CommitteeScoreRecord[]) {
 function normalizeCommitteeScoreInput(input: CommitteeScoreInput): CommitteeScoreRecord {
   const judge = findCommitteeJudge(input.judgeKey);
   if (!judge) throw Object.assign(new Error("invalid judge"), { code: "INVALID_JUDGE" });
+  if (judge.key === committeeConsensusJudgeKey) return normalizeCommitteeConsensusInput(input, judge);
   const rawItemScores = input.itemScores ?? {};
   const itemScores = Object.fromEntries(committeeScoreCriteria.map((criterion) => {
     const score = normalizeScore(rawItemScores[criterion.id], criterion.max);
@@ -694,6 +712,40 @@ function normalizeCommitteeScoreInput(input: CommitteeScoreInput): CommitteeScor
     declaredTotal,
     totalMismatch: declaredTotal === null ? null : roundScore(calculatedTotal - declaredTotal),
     note: cleanText(input.note) || null,
+    submittedByEmail: cleanRequired(input.submittedByEmail, "submittedByEmail"),
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+function normalizeCommitteeConsensusInput(input: CommitteeScoreInput, judge: CommitteeJudge): CommitteeScoreRecord {
+  const rawItemScores = input.itemScores ?? {};
+  const itemScores = Object.fromEntries(committeeConsensusCriteria.map((criterion) => [
+    criterion.id,
+    normalizeScore(rawItemScores[criterion.id], criterion.max),
+  ])) as Record<string, number | null>;
+  const hasItemScore = Object.values(itemScores).some((score) => score !== null);
+  const calculatedTotal = committeeConsensusCriteria.reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const declaredTotal = normalizeScore(input.declaredTotal, 100);
+  return {
+    id: "",
+    submissionCode: cleanRequired(input.submissionCode, "submissionCode"),
+    submissionTitle: cleanText(input.submissionTitle) || cleanRequired(input.submissionCode, "submissionCode"),
+    submissionOrder: Math.max(1, Math.trunc(Number(input.submissionOrder) || 1)),
+    judgeKey: judge.key,
+    judgeName: judge.name,
+    sourceFileName: cleanText(input.sourceFileName) || null,
+    sourcePage: Math.max(1, Math.trunc(Number(input.sourcePage) || 1)),
+    itemScores,
+    rulesScore: itemScores.rules ?? 0,
+    problemScore: itemScores.problem ?? 0,
+    innovationScore: itemScores.innovation ?? 0,
+    evidenceScore: itemScores.evidence ?? 0,
+    impactScore: itemScores.impact ?? 0,
+    calculatedTotal: roundScore(hasItemScore ? calculatedTotal : 0),
+    declaredTotal,
+    totalMismatch: declaredTotal === null ? null : roundScore(calculatedTotal - declaredTotal),
+    note: cleanText(input.note) || "Excel consensus score import",
     submittedByEmail: cleanRequired(input.submittedByEmail, "submittedByEmail"),
     createdAt: "",
     updatedAt: "",
@@ -750,6 +802,7 @@ function hydrateRecord(record: unknown) {
   const item = record as CommitteeScoreRecord;
   const judge = findCommitteeJudge(String(item.judgeKey ?? "")) ?? committeeJudges[0];
   const submissionCode = cleanText(item.submissionCode) || "-";
+  if (judge.key === committeeConsensusJudgeKey) return hydrateConsensusRecord(item, judge);
   const itemScores = Object.fromEntries(committeeScoreCriteria.map((criterion) => {
     const score = normalizeScore(item.itemScores?.[criterion.id], criterion.max);
     return [criterion.id, score];
@@ -789,6 +842,40 @@ function hydrateRecord(record: unknown) {
     createdAt: validIsoDate(item.createdAt) || validIsoDate(item.updatedAt) || now,
     updatedAt: validIsoDate(item.updatedAt) || validIsoDate(item.createdAt) || now,
   } satisfies CommitteeScoreRecord;
+}
+
+function hydrateConsensusRecord(item: CommitteeScoreRecord, judge: CommitteeJudge): CommitteeScoreRecord {
+  const itemScores = Object.fromEntries(committeeConsensusCriteria.map((criterion) => [
+    criterion.id,
+    normalizeScore(item.itemScores?.[criterion.id], criterion.max),
+  ])) as Record<string, number | null>;
+  const calculatedTotal = committeeConsensusCriteria.reduce((sum, criterion) => sum + (itemScores[criterion.id] ?? 0), 0);
+  const declaredTotal = normalizeScore(item.declaredTotal, 100);
+  const now = new Date().toISOString();
+  return {
+    ...item,
+    id: cleanText(item.id) || randomUUID(),
+    submissionCode: cleanText(item.submissionCode) || "-",
+    submissionTitle: cleanText(item.submissionTitle) || cleanText(item.submissionCode) || "-",
+    submissionOrder: Math.max(1, Math.trunc(Number(item.submissionOrder) || 1)),
+    judgeKey: judge.key,
+    judgeName: cleanText(item.judgeName) || judge.name,
+    sourceFileName: item.sourceFileName ?? null,
+    sourcePage: Number(item.sourcePage) || 1,
+    itemScores,
+    rulesScore: itemScores.rules ?? 0,
+    problemScore: itemScores.problem ?? 0,
+    innovationScore: itemScores.innovation ?? 0,
+    evidenceScore: itemScores.evidence ?? 0,
+    impactScore: itemScores.impact ?? 0,
+    calculatedTotal: roundScore(calculatedTotal),
+    declaredTotal,
+    totalMismatch: declaredTotal === null ? null : roundScore(calculatedTotal - declaredTotal),
+    note: item.note ?? "Excel consensus score import",
+    submittedByEmail: cleanText(item.submittedByEmail) || "-",
+    createdAt: validIsoDate(item.createdAt) || validIsoDate(item.updatedAt) || now,
+    updatedAt: validIsoDate(item.updatedAt) || validIsoDate(item.createdAt) || now,
+  };
 }
 
 function validIsoDate(value: unknown) {

@@ -24,6 +24,21 @@ export type CommitteeScoreCriterion = {
   max: number;
 };
 
+export type CommitteeConsensusCriterion = {
+  id: "rules" | "problem" | "innovation" | "evidence" | "impact";
+  label: string;
+  max: number;
+};
+
+/** คะแนนทางเลือกที่ 2: คณะกรรมการพิจารณาร่วมกันและให้คะแนนชุดเดียว */
+export const committeeConsensusCriteria: CommitteeConsensusCriterion[] = [
+  { id: "rules", label: "1. ความเป็นผลงานของตำรวจ", max: 20 },
+  { id: "problem", label: "2. ปัญหาและความจำเป็น", max: 15 },
+  { id: "innovation", label: "3. แนวคิดหรือรูปแบบนวัตกรรม", max: 25 },
+  { id: "evidence", label: "4. หลักฐานผลลัพธ์เบื้องต้น", max: 20 },
+  { id: "impact", label: "5. ความคุ้มค่าและการขยายผล", max: 20 },
+];
+
 export const committeeJudges: CommitteeJudge[] = [
   { key: "1", order: 1, rank: "พล.ต.ท.", name: "ไพบูลย์ น้อยหุ่น", unit: "ผบช.สทส.", role: "ประธานกรรมการ", fileLabel: "01-Paiboon-Noihun" },
   { key: "2", order: 2, rank: "พล.ต.ต.", name: "ฐากูร นิ่มสมบุญ", unit: "รอง ผบช.สทส.", role: "รองประธานกรรมการ", fileLabel: "02-Thakoon-Nimsomboon" },

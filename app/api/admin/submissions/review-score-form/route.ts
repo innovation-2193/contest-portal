@@ -21,7 +21,7 @@ const fonts: PdfFontSet = {
   bold: pdfFontBold,
 };
 
-type CommitteeSignatory = {
+export type CommitteeSignatory = {
   order: number;
   rank: string;
   name: string;
@@ -197,25 +197,28 @@ async function committeeScoreFormZip(submissions: SubmissionListItem[]) {
   return createZip(entries);
 }
 
-type CommitteeScoreFormPdfOptions = {
+export type CommitteeScoreFormPdfOptions = {
   itemNumbers?: number[];
   totalSubmissionCount?: number;
+  sharedSignatories?: CommitteeSignatory[];
 };
 
-async function committeeScoreFormPdf(submissions: SubmissionListItem[], judge: CommitteeSignatory, options: CommitteeScoreFormPdfOptions = {}) {
+export async function committeeScoreFormPdf(submissions: SubmissionListItem[], judge: CommitteeSignatory | null, options: CommitteeScoreFormPdfOptions = {}) {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
   const rows = submissions.length ? submissions : [null];
   const totalPages = rows.length;
   const totalSubmissionCount = options.totalSubmissionCount ?? submissions.length;
 
-  doc.info.Title = `แบบฟอร์มกรอกคะแนน Paper Screening - ${judge.rank}${judge.name}`;
+  doc.info.Title = judge
+    ? `แบบฟอร์มกรอกคะแนน Paper Screening - ${judge.rank}${judge.name}`
+    : "แบบฟอร์มกรอกคะแนน Paper Screening - คณะกรรมการพิจารณาร่วมกัน";
   doc.info.Subject = "Police Innovation Contest 2026 Paper Screening score form";
   doc.info.Author = "Police Innovation Contest 2026";
 
   rows.forEach((submission, index) => {
     if (index > 0) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
-    drawScoreSheet(doc, submission, judge, index + 1, totalPages, totalSubmissionCount, options.itemNumbers?.[index] ?? index + 1);
+    drawScoreSheet(doc, submission, judge, index + 1, totalPages, totalSubmissionCount, options.itemNumbers?.[index] ?? index + 1, options.sharedSignatories ?? []);
   });
 
   doc.end();
@@ -225,26 +228,74 @@ async function committeeScoreFormPdf(submissions: SubmissionListItem[], judge: C
 function drawScoreSheet(
   doc: PDFKit.PDFDocument,
   submission: SubmissionListItem | null,
-  judge: CommitteeSignatory,
+  judge: CommitteeSignatory | null,
   pageNumber: number,
   totalPages: number,
   submissionCount: number,
   itemNumber: number,
+  sharedSignatories: CommitteeSignatory[],
 ) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
   drawPrintHeader(doc, submission, submissionCount);
 
   if (!submission) {
-    drawEmptyState(doc, judge, pageNumber, totalPages);
+    drawEmptyState(doc, judge, sharedSignatories, pageNumber, totalPages);
     return;
   }
 
   drawProjectInfo(doc, submission, 24, 86, itemNumber, submissionCount);
   drawScoreTable(doc, 24, 150);
-  drawSummaryBoxes(doc, 24, 672, 171);
-  drawCompactJudgeSignature(doc, judge, 388, 672, 183);
+  if (sharedSignatories.length) {
+    drawSharedCommitteeSignatures(doc, sharedSignatories, 24, 654, doc.page.width - 48);
+  } else if (judge) {
+    drawSummaryBoxes(doc, 24, 672, 171);
+    drawCompactJudgeSignature(doc, judge, 388, 672, 183);
+  }
   drawWatermark(doc);
-  drawDocumentFooter(doc, pageNumber, totalPages, `${submission.submission_code} • ${judge.rank}${judge.name}`, fonts);
+  drawDocumentFooter(doc, pageNumber, totalPages, judge
+    ? `${submission.submission_code} • ${judge.rank}${judge.name}`
+    : `${submission.submission_code} • คณะกรรมการพิจารณาร่วมกัน`, fonts);
+}
+
+function drawSharedCommitteeSignatures(
+  doc: PDFKit.PDFDocument,
+  signatories: CommitteeSignatory[],
+  x: number,
+  y: number,
+  width: number,
+) {
+  const visible = signatories.slice(0, 5);
+  const cellTop = y + 22;
+  const cellHeight = 86;
+  const cellWidth = width / 5;
+  doc.font(fonts.bold).fontSize(9.4).fillColor(PRINT.black).text("ลงนามผู้พิจารณา", x, y + 2, {
+    width,
+    align: "center",
+    lineBreak: false,
+  });
+  doc.rect(x, cellTop, width, cellHeight).fillAndStroke(PRINT.white, PRINT.line);
+  for (let index = 1; index < 5; index += 1) {
+    const boundaryX = x + cellWidth * index;
+    doc.moveTo(boundaryX, cellTop).lineTo(boundaryX, cellTop + cellHeight).lineWidth(0.45).stroke(PRINT.line);
+  }
+  visible.forEach((signatory, index) => {
+    const cellX = x + cellWidth * index;
+    doc.moveTo(cellX + 10, cellTop + 31).lineTo(cellX + cellWidth - 10, cellTop + 31).lineWidth(0.5).stroke(PRINT.line);
+    doc.font(fonts.bold).fontSize(6.35).fillColor(PRINT.black).text(`${signatory.rank}${signatory.name}`, cellX + 4, cellTop + 40, {
+      width: cellWidth - 8,
+      height: 10,
+      align: "center",
+      ellipsis: true,
+      lineBreak: false,
+    });
+    doc.font(fonts.regular).fontSize(5.25).fillColor(PRINT.text).text(judgePositionLabel(signatory), cellX + 4, cellTop + 55, {
+      width: cellWidth - 8,
+      height: 23,
+      align: "center",
+      ellipsis: true,
+      lineGap: 0,
+    });
+  });
 }
 
 function drawWatermark(doc: PDFKit.PDFDocument) {
@@ -446,7 +497,7 @@ function drawJudgeSignature(doc: PDFKit.PDFDocument, judge: CommitteeSignatory, 
   });
 }
 
-function drawEmptyState(doc: PDFKit.PDFDocument, judge: CommitteeSignatory, pageNumber: number, totalPages: number) {
+function drawEmptyState(doc: PDFKit.PDFDocument, judge: CommitteeSignatory | null, sharedSignatories: CommitteeSignatory[], pageNumber: number, totalPages: number) {
   doc.rect(80, 190, doc.page.width - 160, 110).fillAndStroke(PRINT.white, PRINT.line);
   doc.font(fonts.bold).fontSize(18).fillColor(PRINT.black).text("ยังไม่มีใบสมัครประกวดที่ส่งเข้าระบบ", 100, 224, {
     width: doc.page.width - 200,
@@ -459,9 +510,10 @@ function drawEmptyState(doc: PDFKit.PDFDocument, judge: CommitteeSignatory, page
     258,
     { width: doc.page.width - 240, align: "center", lineGap: 2 },
   );
-  drawJudgeSignature(doc, judge, doc.page.width - 186, 440, 158);
+  if (sharedSignatories.length) drawSharedCommitteeSignatures(doc, sharedSignatories, 24, 640, doc.page.width - 48);
+  else if (judge) drawJudgeSignature(doc, judge, doc.page.width - 186, 440, 158);
   drawWatermark(doc);
-  drawDocumentFooter(doc, pageNumber, totalPages, `${judge.rank}${judge.name}`, fonts);
+  drawDocumentFooter(doc, pageNumber, totalPages, judge ? `${judge.rank}${judge.name}` : "คณะกรรมการพิจารณาร่วมกัน", fonts);
 }
 
 function drawScoreBox(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) {

@@ -1362,6 +1362,11 @@ function auditActionLabel(action: string) {
   if (action === "committee_score.ocr_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.ocr_deleted") return "ลบคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.scoreboard_pdf") return "Export ผลคะแนนคณะกรรมการ";
+  if (action === "committee_score.consensus_template_xlsx") return "ดาวน์โหลด Template คะแนนรอบที่ 1 ทางเลือกที่ 2";
+  if (action === "committee_score.consensus_import_xlsx") return "Import คะแนนรอบที่ 1 ทางเลือกที่ 2";
+  if (action === "committee_score.consensus_form_pdf") return "Export แบบฟอร์มคะแนนรอบที่ 1 ทางเลือกที่ 2";
+  if (action === "committee_score.coarse_form_pdf") return "Export แบบฟอร์มคะแนนรอบที่ 1 ทางเลือกที่ 3";
+  if (action === "committee_score.consensus_report_pdf") return "Export รายงานจัดอันดับรอบที่ 1 ทางเลือกที่ 3";
   if (action === "submission.review_packets_zip") return "Export ZIP PDF ใบสมัคร";
   if (action === "admin.settings.updated") return "แก้ไขตั้งค่าระบบ";
   if (action === "admin_user.created") return "เพิ่มแอดมิน";
