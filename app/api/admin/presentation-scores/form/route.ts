@@ -43,21 +43,22 @@ export async function GET(request: Request) {
   ]);
   const finalists = selectPresentationSubmissions(submissions, winners);
   const selectedJudgeKey = new URL(request.url).searchParams.get("judgeKey")?.trim() || "";
-  const judge = selectedJudgeKey ? profiles.find((profile) => profile.judgeKey === selectedJudgeKey) ?? null : null;
-  if (selectedJudgeKey && !judge) {
+  const selectedJudge = selectedJudgeKey ? profiles.find((profile) => profile.judgeKey === selectedJudgeKey) ?? null : null;
+  if (selectedJudgeKey && !selectedJudge) {
     return NextResponse.json({ ok: false, message: "ไม่พบกรรมการรอบที่ 2 ที่เลือก" }, { status: 404 });
   }
 
-  const pdf = await presentationScoreFormPdf(finalists, judge, round1Records);
+  const judges = selectedJudgeKey ? [selectedJudge] : profiles.length ? profiles : [null];
+  const pdf = await presentationScoreFormPdf(finalists, judges, round1Records);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "presentation_score.form_pdf",
     entityType: "presentation_score",
     summary: `Export PDF แบบฟอร์มให้คะแนนรอบที่ 2 ${finalists.length.toLocaleString("th-TH")} ผลงาน`,
-    payload: { finalists: finalists.length, judge: judge?.judgeKey ?? "committee-copy" },
+    payload: { finalists: finalists.length, judges: judges.filter(Boolean).map((judge) => judge?.judgeKey ?? "") },
   }, request.headers);
 
-  const suffix = judge ? `-${safeFilePart(judge.judgeKey)}` : "";
+  const suffix = selectedJudge ? `-${safeFilePart(selectedJudge.judgeKey)}` : "-all-judges";
   return new NextResponse(new Uint8Array(pdf), {
     headers: pdfHeaders(`presentation-score-form-round-2${suffix}-${new Date().toISOString().slice(0, 10)}.pdf`),
   });
@@ -65,18 +66,20 @@ export async function GET(request: Request) {
 
 export async function presentationScoreFormPdf(
   submissions: SubmissionListItem[],
-  judge: PresentationJudgeProfile | null,
+  judges: Array<PresentationJudgeProfile | null>,
   round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
 ) {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
-  const rows = submissions.length ? submissions : [null];
+  const submissionRows = submissions.length ? submissions : [null];
+  const pageRows = judges.flatMap((judge) => submissionRows.map((submission) => ({ judge, submission })));
+  const rows = pageRows.length ? pageRows : [{ judge: null, submission: null }];
   const totalPages = rows.length;
   doc.info.Title = "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)";
   doc.info.Subject = "Police Innovation Contest 2026 Presentation score form";
   doc.info.Author = "Police Innovation Contest 2026";
 
-  rows.forEach((submission, index) => {
+  rows.forEach(({ submission, judge }, index) => {
     if (index) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
     drawSheet(doc, submission, judge, index + 1, totalPages, round1Records);
   });
@@ -93,7 +96,7 @@ function drawSheet(
   round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
 ) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
-  drawPrintHeader(doc, submission, judge);
+  drawPrintHeader(doc, submission);
   if (!submission) {
     doc.rect(80, 190, doc.page.width - 160, 110).fillAndStroke(PRINT.white, PRINT.line);
     doc.font(fonts.bold).fontSize(18).fillColor(PRINT.black).text("ยังไม่มีผลงานในประกาศผลการแข่งขัน", 100, 224, {
@@ -115,7 +118,7 @@ function drawSheet(
   drawDocumentFooter(doc, pageNumber, totalPages, `${submission.submission_code} • รอบที่ 2 Presentation`, fonts);
 }
 
-function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null, judge: PresentationJudgeProfile | null) {
+function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null) {
   const margin = 24;
   const width = doc.page.width - margin * 2;
   doc.font(fonts.bold).fontSize(14.2).fillColor(PRINT.black).text(
@@ -128,12 +131,6 @@ function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem
     submission ? `รหัสโครงการ: ${submission.submission_code}` : "ผลงานที่ผ่านเข้ารอบการนำเสนอ",
     margin,
     47,
-    { width, align: "center", lineBreak: false },
-  );
-  doc.font(fonts.regular).fontSize(8.5).fillColor(PRINT.muted).text(
-    judge ? `กรรมการ: ${formatPresentationJudge(judge)}` : "กรรมการ: คณะกรรมการรอบที่ 2",
-    margin,
-    60,
     { width, align: "center", lineBreak: false },
   );
   doc.moveTo(margin, 78).lineTo(doc.page.width - margin, 78).lineWidth(0.8).stroke(PRINT.line);
@@ -211,17 +208,23 @@ function drawNotesAndSignature(doc: PDFKit.PDFDocument, judge: PresentationJudge
   const notesWidth = 280;
   const signatureX = x + notesWidth + 12;
   const signatureWidth = tableWidth - notesWidth - 12;
-  doc.rect(x, y, notesWidth, 92).fillAndStroke(PRINT.white, PRINT.line);
+  const boxHeight = 118;
+  doc.rect(x, y, notesWidth, boxHeight).fillAndStroke(PRINT.white, PRINT.line);
   doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text("หมายเหตุกรรมการ", x + 10, y + 10, { width: notesWidth - 20, lineBreak: false });
   for (let index = 0; index < 3; index += 1) {
-    const lineY = y + 39 + index * 17;
+    const lineY = y + 42 + index * 21;
     doc.moveTo(x + 10, lineY).lineTo(x + notesWidth - 10, lineY).lineWidth(0.45).stroke(PRINT.line);
   }
-  doc.rect(signatureX, y, signatureWidth, 92).fillAndStroke(PRINT.white, PRINT.line);
+  doc.rect(signatureX, y, signatureWidth, boxHeight).fillAndStroke(PRINT.white, PRINT.line);
   doc.font(fonts.bold).fontSize(9).fillColor(PRINT.black).text("ลงชื่อกรรมการ", signatureX + 10, y + 10, { width: signatureWidth - 20, align: "center", lineBreak: false });
   doc.moveTo(signatureX + 15, y + 44).lineTo(signatureX + signatureWidth - 15, y + 44).lineWidth(0.5).stroke(PRINT.line);
-  doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text(judge ? formatPresentationJudge(judge) : "คณะกรรมการรอบที่ 2", signatureX + 8, y + 57, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
-  doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text("วันที่ ____________________", signatureX + 8, y + 73, { width: signatureWidth - 16, align: "center", lineBreak: false });
+  if (judge) {
+    doc.font(fonts.bold).fontSize(7.5).fillColor(PRINT.black).text(formatPresentationJudge(judge), signatureX + 8, y + 55, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
+    doc.font(fonts.regular).fontSize(6.2).fillColor(PRINT.text).text(`${judge.role} / ${judge.position}`, signatureX + 8, y + 68, { width: signatureWidth - 16, height: 28, align: "center", ellipsis: true, lineGap: 0 });
+  } else {
+    doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text("คณะกรรมการรอบที่ 2", signatureX + 8, y + 59, { width: signatureWidth - 16, align: "center", ellipsis: true, lineBreak: false });
+  }
+  doc.font(fonts.regular).fontSize(7.5).fillColor(PRINT.text).text("วันที่ 24 ส.ค.69", signatureX + 8, y + 101, { width: signatureWidth - 16, align: "center", lineBreak: false });
 }
 
 function drawWatermark(doc: PDFKit.PDFDocument) {
