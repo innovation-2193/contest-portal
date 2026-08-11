@@ -73,16 +73,17 @@ export async function presentationScoreFormPdf(
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
   const submissionRows = submissions.length ? submissions : [null];
-  const pageRows = judges.flatMap((judge) => submissionRows.map((submission) => ({ judge, submission })));
-  const rows = pageRows.length ? pageRows : [{ judge: null, submission: null }];
+  const pageRows = judges.flatMap((judge) => submissionRows.map((submission, submissionIndex) => ({ judge, submission, submissionNumber: submissionIndex + 1 })));
+  const rows = pageRows.length ? pageRows : [{ judge: null, submission: null, submissionNumber: 1 }];
   const totalPages = rows.length;
+  const totalSubmissions = submissionRows.length;
   doc.info.Title = "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)";
   doc.info.Subject = "Police Innovation Contest 2026 Presentation score form";
   doc.info.Author = "Police Innovation Contest 2026";
 
-  rows.forEach(({ submission, judge }, index) => {
+  rows.forEach(({ submission, judge, submissionNumber }, index) => {
     if (index) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
-    drawSheet(doc, submission, judge, index + 1, totalPages, round1Records);
+    drawSheet(doc, submission, judge, submissionNumber, totalSubmissions, index + 1, totalPages, round1Records);
   });
   doc.end();
   return pdf;
@@ -92,6 +93,8 @@ function drawSheet(
   doc: PDFKit.PDFDocument,
   submission: SubmissionListItem | null,
   judge: PresentationJudgeProfile | null,
+  submissionNumber: number,
+  totalSubmissions: number,
   pageNumber: number,
   totalPages: number,
   round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
@@ -110,7 +113,7 @@ function drawSheet(
   }
 
   drawSectionHeading(doc, 24, 88, "ส่วนของคณะกรรมการพิจารณารางวัลนวัตกรรม รอบที่ 2");
-  drawProjectInfo(doc, submission, 24, 108, pageNumber, totalPages);
+  drawProjectInfo(doc, submission, 24, 108, submissionNumber, totalSubmissions);
   drawPresentationScoreTable(doc, 24, 170);
 
   const weighted = round1WeightedScore(round1Records, submission.submission_code);
