@@ -7,11 +7,13 @@ import { listSubmissions, listWinners } from "../../../../../lib/admin-store";
 import { selectPresentationSubmissions } from "../../../../../lib/presentation-score-utils";
 import { buildPresentationScoreboard, listPresentationJudgeProfiles, listPresentationScoreRecords } from "../../../../../lib/presentation-score-store";
 import { drawDocumentFooter, formatPdfThaiDateTime, pdfFontBold, pdfFontRegular, type PdfFontSet } from "../../../../../lib/pdf-theme";
+import { formatApplicantName } from "../../../../../lib/thai-rank-title";
 
 export const runtime = "nodejs";
 
 const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
 const PRINT = { black: "#111827", text: "#1f2937", muted: "#6b7280", line: "#9ca3af", lineLight: "#d1d5db", white: "#ffffff" } as const;
+type PresentationReportRow = Awaited<ReturnType<typeof buildPresentationScoreboard>>[number] & { submissionTitleEnglish: string; ownerName: string; affiliation: string };
 
 export async function GET(request: Request) {
   const session = requireSuperAdminRequest(request);
@@ -25,7 +27,17 @@ export async function GET(request: Request) {
   ]);
   const finalists = selectPresentationSubmissions(submissions, winners);
   const finalistCodes = new Set(finalists.map((item) => item.submission_code));
-  const rows = await buildPresentationScoreboard(finalists, records.filter((record) => finalistCodes.has(record.submissionCode)), profiles, round1Records);
+  const scoreRows = await buildPresentationScoreboard(finalists, records.filter((record) => finalistCodes.has(record.submissionCode)), profiles, round1Records);
+  const finalistsByCode = new Map(finalists.map((submission) => [submission.submission_code, submission]));
+  const rows = scoreRows.map((row) => {
+    const submission = finalistsByCode.get(row.submissionCode);
+    return {
+      ...row,
+      submissionTitleEnglish: submission?.title_en?.trim() || "-",
+      ownerName: submission ? formatApplicantName(submission) : "-",
+      affiliation: submission ? [submission.division, submission.bureau].filter(Boolean).join(" / ") || "-" : "-",
+    };
+  });
   const pdf = await buildPdf(rows, profiles.length);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
@@ -43,10 +55,10 @@ export async function GET(request: Request) {
   });
 }
 
-export async function buildPdf(rows: Awaited<ReturnType<typeof buildPresentationScoreboard>>, judgeCount: number) {
+export async function buildPdf(rows: PresentationReportRow[], judgeCount: number) {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
-  const perPage = 14;
+  const perPage = 6;
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
   for (let page = 0; page < pages; page += 1) {
     if (page) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
@@ -54,7 +66,7 @@ export async function buildPdf(rows: Awaited<ReturnType<typeof buildPresentation
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
     drawReportHeader(doc, judgeCount);
     drawTableHeader(doc, 28, 104);
-    pageRows.forEach((row, index) => drawTableRow(doc, row, 132 + index * 38, index));
+    pageRows.forEach((row, index) => drawTableRow(doc, row, 136 + index * 68, index));
     drawDocumentFooter(doc, page + 1, pages, "รายงานคะแนนรอบที่ 2 • Weight 40/60", fonts);
   }
   doc.info.Title = "รายงานคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)";
@@ -77,30 +89,40 @@ function drawReportHeader(doc: PDFKit.PDFDocument, judgeCount: number) {
 }
 
 function drawTableHeader(doc: PDFKit.PDFDocument, x: number, y: number) {
-  const columns = [["ลำดับ", 42], ["ชื่อโครงการ", 360], ["รอบ 1 × 40%", 100], ["รอบ 2 × 60%", 100], ["รวม", 100], ["กรรมการ", 80]] as const;
+  const columns = [["ลำดับ", 42], ["ชื่อโครงการ / ผู้ส่งผลงานหลัก / สังกัด", 444], ["รอบ 1 × 40%", 100], ["รอบ 2 × 60%", 100], ["คะแนนรวม", 100]] as const;
   const total = columns.reduce((sum, [, width]) => sum + width, 0);
-  doc.rect(x, y, total, 28).fillAndStroke(PRINT.white, PRINT.black);
+  doc.rect(x, y, total, 32).fillAndStroke(PRINT.white, PRINT.black);
   let cursor = x;
   columns.forEach(([label, width], index) => {
-    if (index) doc.moveTo(cursor, y).lineTo(cursor, y + 28).lineWidth(0.45).stroke(PRINT.line);
-    doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text(label, cursor + 4, y + 9, { width: width - 8, align: index === 1 ? "left" : "center", lineBreak: false });
+    if (index) doc.moveTo(cursor, y).lineTo(cursor, y + 32).lineWidth(0.45).stroke(PRINT.line);
+    doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text(label, cursor + 4, y + 10, { width: width - 8, align: index === 1 ? "left" : "center", lineBreak: false });
     cursor += width;
   });
 }
 
-function drawTableRow(doc: PDFKit.PDFDocument, row: Awaited<ReturnType<typeof buildPresentationScoreboard>>[number], y: number, index: number) {
-  const columns = [42, 360, 100, 100, 100, 80];
+function drawTableRow(doc: PDFKit.PDFDocument, row: PresentationReportRow, y: number, index: number) {
+  const columns = [42, 444, 100, 100, 100];
   const total = columns.reduce((sum, width) => sum + width, 0);
-  doc.rect(28, y, total, 38).fillAndStroke(PRINT.white, PRINT.lineLight);
-  let cursor = 28;
-  const values = [row.rank.toLocaleString("th-TH"), row.submissionTitle, score(row.weightedRound1), score(row.weightedPresentation), score(row.finalScore), row.judgeCount.toLocaleString("th-TH")];
-  values.forEach((value, valueIndex) => {
-    if (valueIndex) doc.moveTo(cursor, y).lineTo(cursor, y + 38).lineWidth(0.35).stroke(PRINT.lineLight);
-    doc.font(valueIndex === 0 || valueIndex >= 2 ? fonts.bold : fonts.regular).fontSize(valueIndex === 1 ? 8.5 : 8.8).fillColor(PRINT.text).text(value, cursor + 5, y + 13, { width: columns[valueIndex] - 10, align: valueIndex === 1 ? "left" : "center", ellipsis: true, lineBreak: false });
-    cursor += columns[valueIndex];
+  doc.rect(28, y, total, 68).fillAndStroke(PRINT.white, PRINT.lineLight);
+  let boundary = 28;
+  columns.slice(0, -1).forEach((width) => {
+    boundary += width;
+    doc.moveTo(boundary, y).lineTo(boundary, y + 68).lineWidth(0.35).stroke(PRINT.lineLight);
   });
+  doc.font(fonts.bold).fontSize(8.8).fillColor(PRINT.text).text(row.rank.toLocaleString("th-TH"), 33, y + 25, { width: columns[0] - 10, align: "center", lineBreak: false });
+  const scores = [score(row.weightedRound1), score(row.weightedPresentation), score(row.finalScore)];
+  scores.forEach((value, index) => {
+    const columnIndex = index + 2;
+    const columnX = 28 + columns.slice(0, columnIndex).reduce((sum, width) => sum + width, 0);
+    doc.font(fonts.bold).fontSize(8.8).fillColor(PRINT.text).text(value, columnX + 5, y + 25, { width: columns[columnIndex] - 10, align: "center", lineBreak: false });
+  });
+  doc.font(fonts.bold).fontSize(10.5).fillColor(PRINT.text).text(clean(row.submissionTitle), 28 + columns[0] + 7, y + 7, { width: columns[1] - 14, height: 14, ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.5).fillColor(PRINT.text).text(`English: ${clean(row.submissionTitleEnglish)}`, 28 + columns[0] + 7, y + 23, { width: columns[1] - 14, height: 12, ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.2).fillColor(PRINT.text).text(`ผู้ส่งผลงานหลัก: ${clean(row.ownerName)}`, 28 + columns[0] + 7, y + 38, { width: columns[1] - 14, height: 11, ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.2).fillColor(PRINT.muted).text(`สังกัด: ${clean(row.affiliation)}`, 28 + columns[0] + 7, y + 51, { width: columns[1] - 14, height: 11, ellipsis: true, lineBreak: false });
   void index;
 }
 
 function score(value: number | null) { return value === null ? "-" : value.toFixed(2); }
+function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
 function collectPdf(doc: PDFKit.PDFDocument) { const chunks: Buffer[] = []; return new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); }); }
