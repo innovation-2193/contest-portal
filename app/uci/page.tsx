@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { Car, CheckCircle2, ClipboardList, Download, Eye, Gift, KeyRound, LogIn, LogOut, Mail, Pencil, QrCode, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from "lucide-react";
+import { Car, CheckCircle2, ClipboardList, Download, Eye, Gift, KeyRound, LayoutGrid, LogIn, LogOut, Mail, Pencil, Printer, QrCode, ShieldCheck, Sparkles, Trash2, UserPlus, Users } from "lucide-react";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
 import { UciOnboardingPrompt } from "../../components/UciOnboardingPrompt";
@@ -13,6 +13,7 @@ import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
 import { listUciVideos, uciVideoPlatform, youtubeThumbnailUrl } from "../../lib/uci-videos";
+import { listEventBooths } from "../../lib/event-booths";
 
 export const dynamic = "force-dynamic";
 
@@ -54,13 +55,14 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     </section></div></div>;
   }
 
-  const [settings, participants, evaluation, parking, members, videos] = await Promise.all([
+  const [settings, participants, evaluation, parking, members, videos, booths] = await Promise.all([
     getAdminSettings(),
     listParticipants(),
     getEvaluationSummary(),
     listParkingReservations(),
     session.role === "uci" ? listUciAccounts() : Promise.resolve([]),
     listUciVideos(),
+    listEventBooths(session.email),
   ]);
   const attended = participants.filter((item) => item.status === "attended").length;
 
@@ -95,6 +97,8 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
       <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>
     </div></section>
+
+    <section className="admin-panel uci-booth-report-panel"><header className="admin-section-head"><LayoutGrid/><div><span className="eyebrow">Exhibition Booths</span><h2>รายงานบูธแสดงผลงาน</h2><p>ข้อมูลล่าสุด {booths.length.toLocaleString("th-TH")} บูธ จากผู้ลงทะเบียน Exhibitor และผลงานที่ผ่านการคัดเลือกรอบแรก</p></div></header><div className="admin-detail-actions uci-action-grid"><a className="primary" href="/api/uci/booths/overview" target="_blank" rel="noreferrer"><Download/>Export PDF ภาพรวมบูธ</a><a className="secondary" href="/api/uci/booths/labels" target="_blank" rel="noreferrer"><Printer/>พิมพ์ป้ายประจำบูธแนวนอน</a></div></section>
 
     <section className="admin-panel"><header className="admin-section-head"><ClipboardList/><div><h2>แบบสอบถามความพึงพอใจ</h2><p>{settings.satisfactionEvaluationEnabled ? "ขณะนี้ผู้เข้าร่วมงานสามารถตอบแบบสอบถามได้" : "ขณะนี้ยังไม่เปิดให้ผู้เข้าร่วมงานตอบแบบสอบถาม"}</p></div></header><div className="admin-detail-actions">{session.role === "uci" && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}<Link className="secondary" href="/admin/evaluations?from=uci">ดูผลประเมินและกด Lucky Draw</Link></div></section>
 

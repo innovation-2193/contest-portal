@@ -33,6 +33,11 @@ async function runSchemaRepair() {
   await ensureAppAuditEventsTable();
   await ensureParkingReservationsTable();
   try {
+    await ensureEventBoothsTable();
+  } catch (error) {
+    console.warn("event booth schema repair skipped", error);
+  }
+  try {
     await ensureCommitteeScoresTable();
   } catch (error) {
     // A missing optional scoring table must not hide submissions from the rest of the admin.
@@ -249,6 +254,33 @@ async function ensureParkingReservationsTable() {
       CONSTRAINT fk_parking_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
       INDEX idx_parking_registration (registration_code),
       INDEX idx_parking_created (created_at)
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensureEventBoothsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS event_booths (
+      id CHAR(36) PRIMARY KEY,
+      source_type VARCHAR(32) NOT NULL,
+      source_key VARCHAR(160) NOT NULL,
+      booth_number INT UNSIGNED NOT NULL DEFAULT 1,
+      organization_name VARCHAR(500) NOT NULL,
+      work_title VARCHAR(500) NOT NULL DEFAULT '',
+      work_type VARCHAR(255) NOT NULL DEFAULT '',
+      image_name VARCHAR(255) NULL,
+      image_original_name VARCHAR(255) NULL,
+      contact_key VARCHAR(255) NOT NULL DEFAULT '',
+      contact_name VARCHAR(500) NOT NULL DEFAULT '',
+      contact_phone VARCHAR(64) NOT NULL DEFAULT '',
+      contact_email VARCHAR(255) NOT NULL DEFAULT '',
+      created_by_email VARCHAR(255) NOT NULL,
+      updated_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      updated_at VARCHAR(40) NOT NULL,
+      UNIQUE KEY uq_event_booth_source_number (source_type, source_key, booth_number),
+      INDEX idx_event_booth_source (source_type, source_key),
+      INDEX idx_event_booth_updated (updated_at)
     ) ENGINE=InnoDB
   `);
 }

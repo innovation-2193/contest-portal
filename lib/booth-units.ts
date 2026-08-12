@@ -19,6 +19,10 @@ export function buildBoothUnitStats(participants: RegistrationRecord[]): BoothUn
   return [...stats.values()].sort((a, b) => b.people - a.people || b.attended - a.attended || a.label.localeCompare(b.label, "th"));
 }
 
+export function participantBoothOrganization(participant: RegistrationRecord) {
+  return compactBoothUnit(participant);
+}
+
 function compactBoothUnit(participant: RegistrationRecord) {
   const parts = [participant.division, participant.bureau]
     .map((item) => item.trim().replace(/\s+/g, " "))

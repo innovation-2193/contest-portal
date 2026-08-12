@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -181,6 +181,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <AdminManagementPanel admins={visibleAdmins} search={adminSearch} total={filteredAdminAccounts.length}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Users/><div><span className="eyebrow">UCI Access</span><h2>จัดการผู้ใช้ UCI</h2><p>เพิ่ม แก้ไข ลบ และส่งลิงก์ตั้งรหัสผ่านให้สมาชิกทีม UCI</p></div></div><Link className="primary" href="/admin/uci"><Users/>เปิดจัดการผู้ใช้ UCI</Link></section>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta"><div className="admin-checkin-copy"><Video/><div><span className="eyebrow">UCI How-to</span><h2>วิดีโอสอนการใช้งาน UCI</h2><p>เพิ่มชื่อคลิปและลิงก์ YouTube หรือ Google Drive เพื่อแสดงเป็น carousel ในหน้า /uci</p></div></div><Link className="primary" href="/admin/uci-videos"><Video/>จัดการวิดีโอสอนการใช้งาน</Link></section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-booth-management-cta"><div className="admin-checkin-copy"><LayoutGrid/><div><span className="eyebrow">Exhibition Booths</span><h2>จัดการบูธแสดงผลงาน</h2><p>จัดการจำนวนบูธ รายละเอียดผลงาน รูปภาพ และผู้ติดต่อ จาก Exhibitor และผลงานที่ผ่านรอบแรก</p></div></div><Link className="primary" href="/admin/booths"><LayoutGrid/>เปิดหน้าจัดการบูธ</Link></section>}
     {isSuperAdmin && <AuditLogPanel events={auditEvents.events} total={auditEvents.total}/>}
     {isSuperAdmin && <HomePopupPanel popup={homePopup}/>}
     {isSuperAdmin && <section className="admin-panel">
