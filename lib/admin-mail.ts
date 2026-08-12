@@ -18,6 +18,7 @@ type AdminMailInput = {
   emailHeading?: string;
   emailEyebrow?: string;
   emailSubtitle?: string;
+  emailFooterExtra?: string;
 };
 
 type MailStatus = "sent" | "outbox" | "failed";
@@ -53,6 +54,7 @@ export async function sendAdminMail(input: AdminMailInput) {
       heading: input.emailHeading ?? input.subject,
       eyebrow: input.emailEyebrow,
       subtitle: input.emailSubtitle,
+      footerExtra: input.emailFooterExtra,
       content: input.html,
     });
     await transporter.sendMail({
@@ -76,6 +78,7 @@ async function writeDevOutbox(input: AdminMailInput) {
     heading: input.emailHeading ?? input.subject,
     eyebrow: input.emailEyebrow,
     subtitle: input.emailSubtitle,
+    footerExtra: input.emailFooterExtra,
     content: input.html,
   });
   await mkdir(outbox, { recursive: true });

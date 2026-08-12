@@ -8,6 +8,7 @@ type BrandedEmailOptions = {
   content: string;
   eyebrow?: string;
   subtitle?: string;
+  footerExtra?: string;
 };
 
 export function brandedEmailHtml({
@@ -15,6 +16,7 @@ export function brandedEmailHtml({
   content,
   eyebrow = "POLICE INNOVATION CONTEST 2026",
   subtitle,
+  footerExtra,
 }: BrandedEmailOptions) {
   return `<!doctype html>
 <html lang="th">
@@ -122,7 +124,7 @@ export function brandedEmailHtml({
               <td class="email-footer" style="padding:18px 30px;background:#f5f7fb;border-top:1px solid #e2e7ef;font-family:${emailFontStack};font-size:13px;font-weight:400;line-height:1.7;color:#5a6478">
                 อีเมลนี้ส่งอัตโนมัติจากระบบ Police Innovation Contest 2026 กรุณาอย่าตอบกลับอีเมลนี้<br>
                 หากต้องการความช่วยเหลือ ติดต่อ
-                <a href="mailto:innocontest@police.go.th" style="color:#123c73;font-weight:700;text-decoration:none">innocontest@police.go.th</a>
+                <a href="mailto:innocontest@police.go.th" style="color:#123c73;font-weight:700;text-decoration:none">innocontest@police.go.th</a>${footerExtra ? `<br>${escapeHtml(footerExtra)}` : ""}
               </td>
             </tr>
           </table>

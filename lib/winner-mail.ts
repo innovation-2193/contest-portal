@@ -5,8 +5,9 @@ import { sendRegistrationConfirmation } from "./registration-artifacts";
 import path from "path";
 
 const lineCoordinationQrCid = "police-innovation-line-coordination-qr";
-const lineCoordinationDeadline = "14 สิงหาคม 2569";
+const lineCoordinationDeadline = "17 สิงหาคม 2569";
 const lineCoordinationUrl = "https://line.me/ti/g/Fg6PscYxwQ";
+const winnerEmailContactLine = "กลุ่มงานวิจัยและพัฒนานวัตกรรมฯ บก.สสท. โทร. 0 2205 2193";
 
 type WinnerAnnouncementInput = {
   submission: AdminSubmissionDetail;
@@ -36,6 +37,7 @@ export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInpu
       emailEyebrow: "WINNER ANNOUNCEMENT",
       emailHeading: "ขอแสดงความยินดี",
       emailSubtitle: "ผู้ได้รับรางวัล Police Innovation Contest 2026 | สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
+      emailFooterExtra: winnerEmailContactLine,
       outboxKey: `winner-announcement-${input.submission.submission_code}-${safeOutboxKey(recipient.email)}-${Date.now()}`,
       text: winnerAnnouncementText(input, recipient.name),
       html: winnerAnnouncementHtml(input, recipient.name),
@@ -95,6 +97,8 @@ function winnerAnnouncementText(input: WinnerAnnouncementInput, recipientName: s
     "ทีมงานจะใช้กลุ่มนี้ในการแจ้งรายละเอียดและประสานงานต่อเนื่องจนเสร็จสิ้นกระบวนการประกวดนวัตกรรม สำนักงานตำรวจแห่งชาติ ประจำปี พ.ศ. 2569",
     "",
     `ดูประกาศได้ที่ ${detailUrl}`,
+    "",
+    winnerEmailContactLine,
   ].join("\n");
 }
 
