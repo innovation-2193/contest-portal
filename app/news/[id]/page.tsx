@@ -49,7 +49,6 @@ export default async function NewsPostPage({ params }: NewsPostPageProps) {
         <div className="news-post-content">
           <div className="news-post-meta"><span className="news-post-category">News &amp; Updates</span><span className="news-post-date"><CalendarDays/><span>{formatThaiDate(item.publishAt)}</span></span><NewsViewCount newsId={item.id} initialCount={item.viewCount}/></div>
           <h1>{item.title}</h1>
-          <p className="news-post-excerpt">{item.excerpt}</p>
           <div className="news-post-body">{item.body}</div>
           {item.attachmentName && <a className="public-news-attachment news-post-attachment" href={"/api/news-attachments/" + encodeURIComponent(item.attachmentName)} download><Download/>ดาวน์โหลดไฟล์แนบ{item.attachmentOriginalName ? ": " + item.attachmentOriginalName : ""}</a>}
         </div>

@@ -2693,6 +2693,7 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 
 .public-news-featured {
   position: absolute;
+  z-index: 2;
   top: 12px;
   left: 12px;
   min-height: 30px;
@@ -2708,6 +2709,7 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 
 .public-news-views {
   position: absolute;
+  z-index: 2;
   right: 12px;
   bottom: 12px;
   display: inline-flex;
@@ -6821,7 +6823,8 @@ body:has(.prelander-page)::before {
 }
 
 .submissions-admin-table {
-  min-width: 1240px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .checklist-table {
@@ -6862,22 +6865,65 @@ body:has(.prelander-page)::before {
 
 .submissions-admin-table th:nth-child(2),
 .submissions-admin-table td:nth-child(2) {
+  width: 10%;
   min-width: 92px;
 }
 
 .submissions-admin-table th:nth-child(3),
 .submissions-admin-table td:nth-child(3) {
+  width: 22%;
   min-width: 230px;
+}
+
+.submissions-admin-table th:nth-child(1),
+.submissions-admin-table td:nth-child(1) {
+  width: 4%;
+}
+
+.submissions-admin-table th:nth-child(4),
+.submissions-admin-table td:nth-child(4) {
+  width: 15%;
+  min-width: 160px;
 }
 
 .submissions-admin-table th:nth-child(5),
 .submissions-admin-table td:nth-child(5) {
-  min-width: 138px;
+  width: 18%;
+  min-width: 190px;
 }
 
 .submissions-admin-table th:nth-child(6),
 .submissions-admin-table td:nth-child(6) {
-  min-width: 260px;
+  width: 10%;
+  min-width: 104px;
+}
+
+.submissions-admin-table th:nth-child(7),
+.submissions-admin-table td:nth-child(7) {
+  width: 9%;
+  min-width: 100px;
+}
+
+.submissions-admin-table th:nth-child(8),
+.submissions-admin-table td:nth-child(8) {
+  width: 12%;
+  min-width: 140px;
+}
+
+.submissions-admin-table td:nth-child(4) {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.submissions-admin-table .inline-assign-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  gap: 6px;
+}
+
+.submissions-admin-table .inline-assign-form button {
+  min-width: 0;
+  padding-inline: 10px;
 }
 
 .admin-table th,
