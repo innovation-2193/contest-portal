@@ -4,7 +4,6 @@ import { ContestDocumentReplaceControl } from "../../components/ContestDocumentR
 import { ContestVideoButton } from "../../components/ContestVideoButton";
 import { cookieName, getAdminSession } from "../../lib/admin-auth";
 import { listSubmissionApplicantsForExport, listSubmissions, type SubmissionApplicantExportRow, type SubmissionListItem } from "../../lib/admin-store";
-import { listAdminAccounts } from "../../lib/admin-users";
 import { formatApplicantName } from "../../lib/thai-rank-title";
 import { checkVideoLink } from "../../lib/video-link-status";
 
@@ -13,7 +12,6 @@ export const revalidate = 0;
 
 type ContestRow = {
   hasUsableVideoLink: boolean;
-  reviewerName: string;
   submitterName: string;
   teamMemberNames: string[];
   submission: SubmissionListItem;
@@ -21,31 +19,23 @@ type ContestRow = {
 
 type ContestVideoStatus = "all" | "has" | "missing";
 
-export default async function ContestPage({ searchParams }: { searchParams: Promise<{ q?: string; reviewer?: string; video?: string }> }) {
+export default async function ContestPage({ searchParams }: { searchParams: Promise<{ q?: string; video?: string }> }) {
   const params = await searchParams;
   const cookieStore = await cookies();
   const adminSession = getAdminSession(cookieStore.get(cookieName)?.value);
   const isSuperAdmin = adminSession?.role === "super_admin";
   const q = (params.q ?? "").replace(/\s+/g, " ").trim();
-  const reviewer = (params.reviewer ?? "").trim().toLowerCase();
   const videoStatus = normalizeVideoStatus(params.video);
-  const [submissions, admins, applicantRows] = await Promise.all([
+  const [submissions, applicantRows] = await Promise.all([
     listSubmissions(),
-    listAdminAccounts(),
     listSubmissionApplicantsForExport(),
   ]);
   const memberNamesBySubmission = buildMemberNamesBySubmission(applicantRows);
-  const reviewerContacts = new Map(admins.map((admin) => [
-    admin.email.toLowerCase(),
-    { name: admin.name || admin.email, phone: admin.phone },
-  ]));
-  const reviewerOptions = buildReviewerOptions(submissions, reviewerContacts);
-  const prefilteredSubmissions = filterByReviewer(filterByInnovationName(submissions, q), reviewer);
+  const prefilteredSubmissions = filterByInnovationName(submissions, q);
   const rows = await Promise.all(prefilteredSubmissions.map(async (submission) => {
     const memberNames = memberNamesBySubmission.get(submission.submission_code) ?? [formatApplicantName(submission)];
     return {
       hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
-      reviewerName: reviewerName(submission, reviewerContacts),
       submitterName: memberNames[0] || "-",
       teamMemberNames: memberNames.slice(1),
       submission,
@@ -74,13 +64,6 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
         <form className="contest-public-filter-form" method="get">
           <label className="contest-public-search">ค้นหาชื่อนวัตกรรม
             <div><Search/><input name="q" defaultValue={q} placeholder="กรอกชื่อนวัตกรรมภาษาไทยหรืออังกฤษ"/></div>
-          </label>
-          <label>ผู้ตรวจเอกสารเบื้องต้น
-            <select name="reviewer" defaultValue={reviewer}>
-              <option value="">ทั้งหมด</option>
-              <option value="__unassigned">ยังไม่ระบุ</option>
-              {reviewerOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
           </label>
           <label>สถานะ Link Video
             <select name="video" defaultValue={videoStatus}>
@@ -116,7 +99,6 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                     <small>ส่งผลงานโดย: {row.submitterName}</small>
                     <small>หน่วยงาน: {[row.submission.division, row.submission.bureau].filter((value) => value?.trim()).join(" / ") || "ไม่ระบุหน่วยงาน"}</small>
                     {row.submission.submission_type === "team" && row.teamMemberNames.length > 0 && <small>สมาชิกทีม: {row.teamMemberNames.join(" • ")}</small>}
-                    <em>ผู้ตรวจเอกสารเบื้องต้น: {row.reviewerName}</em>
                   </div>
                 </td>
                 <td className="contest-action-cell" data-label="Link Video">
@@ -155,12 +137,6 @@ function filterByInnovationName(submissions: SubmissionListItem[], query: string
   );
 }
 
-function filterByReviewer(submissions: SubmissionListItem[], reviewer: string) {
-  if (!reviewer) return submissions;
-  if (reviewer === "__unassigned") return submissions.filter((submission) => !submission.review_assigned_admin_email?.trim());
-  return submissions.filter((submission) => submission.review_assigned_admin_email?.trim().toLowerCase() === reviewer);
-}
-
 function filterByVideoStatus(rows: ContestRow[], videoStatus: ContestVideoStatus) {
   if (videoStatus === "has") return rows.filter((row) => row.hasUsableVideoLink);
   if (videoStatus === "missing") return rows.filter((row) => !row.hasUsableVideoLink);
@@ -170,25 +146,6 @@ function filterByVideoStatus(rows: ContestRow[], videoStatus: ContestVideoStatus
 function normalizeVideoStatus(value?: string): ContestVideoStatus {
   if (value === "has" || value === "missing") return value;
   return "all";
-}
-
-function reviewerName(submission: SubmissionListItem, reviewerContacts: Map<string, { name: string; phone: string }>) {
-  const email = submission.review_assigned_admin_email?.trim().toLowerCase();
-  if (!email) return "ยังไม่ระบุ";
-  const contact = reviewerContacts.get(email);
-  if (!contact) return submission.review_assigned_admin_email || "ยังไม่ระบุ";
-  return contact.phone ? `${contact.name} (${contact.phone})` : contact.name;
-}
-
-function buildReviewerOptions(submissions: SubmissionListItem[], reviewerContacts: Map<string, { name: string; phone: string }>) {
-  const emails = new Set(
-    submissions
-      .map((submission) => submission.review_assigned_admin_email?.trim().toLowerCase() ?? "")
-      .filter(Boolean),
-  );
-  return [...emails]
-    .map((email) => ({ value: email, label: reviewerContacts.get(email)?.name || email }))
-    .sort((left, right) => left.label.localeCompare(right.label, "th"));
 }
 
 function buildMemberNamesBySubmission(rows: SubmissionApplicantExportRow[]) {

@@ -30,7 +30,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       entityId: submission.submission_code,
       summary: `ผู้สมัครดาวน์โหลดข้อมูลใบสมัครประกวด ${submission.submission_code}`,
     }, request.headers);
-    const packet = await submissionPrintPacketPdf(submission);
+    const packet = await submissionPrintPacketPdf(submission, { includeReview: false });
     return new NextResponse(new Uint8Array(packet), {
       headers: {
         "Content-Type": "application/pdf",
