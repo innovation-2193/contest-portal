@@ -23,6 +23,7 @@ export type EventBoothRecord = {
   sourceType: EventBoothSourceType;
   sourceKey: string;
   boothNumber: number;
+  sourceOrder: number;
   organizationName: string;
   workTitle: string;
   workType: string;
@@ -54,6 +55,7 @@ type BoothDbRow = {
   source_type: EventBoothSourceType;
   source_key: string;
   booth_number: number | string;
+  source_order: number | string;
   organization_name: string;
   work_title: string;
   work_type: string;
@@ -87,12 +89,43 @@ export async function listEventBoothSources(actorEmail = "system") {
     await createInitialBooths(missing, actorEmail);
   }
   const currentRecords = missing.length ? await listEventBoothRecords() : records;
-  return candidates.map((source) => ({
+  const fallbackOrder = new Map(candidates.map((source, index) => [sourceIdentity(source.sourceType, source.sourceKey), index + 1]));
+  const persistedOrder = new Map<string, number>();
+  for (const record of currentRecords) {
+    const identity = sourceIdentity(record.sourceType, record.sourceKey);
+    const current = persistedOrder.get(identity);
+    if (!current || (record.sourceOrder > 0 && record.sourceOrder < current)) persistedOrder.set(identity, record.sourceOrder);
+  }
+  const orderedCandidates = candidates.slice().sort((left, right) => {
+    const leftOrder = persistedOrder.get(sourceIdentity(left.sourceType, left.sourceKey)) || fallbackOrder.get(sourceIdentity(left.sourceType, left.sourceKey)) || Number.MAX_SAFE_INTEGER;
+    const rightOrder = persistedOrder.get(sourceIdentity(right.sourceType, right.sourceKey)) || fallbackOrder.get(sourceIdentity(right.sourceType, right.sourceKey)) || Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder || left.organizationName.localeCompare(right.organizationName, "th");
+  });
+  return orderedCandidates.map((source) => ({
     ...source,
     booths: currentRecords
       .filter((record) => record.sourceType === source.sourceType && record.sourceKey === source.sourceKey)
       .sort((left, right) => left.boothNumber - right.boothNumber),
   }));
+}
+
+export async function reorderEventBoothSources(input: { order: string[]; actorEmail: string }) {
+  const records = await listEventBoothRecords();
+  const identities = [...new Set(records.map((record) => sourceIdentity(record.sourceType, record.sourceKey)))];
+  const known = new Set(identities);
+  const requested = [...new Set(input.order.map((item) => item.trim()).filter((item) => known.has(item)))];
+  const ordered = [...requested, ...identities.filter((identity) => !requested.includes(identity))];
+  const orderByIdentity = new Map(ordered.map((identity, index) => [identity, index + 1]));
+  const now = new Date().toISOString();
+  const actorEmail = normalizeEmail(input.actorEmail);
+  const updated = records.map((record) => ({
+    ...record,
+    sourceOrder: orderByIdentity.get(sourceIdentity(record.sourceType, record.sourceKey)) ?? record.sourceOrder,
+    updatedByEmail: actorEmail,
+    updatedAt: now,
+  }));
+  await persistReorderedRecords(updated);
+  return ordered;
 }
 
 export async function listEventBooths(actorEmail = "system") {
@@ -217,6 +250,7 @@ function newRecord(source: EventBoothSource, boothNumber: number, actorEmail: st
     sourceType: source.sourceType,
     sourceKey: source.sourceKey,
     boothNumber,
+    sourceOrder: 0,
     organizationName: source.organizationName,
     workTitle: boothNumber === 1 ? source.defaultWorkTitle : "",
     workType: boothNumber === 1 ? source.defaultWorkType : "",
@@ -236,7 +270,7 @@ function newRecord(source: EventBoothSource, boothNumber: number, actorEmail: st
 async function listEventBoothRecords() {
   try {
     await ensureDatabaseSchema();
-    const [rows] = await db.execute("SELECT id,source_type,source_key,booth_number,organization_name,work_title,work_type,image_name,image_original_name,contact_key,contact_name,contact_phone,contact_email,created_by_email,updated_by_email,created_at,updated_at FROM event_booths ORDER BY source_type,organization_name,booth_number");
+    const [rows] = await db.execute("SELECT id,source_type,source_key,booth_number,source_order,organization_name,work_title,work_type,image_name,image_original_name,contact_key,contact_name,contact_phone,contact_email,created_by_email,updated_by_email,created_at,updated_at FROM event_booths ORDER BY source_order,source_type,organization_name,booth_number");
     return (rows as BoothDbRow[]).map(dbRowToRecord);
   } catch (error) {
     if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
@@ -250,7 +284,7 @@ async function saveNewRecords(records: EventBoothRecord[]) {
     await ensureDatabaseSchema();
     for (const record of records) {
       await db.execute(
-        "INSERT IGNORE INTO event_booths(id,source_type,source_key,booth_number,organization_name,work_title,work_type,image_name,image_original_name,contact_key,contact_name,contact_phone,contact_email,created_by_email,updated_by_email,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT IGNORE INTO event_booths(id,source_type,source_key,booth_number,source_order,organization_name,work_title,work_type,image_name,image_original_name,contact_key,contact_name,contact_phone,contact_email,created_by_email,updated_by_email,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         recordValues(record),
       );
     }
@@ -259,6 +293,24 @@ async function saveNewRecords(records: EventBoothRecord[]) {
     await writeLocalQueued(async (current) => {
       const identities = new Set(current.map((record) => boothIdentity(record)));
       return [...current, ...records.filter((record) => !identities.has(boothIdentity(record)))];
+    });
+  }
+}
+
+async function persistReorderedRecords(records: EventBoothRecord[]) {
+  try {
+    await ensureDatabaseSchema();
+    for (const record of records) {
+      await db.execute(
+        "UPDATE event_booths SET source_order=?,updated_by_email=?,updated_at=? WHERE source_type=? AND source_key=?",
+        [record.sourceOrder, record.updatedByEmail, record.updatedAt, record.sourceType, record.sourceKey],
+      );
+    }
+  } catch (error) {
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
+    await writeLocalQueued(async (current) => {
+      const byIdentity = new Map(records.map((record) => [sourceIdentity(record.sourceType, record.sourceKey), record]));
+      return current.map((record) => byIdentity.get(sourceIdentity(record.sourceType, record.sourceKey)) ?? record);
     });
   }
 }
@@ -347,7 +399,7 @@ function boothIdentity(record: Pick<EventBoothRecord, "sourceType" | "sourceKey"
 function emptyContact(): EventBoothContact { return { key: "", name: "", phone: "", email: "" }; }
 function clean(value: unknown) { return String(value ?? "").replace(/\s+/g, " ").trim(); }
 function normalizeEmail(value: string) { return value.trim().toLowerCase() || "system"; }
-function dbRowToRecord(row: BoothDbRow): EventBoothRecord { return normalizeRecord({ id: row.id, sourceType: row.source_type, sourceKey: row.source_key, boothNumber: Number(row.booth_number), organizationName: row.organization_name, workTitle: row.work_title, workType: row.work_type, imageName: row.image_name, imageOriginalName: row.image_original_name, contactKey: row.contact_key, contactName: row.contact_name, contactPhone: row.contact_phone, contactEmail: row.contact_email, createdByEmail: row.created_by_email, updatedByEmail: row.updated_by_email, createdAt: row.created_at, updatedAt: row.updated_at }); }
-function recordValues(record: EventBoothRecord) { return [record.id, record.sourceType, record.sourceKey, record.boothNumber, record.organizationName, record.workTitle, record.workType, record.imageName, record.imageOriginalName, record.contactKey, record.contactName, record.contactPhone, record.contactEmail, record.createdByEmail, record.updatedByEmail, record.createdAt, record.updatedAt]; }
-function normalizeRecord(record: EventBoothRecord): EventBoothRecord { return { ...record, boothNumber: Math.max(1, Number(record.boothNumber) || 1), imageName: record.imageName || null, imageOriginalName: record.imageOriginalName || null }; }
+function dbRowToRecord(row: BoothDbRow): EventBoothRecord { return normalizeRecord({ id: row.id, sourceType: row.source_type, sourceKey: row.source_key, boothNumber: Number(row.booth_number), sourceOrder: Number(row.source_order), organizationName: row.organization_name, workTitle: row.work_title, workType: row.work_type, imageName: row.image_name, imageOriginalName: row.image_original_name, contactKey: row.contact_key, contactName: row.contact_name, contactPhone: row.contact_phone, contactEmail: row.contact_email, createdByEmail: row.created_by_email, updatedByEmail: row.updated_by_email, createdAt: row.created_at, updatedAt: row.updated_at }); }
+function recordValues(record: EventBoothRecord) { return [record.id, record.sourceType, record.sourceKey, record.boothNumber, record.sourceOrder, record.organizationName, record.workTitle, record.workType, record.imageName, record.imageOriginalName, record.contactKey, record.contactName, record.contactPhone, record.contactEmail, record.createdByEmail, record.updatedByEmail, record.createdAt, record.updatedAt]; }
+function normalizeRecord(record: EventBoothRecord): EventBoothRecord { return { ...record, boothNumber: Math.max(1, Number(record.boothNumber) || 1), sourceOrder: Math.max(0, Number(record.sourceOrder) || 0), imageName: record.imageName || null, imageOriginalName: record.imageOriginalName || null }; }
 function isRecord(value: unknown): value is EventBoothRecord { const item = value as Partial<EventBoothRecord>; return Boolean(item && item.id && item.sourceType && item.sourceKey && item.organizationName); }

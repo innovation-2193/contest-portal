@@ -37,6 +37,7 @@ export const adminNoticeMessages = {
   uci_video_saved: "บันทึกคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",
   uci_video_deleted: "ลบคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",
   booth_count_saved: "บันทึกจำนวนบูธเรียบร้อยแล้ว",
+  booth_order_saved: "บันทึกลำดับบูธเรียบร้อยแล้ว",
   booth_saved: "บันทึกรายละเอียดบูธเรียบร้อยแล้ว",
 } as const;
 

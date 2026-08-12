@@ -265,6 +265,7 @@ async function ensureEventBoothsTable() {
       source_type VARCHAR(32) NOT NULL,
       source_key VARCHAR(160) NOT NULL,
       booth_number INT UNSIGNED NOT NULL DEFAULT 1,
+      source_order INT UNSIGNED NOT NULL DEFAULT 0,
       organization_name VARCHAR(500) NOT NULL,
       work_title VARCHAR(500) NOT NULL DEFAULT '',
       work_type VARCHAR(255) NOT NULL DEFAULT '',
@@ -280,9 +281,11 @@ async function ensureEventBoothsTable() {
       updated_at VARCHAR(40) NOT NULL,
       UNIQUE KEY uq_event_booth_source_number (source_type, source_key, booth_number),
       INDEX idx_event_booth_source (source_type, source_key),
+      INDEX idx_event_booth_source_order (source_order),
       INDEX idx_event_booth_updated (updated_at)
     ) ENGINE=InnoDB
   `);
+  await ensureColumn("event_booths", "source_order", "ALTER TABLE event_booths ADD COLUMN source_order INT UNSIGNED NOT NULL DEFAULT 0 AFTER booth_number");
 }
 
 async function ensureCommitteeScoresTable() {
