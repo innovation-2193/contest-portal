@@ -82,14 +82,30 @@ function drawPage(doc: PDFKit.PDFDocument, submissions: SubmissionListItem[], pr
     cursorY += 30;
   }
   drawSignatures(doc, profiles, x, 462);
+  drawWatermark(doc);
   drawDocumentFooter(doc, pageNumber, totalPages, "แบบฟอร์มคะแนนรอบที่ 1", fonts);
 }
 
 function drawHeader(doc: PDFKit.PDFDocument) {
   const x = 34;
   doc.font(fonts.bold).fontSize(16.5).fillColor(PRINT.black).text("แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 1 (Paper Screening)", x, 22, { width: tableWidth, align: "center", lineBreak: false });
-  doc.font(fonts.regular).fontSize(8.4).fillColor(PRINT.text).text("คณะกรรมการพิจารณาร่วมกัน • กรอกคะแนนหยาบ 5 ด้าน แล้วรวมคะแนนเต็ม 100", x, 50, { width: tableWidth, align: "center", lineBreak: false });
   doc.moveTo(x, 76).lineTo(x + tableWidth, 76).lineWidth(0.8).stroke(PRINT.line);
+}
+
+function drawWatermark(doc: PDFKit.PDFDocument) {
+  doc.save();
+  doc.rotate(-38, { origin: [doc.page.width / 2, doc.page.height / 2] });
+  doc.font(fonts.bold).fontSize(38).fillColor("#cbd5e1").fillOpacity(0.44).text(
+    "Police Innovation Contest 2026",
+    -80,
+    doc.page.height / 2 - 18,
+    {
+      width: doc.page.width + 160,
+      align: "center",
+      lineBreak: false,
+    },
+  );
+  doc.restore();
 }
 
 function drawTableHeader(doc: PDFKit.PDFDocument, x: number, y: number) {
