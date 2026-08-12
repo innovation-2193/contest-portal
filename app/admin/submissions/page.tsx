@@ -2,14 +2,16 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, Search, Settings, Trophy, UserCheck } from "lucide-react";
+import { Eye, FileSpreadsheet, FileText, Hash, Mail, Printer, RotateCcw, Search, Settings, Trophy, UserCheck } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { CommitteeScoreImportPanel } from "../../../components/CommitteeScoreImportPanel";
 import { PresentationScorePanel } from "../../../components/PresentationScorePanel";
-import { cookieName, getAdminSession } from "../../../lib/admin-auth";
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { SecretInput } from "../../../components/SecretInput";
+import { adminCookieSecure, adminOtpAutoFillCookie, cookieName, createAdminOtpAutoFillValue, getAdminOtpAutoFillCode, getAdminSession, requestSuperAdminOtp, verifySuperAdminOtp } from "../../../lib/admin-auth";
+import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant, resetSubmissionReviews } from "../../../lib/admin-store";
 import { listAdminAccounts } from "../../../lib/admin-users";
-import { assignSubmissionReviewer, getSubmissionDetail, listSubmissions, registerSubmissionAsParticipant } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath, adminNoticeReturnPath, safeAdminReturnPath } from "../../../lib/admin-flash";
 import { sendSubmissionAssignmentEmail } from "../../../lib/submission-assignment-mail";
@@ -21,7 +23,7 @@ const pageSize = 20;
 type SubmissionSort = "oldest" | "newest";
 type ReviewFilter = "all" | "unassigned" | "assigned" | "pending" | "scored";
 
-export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; sort?: string; review?: string; reviewer?: string }> }) {
+export default async function AdminSubmissionsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; sort?: string; review?: string; reviewer?: string; reviewResetOtp?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -38,6 +40,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
     isSuperAdmin ? listAdminAccounts() : Promise.resolve([]),
   ]);
   const activeAdmins = admins.filter((admin) => !admin.disabled);
+  const reviewResetOtpAutoFill = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "reset_submission_reviews" });
   const all = sortSubmissions(
     filterByReviewer(
       filterByReviewStatus(
@@ -81,6 +84,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
         </div>
       </div>
       <AdminNotice code={params.notice}/>
+      {isSuperAdmin && <SubmissionReviewResetPanel status={params.reviewResetOtp} autoFill={reviewResetOtpAutoFill}/>}
       {isSuperAdmin && <CommitteeScoreForm2Panel totalSubmissions={submissions.length}/>}
       {isSuperAdmin && <CommitteeScoreImportPanel/>}
       {isSuperAdmin && <PresentationScorePanel/>}
@@ -128,6 +132,23 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
       </section>
     </div>
   </div>;
+}
+
+function SubmissionReviewResetPanel({ status, autoFill }: { status?: string; autoFill: string }) {
+  return <section className="admin-panel submission-review-reset-panel">
+    <header className="admin-section-head"><RotateCcw/><div><h2>Reset คะแนนการตรวจเอกสารเบื้องต้น</h2><p>ล้างคะแนน หมายเหตุ วันที่ตรวจ และสถานะการตรวจ โดยคงผู้ตรวจและการ Assign ไว้</p></div></header>
+    {reviewResetOtpMessage(status)}
+    <div className="admin-delete-otp-panel">
+      <p>การดำเนินการนี้มีผลกับใบสมัครทั้งหมดและไม่สามารถกู้คืนคะแนนหรือรายละเอียดคะแนนเดิมได้ ผู้ตรวจและการ Assign จะยังคงอยู่ กรุณายืนยันด้วย OTP ของ Super Admin</p>
+      <form action={requestResetSubmissionReviewsOtpAction}>
+        <button className="secondary" type="submit"><Mail/>ส่ง OTP สำหรับ Reset การตรวจ</button>
+      </form>
+      {(status === "sent" || status === "failed") && <form action={resetSubmissionReviewsAction} className="admin-delete-otp-form">
+        <label>รหัส OTP<SecretInput name="otp" inputMode="numeric" pattern="[0-9๐-๙ -]{6,20}" maxLength={20} placeholder="กรอกรหัส 6 หลัก" required autoComplete="one-time-code" defaultValue={autoFill}/></label>
+        <ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันล้างคะแนนและรายละเอียดการตรวจของใบสมัครทั้งหมด? ผู้ตรวจและการ Assign จะยังคงอยู่"><RotateCcw/>Reset คะแนนและการตรวจ</ConfirmSubmitButton>
+      </form>}
+    </div>
+  </section>;
 }
 
 function CommitteeScoreForm2Panel({ totalSubmissions }: { totalSubmissions: number }) {
@@ -211,6 +232,63 @@ async function registerSubmissionParticipantAction(formData: FormData) {
   redirect(adminNoticePath("/admin/submissions", "competitor_registered"));
 }
 
+async function requestResetSubmissionReviewsOtpAction() {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || session.role !== "super_admin") redirect("/admin");
+  const requestHeaders = await headers();
+  const result = await requestSuperAdminOtp({ purpose: "reset_submission_reviews" });
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.review_reset_otp_requested",
+    entityType: "submission",
+    summary: "ขอ OTP เพื่อ Reset คะแนนและการตรวจเอกสารเบื้องต้นทั้งหมด",
+  }, requestHeaders);
+  const status = result.ok ? result.mailStatus === "failed" ? "mail_failed" : "sent" : "wait";
+  if (result.ok && result.autoFillCode) {
+    cookieStore.set(adminOtpAutoFillCookie, createAdminOtpAutoFillValue({
+      purpose: "reset_submission_reviews",
+      code: result.autoFillCode,
+    }), {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: adminCookieSecure(),
+      path: "/",
+      maxAge: 5 * 60,
+    });
+  } else {
+    cookieStore.delete(adminOtpAutoFillCookie);
+  }
+  redirect(`/admin/submissions?reviewResetOtp=${status}`);
+}
+
+async function resetSubmissionReviewsAction(formData: FormData) {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session || session.role !== "super_admin") redirect("/admin");
+  const otpOk = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), { purpose: "reset_submission_reviews" });
+  if (!otpOk) redirect("/admin/submissions?reviewResetOtp=failed");
+
+  cookieStore.delete(adminOtpAutoFillCookie);
+  const result = await resetSubmissionReviews();
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.review_reset",
+    entityType: "submission",
+    summary: `Reset คะแนนและรายละเอียดการตรวจเอกสารเบื้องต้น ${result.cleared} รายการด้วย OTP โดยคงผู้ตรวจและการ Assign`,
+    payload: { cleared: result.cleared },
+  }, await headers());
+  revalidatePath("/admin");
+  revalidatePath("/admin/submissions");
+  revalidatePath("/progress1");
+  revalidatePath("/progress1/scoreboard");
+  revalidatePath("/progress2");
+  revalidatePath("/contest");
+  redirect(adminNoticePath("/admin/submissions", result.cleared ? "review_reset_done" : "review_reset_empty"));
+}
+
 function Pagination({ basePath, q, sort, review, reviewer, page, totalPages }: { basePath: string; q: string; sort: SubmissionSort; review: ReviewFilter; reviewer: string; page: number; totalPages: number }) {
   const href = (target: number) => submissionListHref({ basePath, q, sort, review, reviewer, page: target });
   return <nav className="audit-pagination" aria-label="pagination">
@@ -218,6 +296,14 @@ function Pagination({ basePath, q, sort, review, reviewer, page, totalPages }: {
     <span>หน้า {page.toLocaleString("th-TH")} / {totalPages.toLocaleString("th-TH")}</span>
     {page >= totalPages ? <span className="disabled-action" aria-disabled="true">ถัดไป</span> : <Link className="secondary" href={href(page + 1)}>ถัดไป</Link>}
   </nav>;
+}
+
+function reviewResetOtpMessage(status?: string) {
+  if (status === "sent") return <div className="admin-login-alert success">ส่ง OTP ไปยังอีเมล Super Admin แล้ว กรุณากรอกรหัสเพื่อยืนยันการ Reset</div>;
+  if (status === "wait") return <div className="admin-login-alert">เพิ่งส่ง OTP ไปไม่นาน กรุณารอสักครู่ก่อนส่งใหม่</div>;
+  if (status === "failed") return <div className="admin-login-alert">รหัส OTP ไม่ถูกต้องหรือหมดอายุ กรุณาขอรหัสใหม่</div>;
+  if (status === "mail_failed") return <div className="admin-login-alert">สร้าง OTP แล้ว แต่ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบการตั้งค่าอีเมล</div>;
+  return null;
 }
 
 function submissionListHref({ basePath = "/admin/submissions", q, sort, review, reviewer, page }: { basePath?: string; q: string; sort: SubmissionSort; review: ReviewFilter; reviewer: string; page: number }) {

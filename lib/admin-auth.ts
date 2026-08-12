@@ -53,7 +53,7 @@ type SuperAdminOtpRecord = {
   contextKey: string;
 };
 
-type SuperAdminOtpPurpose = "login" | "delete_submission" | "reset_lucky_draw";
+type SuperAdminOtpPurpose = "login" | "delete_submission" | "reset_lucky_draw" | "reset_submission_reviews";
 
 type SuperAdminOtpOptions = {
   purpose?: SuperAdminOtpPurpose;
@@ -305,6 +305,7 @@ export function normalizeOtpCode(input: string) {
 function otpContextKey(options: Pick<SuperAdminOtpOptions, "purpose" | "submissionCode">) {
   if (options.purpose === "delete_submission") return `delete_submission:${options.submissionCode?.trim() ?? ""}`;
   if (options.purpose === "reset_lucky_draw") return "reset_lucky_draw";
+  if (options.purpose === "reset_submission_reviews") return "reset_submission_reviews";
   return "login";
 }
 
@@ -349,6 +350,24 @@ function superAdminOtpMessage(code: string, options: SuperAdminOtpOptions) {
       html: [
         "<p>มีคำขอ <strong>Reset ผล Lucky Draw</strong> ของ Police Innovation Contest 2026</p>",
         "<p>การดำเนินการนี้จะยกเลิกผลรางวัลปัจจุบันและส่งอีเมลแจ้งผู้ได้รับรางวัลเดิม</p>",
+        `<p>รหัส OTP คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1>`,
+        "<p>รหัสนี้หมดอายุภายใน 5 นาที</p>",
+      ].join(""),
+    };
+  }
+  if (options.purpose === "reset_submission_reviews") {
+    return {
+      subject: "OTP ยืนยัน Reset คะแนนและการตรวจเอกสารเบื้องต้น",
+      text: [
+        "มีคำขอ Reset คะแนนและการตรวจเอกสารเบื้องต้นของ Police Innovation Contest 2026",
+        "การดำเนินการนี้จะล้างคะแนน หมายเหตุ วันที่ตรวจ และสถานะการตรวจ โดยคงผู้ตรวจและการ Assign ไว้",
+        "",
+        `รหัส OTP: ${code}`,
+        "รหัสนี้หมดอายุภายใน 5 นาที",
+      ].join("\n"),
+      html: [
+        "<p>มีคำขอ <strong>Reset คะแนนและการตรวจเอกสารเบื้องต้น</strong> ของ Police Innovation Contest 2026</p>",
+        "<p>การดำเนินการนี้จะล้างคะแนน หมายเหตุ วันที่ตรวจ และสถานะการตรวจ โดยคงผู้ตรวจและการ Assign ไว้</p>",
         `<p>รหัส OTP คือ</p><h1 style="letter-spacing:8px">${escapeHtml(code)}</h1>`,
         "<p>รหัสนี้หมดอายุภายใน 5 นาที</p>",
       ].join(""),

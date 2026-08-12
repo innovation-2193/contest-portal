@@ -26,6 +26,8 @@ export const adminNoticeMessages = {
   participant_delete_forbidden: "บัญชี UCI ไม่มีสิทธิ์ลบข้อมูลผู้เข้าร่วมงาน",
   submission_saved: "บันทึกข้อมูลใบสมัครประกวดเรียบร้อยแล้ว",
   score_saved: "บันทึกคะแนนเรียบร้อยแล้ว",
+  review_reset_done: "Reset คะแนนและการตรวจเอกสารเบื้องต้นทั้งหมดเรียบร้อยแล้ว",
+  review_reset_empty: "ไม่พบคะแนนหรือข้อมูลการตรวจเอกสารเบื้องต้นที่ต้อง Reset",
   submission_deleted: "ลบใบสมัครประกวดเรียบร้อยแล้ว",
   lucky_draw_done: "สุ่ม Lucky Draw และส่งอีเมลแจ้งผู้โชคดีเรียบร้อยแล้ว",
   evaluations_reset: "รีเซ็ตคำตอบแบบประเมินความพึงพอใจทั้งหมดเรียบร้อยแล้ว",

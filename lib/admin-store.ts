@@ -26,6 +26,7 @@ import {
   findLocalSubmissionByCode,
   listLocalSubmissions,
   replaceLocalSubmissionFile,
+  resetLocalSubmissionReviews,
   updateLocalSubmission,
   updateLocalSubmissionReview,
   updateLocalSubmissionWorkCategory,
@@ -1440,6 +1441,37 @@ export async function assignSubmissionReviewer(submissionCode: string, adminEmai
       submissionCode: code,
       assignedAdminEmail: email,
     });
+  }
+}
+
+export async function resetSubmissionReviews() {
+  try {
+    await ensureDatabaseSchema();
+    const [result] = await db.execute(
+      `UPDATE submissions
+       SET review_rules_score=NULL,
+           review_problem_score=NULL,
+           review_innovation_score=NULL,
+           review_evidence_score=NULL,
+           review_impact_score=NULL,
+           review_total_score=NULL,
+           review_note=NULL,
+           review_submitted_at=NULL,
+           status=CASE WHEN status IN ('screening','qualified','rejected') THEN 'submitted' ELSE status END
+       WHERE review_rules_score IS NOT NULL
+          OR review_problem_score IS NOT NULL
+          OR review_innovation_score IS NOT NULL
+          OR review_evidence_score IS NOT NULL
+          OR review_impact_score IS NOT NULL
+          OR review_total_score IS NOT NULL
+          OR review_note IS NOT NULL
+          OR review_submitted_at IS NOT NULL
+          OR status IN ('screening','qualified','rejected')`,
+    );
+    return { cleared: Number((result as { affectedRows?: number }).affectedRows ?? 0) };
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return resetLocalSubmissionReviews();
   }
 }
 

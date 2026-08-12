@@ -77,6 +77,8 @@ const allowedAuditActions = new Set([
   "submission.checklist_export_pdf",
   "submission.video_export_pdf",
   "submission.review.assigned",
+  "submission.review_reset_otp_requested",
+  "submission.review_reset",
   "submission.score.submitted",
   "submission.progress1_export_xlsx",
   "submission.scoreboard_pdf",

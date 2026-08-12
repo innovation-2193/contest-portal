@@ -76,6 +76,7 @@ export type LocalSubmissionUpdateInput = {
 export type LocalSubmissionReviewInput = {
   submissionCode: string;
   assignedAdminEmail?: string | null;
+  assignedAt?: string | null;
   scoredByEmail?: string | null;
   rulesScore?: number | null;
   problemScore?: number | null;
@@ -336,7 +337,11 @@ export async function updateLocalSubmissionReview(input: LocalSubmissionReviewIn
     store.submissions[index] = {
       ...current,
       review_assigned_admin_email: input.assignedAdminEmail !== undefined ? input.assignedAdminEmail : current.review_assigned_admin_email ?? null,
-      review_assigned_at: input.assignedAdminEmail !== undefined ? new Date().toISOString() : current.review_assigned_at ?? null,
+      review_assigned_at: input.assignedAt !== undefined
+        ? input.assignedAt
+        : input.assignedAdminEmail !== undefined
+          ? new Date().toISOString()
+          : current.review_assigned_at ?? null,
       review_scored_by_email: input.scoredByEmail !== undefined ? input.scoredByEmail : current.review_scored_by_email ?? null,
       review_rules_score: input.rulesScore !== undefined ? input.rulesScore : current.review_rules_score ?? null,
       review_problem_score: input.problemScore !== undefined ? input.problemScore : current.review_problem_score ?? null,
@@ -349,6 +354,46 @@ export async function updateLocalSubmissionReview(input: LocalSubmissionReviewIn
     };
     await writeStore(store);
     return store.submissions[index];
+  };
+
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
+export async function resetLocalSubmissionReviews() {
+  const work = async () => {
+    const store = await readStore();
+    let cleared = 0;
+    store.submissions = store.submissions.map((submission) => {
+      const hasReviewData = Boolean(
+        submission.review_rules_score !== null && submission.review_rules_score !== undefined
+        || submission.review_problem_score !== null && submission.review_problem_score !== undefined
+        || submission.review_innovation_score !== null && submission.review_innovation_score !== undefined
+        || submission.review_evidence_score !== null && submission.review_evidence_score !== undefined
+        || submission.review_impact_score !== null && submission.review_impact_score !== undefined
+        || submission.review_total_score !== null && submission.review_total_score !== undefined
+        || submission.review_note
+        || submission.review_submitted_at
+        || ["screening", "qualified", "rejected"].includes(submission.status)
+      );
+      if (!hasReviewData) return submission;
+      cleared += 1;
+      return {
+        ...submission,
+        review_rules_score: null,
+        review_problem_score: null,
+        review_innovation_score: null,
+        review_evidence_score: null,
+        review_impact_score: null,
+        review_total_score: null,
+        review_note: null,
+        review_submitted_at: null,
+        status: ["screening", "qualified", "rejected"].includes(submission.status) ? "submitted" : submission.status,
+      };
+    });
+    if (cleared > 0) await writeStore(store);
+    return { cleared };
   };
 
   const result = writeQueue.then(work, work);
