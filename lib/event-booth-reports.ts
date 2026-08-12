@@ -8,7 +8,7 @@ const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
 export async function buildExecutiveBoothReportPdf(booths: EventBoothRecord[]) {
   const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
-  const summaryRowsPerPage = 16;
+  const summaryRowsPerPage = 14;
   const summaryPages = Math.max(1, Math.ceil(booths.length / summaryRowsPerPage));
   const totalPages = booths.length + summaryPages;
   for (let summaryPage = 0; summaryPage < summaryPages; summaryPage += 1) {
@@ -59,25 +59,27 @@ export async function buildUciBoothLabelsPdf(booths: EventBoothRecord[]) {
 
 function drawExecutiveSummaryPage(doc: PDFKit.PDFDocument, booths: EventBoothRecord[], page: number, total: number, boothTotal: number, offset: number) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
-  drawDocumentHeader(doc, { title: "บัญชีสรุปบูธแสดงผลงาน", titleFontSize: 19, subtitle: `เอกสารภาพรวมสำหรับผู้บังคับบัญชา • ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`, metaLabel: "จำนวนทั้งหมด", metaValue: `${boothTotal.toLocaleString("th-TH")} บูธ`, fonts });
-  doc.font(fonts.bold).fontSize(12).fillColor(PDF_THEME.navy).text("ภาพรวมหน่วยงานและประเภทผลงาน", 32, 132, { width: 531, lineBreak: false });
-  doc.font(fonts.regular).fontSize(8.5).fillColor(PDF_THEME.muted).text("รายการสรุปเรียงตามข้อมูลบูธทั้งหมดในระบบ รายละเอียดของแต่ละบูธแสดงในหน้าถัดไป", 32, 153, { width: 531, lineBreak: false });
+  const headerHeight = 128;
+  drawDocumentHeader(doc, { title: "บัญชีสรุปบูธแสดงผลงาน", titleFontSize: 19, headerHeight, subtitle: `สำหรับผู้บังคับบัญชา\nออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`, metaLabel: "จำนวนทั้งหมด", metaValue: `${boothTotal.toLocaleString("th-TH")} บูธ`, fonts });
+  doc.font(fonts.bold).fontSize(12).fillColor(PDF_THEME.navy).text("ภาพรวมหน่วยงานและประเภทผลงาน", 32, 150, { width: 531, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.5).fillColor(PDF_THEME.muted).text("รายการเรียงตามลำดับบูธที่กำหนดในระบบ รายละเอียดของแต่ละบูธแสดงในหน้าถัดไป", 32, 171, { width: 531, lineBreak: false });
   const columns = [["ลำดับ", 54], ["ชื่อหน่วยงาน", 304], ["ประเภทผลงาน", 173]] as const;
   const x = 32;
-  let y = 184;
+  let y = 198;
   const tableWidth = columns.reduce((sum, [, width]) => sum + width, 0);
-  const availableHeight = 558;
-  const rowHeight = booths.length ? Math.max(18, Math.min(34, availableHeight / booths.length)) : 46;
-  doc.roundedRect(x, y, tableWidth, 38, 7).fill(PDF_THEME.navy);
+  const availableHeight = 574;
+  const tableHeaderHeight = 38;
+  const rowHeight = booths.length ? Math.max(30, Math.min(40, availableHeight / booths.length)) : 46;
+  doc.rect(x, y, tableWidth, tableHeaderHeight).fillAndStroke(PDF_THEME.navy, PDF_THEME.navy);
   let headerX = x;
   columns.forEach(([label, width], index) => {
-    doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.goldSoft).text(label, headerX + 8, y + 13, { width: width - 16, align: index === 0 ? "center" : "left", lineBreak: false });
+    doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.goldSoft).text(label, headerX + 8, y + 12, { width: width - 16, align: index === 0 ? "center" : "left", lineBreak: false });
     headerX += width;
   });
-  y += 42;
+  y += tableHeaderHeight;
   if (!booths.length) {
-    doc.roundedRect(x, y, tableWidth, rowHeight, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-    doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.muted).text("ยังไม่มีข้อมูลบูธแสดงผลงาน", x, y + 16, { width: tableWidth, align: "center", lineBreak: false });
+    doc.rect(x, y, tableWidth, rowHeight).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.muted).text("ยังไม่มีข้อมูลบูธแสดงผลงาน", x, y + (rowHeight - 11) / 2, { width: tableWidth, align: "center", lineBreak: false });
   }
   booths.forEach((booth, index) => {
     doc.rect(x, y, tableWidth, rowHeight).fillAndStroke(index % 2 ? PDF_THEME.paleBlue : PDF_THEME.white, PDF_THEME.line);
@@ -86,7 +88,10 @@ function drawExecutiveSummaryPage(doc: PDFKit.PDFDocument, booths: EventBoothRec
     entries.forEach((entry, cellIndex) => {
       const width = columns[cellIndex][1];
       const fontSize = rowHeight < 22 ? 6.7 : rowHeight < 28 ? 7.5 : 8.2;
-      doc.font(cellIndex === 0 ? fonts.bold : fonts.regular).fontSize(fontSize).fillColor(PDF_THEME.text).text(entry, cellX + 8, y + Math.max(5, (rowHeight - fontSize) / 2 - 1), { width: width - 16, height: rowHeight - 8, align: cellIndex === 0 ? "center" : "left", ellipsis: true, lineBreak: false });
+      const cellWidth = width - 16;
+      doc.font(cellIndex === 0 ? fonts.bold : fonts.regular).fontSize(fontSize).fillColor(PDF_THEME.text);
+      const textHeight = Math.min(rowHeight - 8, doc.heightOfString(entry, { width: cellWidth, lineGap: 0 }));
+      doc.text(entry, cellX + 8, y + Math.max(4, (rowHeight - textHeight) / 2), { width: cellWidth, height: rowHeight - 8, align: cellIndex === 0 ? "center" : "left", ellipsis: true, lineBreak: true });
       cellX += width;
     });
     y += rowHeight;
@@ -96,20 +101,20 @@ function drawExecutiveSummaryPage(doc: PDFKit.PDFDocument, booths: EventBoothRec
 
 function drawExecutivePage(doc: PDFKit.PDFDocument, booth: EventBoothRecord, page: number, total: number, boothIndex: number, boothTotal: number) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
-  drawDocumentHeader(doc, { title: "รายงานข้อมูลบูธแสดงผลงาน", titleFontSize: 18.5, subtitle: `เอกสารประกอบการพิจารณาสำหรับผู้บังคับบัญชา • ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`, metaLabel: "ลำดับบูธ", metaValue: `${boothIndex} / ${boothTotal}`, fonts });
-  doc.font(fonts.bold).fontSize(8.5).fillColor(PDF_THEME.gold).text(booth.sourceType === "finalist" ? "ผลงานที่ผ่านการคัดเลือกรอบที่ 1" : "ผู้ลงทะเบียนจัดบูธ (Exhibitor)", 32, 130, { width: 530, lineBreak: false });
-  doc.font(fonts.bold).fontSize(20).fillColor(PDF_THEME.navy).text(value(booth.workTitle, "รอระบุชื่อผลงานที่จัดบูธ"), 32, 151, { width: 530, height: 58, ellipsis: true });
-  drawExecutiveDetail(doc, 32, 226, 531, "ชื่อหน่วยงาน", booth.organizationName);
-  drawExecutiveDetail(doc, 32, 292, 531, "ประเภทผลงาน", value(booth.workType, "รอระบุประเภทผลงาน"));
-  drawExecutiveDetail(doc, 32, 358, 531, "ผู้ติดต่อหลัก", value(booth.contactName, "รอระบุผู้ติดต่อหลัก"));
-  drawExecutiveDetail(doc, 32, 424, 531, "ข้อมูลติดต่อ", [booth.contactPhone, booth.contactEmail].filter(Boolean).join(" • ") || "ไม่พบข้อมูลติดต่อ");
-  doc.roundedRect(32, 502, 531, 260, 10).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("รูปภาพประกอบบูธ", 48, 518, { width: 499, lineBreak: false });
+  drawDocumentHeader(doc, { title: "รายงานข้อมูลบูธแสดงผลงาน", titleFontSize: 18.5, headerHeight: 128, subtitle: `สำหรับผู้บังคับบัญชา\nออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`, metaLabel: "ลำดับบูธ", metaValue: `${boothIndex} / ${boothTotal}`, fonts });
+  doc.font(fonts.bold).fontSize(8.5).fillColor(PDF_THEME.gold).text(booth.sourceType === "finalist" ? "ผลงานที่ผ่านการคัดเลือกรอบที่ 1" : "ผู้ลงทะเบียนจัดบูธ (Exhibitor)", 32, 150, { width: 530, lineBreak: false });
+  doc.font(fonts.bold).fontSize(20).fillColor(PDF_THEME.navy).text(value(booth.workTitle, "รอระบุชื่อผลงานที่จัดบูธ"), 32, 171, { width: 530, height: 58, ellipsis: true });
+  drawExecutiveDetail(doc, 32, 246, 531, "ชื่อหน่วยงาน", booth.organizationName);
+  drawExecutiveDetail(doc, 32, 312, 531, "ประเภทผลงาน", value(booth.workType, "รอระบุประเภทผลงาน"));
+  drawExecutiveDetail(doc, 32, 378, 531, "ผู้ติดต่อหลัก", value(booth.contactName, "รอระบุผู้ติดต่อหลัก"));
+  drawExecutiveDetail(doc, 32, 444, 531, "ข้อมูลติดต่อ", [booth.contactPhone, booth.contactEmail].filter(Boolean).join(" • ") || "ไม่พบข้อมูลติดต่อ");
+  doc.roundedRect(32, 522, 531, 240, 10).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("รูปภาพประกอบบูธ", 48, 538, { width: 499, lineBreak: false });
   const imagePath = booth.imageName ? getEventBoothImagePath(booth.imageName) : null;
   if (imagePath && existsSync(imagePath) && /\.(jpe?g|png)$/i.test(imagePath)) {
-    try { doc.image(imagePath, 48, 546, { fit: [499, 194], align: "center", valign: "center" }); } catch { drawImagePlaceholder(doc, 48, 546, 499, 194); }
+    try { doc.image(imagePath, 48, 566, { fit: [499, 174], align: "center", valign: "center" }); } catch { drawImagePlaceholder(doc, 48, 566, 499, 174); }
   } else {
-    drawImagePlaceholder(doc, 48, 546, 499, 194);
+    drawImagePlaceholder(doc, 48, 566, 499, 174);
   }
   drawDocumentFooter(doc, page, total, `${booth.organizationName} • บูธที่ ${booth.boothNumber}`, fonts);
 }

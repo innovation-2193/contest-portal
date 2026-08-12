@@ -31,6 +31,7 @@ type HeaderOptions = {
   title: string;
   titleFontSize?: number;
   subtitle: string;
+  headerHeight?: number;
   eyebrow?: string;
   metaLabel?: string;
   metaValue?: string;
@@ -41,13 +42,14 @@ type HeaderOptions = {
 export function drawDocumentHeader(doc: PDFKit.PDFDocument, options: HeaderOptions) {
   const width = doc.page.width;
   const fonts = options.fonts ?? { regular: pdfFontRegular, bold: pdfFontBold };
+  const headerHeight = options.headerHeight ?? 108;
   const metaWidth = options.metaValue ? 174 : 0;
   const showLogo = options.showLogo !== false;
   const textX = showLogo ? 104 : 30;
   const titleWidth = width - textX - 20 - metaWidth;
 
-  doc.rect(0, 0, width, 108).fill(PDF_THEME.navy);
-  doc.rect(0, 104, width, 4).fill(PDF_THEME.gold);
+  doc.rect(0, 0, width, headerHeight).fill(PDF_THEME.navy);
+  doc.rect(0, headerHeight - 4, width, 4).fill(PDF_THEME.gold);
   if (showLogo) {
     doc.image(pdfLogo, 30, 20, { fit: [60, 60], align: "center", valign: "center" });
   }
@@ -66,7 +68,9 @@ export function drawDocumentHeader(doc: PDFKit.PDFDocument, options: HeaderOptio
   });
   doc.font(fonts.regular).fontSize(10.5).fillColor("#dce5f3").text(options.subtitle, textX, 70, {
     width: titleWidth,
-    lineBreak: false,
+    height: Math.max(18, headerHeight - 78),
+    lineGap: 2,
+    lineBreak: true,
   });
 
   if (options.metaValue) {
@@ -82,7 +86,7 @@ export function drawDocumentHeader(doc: PDFKit.PDFDocument, options: HeaderOptio
       lineBreak: false,
     });
   }
-  return 108;
+  return headerHeight;
 }
 
 export function drawDocumentFooter(
