@@ -68,17 +68,19 @@ export function PublicNewsShowcase({ news }: { news: PublicNewsItem[] }) {
           {news.map((item, index) => (
             <article className="public-news-card" key={item.id}>
               <div className="public-news-media">
-                {item.imageName ? (
-                  <img src={`/api/news-images/${encodeURIComponent(item.imageName)}`} alt={item.title} />
-                ) : (
-                  <Newspaper aria-hidden="true" />
-                )}
+                <Link className="public-news-media-link" href={`/news/${encodeURIComponent(item.id)}`} aria-label={`อ่านข่าว ${item.title}`}>
+                  {item.imageName ? (
+                    <img src={`/api/news-images/${encodeURIComponent(item.imageName)}`} alt={item.title} />
+                  ) : (
+                    <Newspaper aria-hidden="true" />
+                  )}
+                </Link>
                 {index === 0 && <span className="public-news-featured">ข่าวล่าสุด</span>}
                 <span className="public-news-views"><Eye />ยอดผู้ชม {formatViewCount(item.viewCount)} คน</span>
               </div>
               <div className="public-news-copy">
                 <span className="public-news-date"><CalendarDays />{formatThaiDate(item.publishAt)}</span>
-                <h3>{item.title}</h3>
+                <Link className="public-news-title-link" href={`/news/${encodeURIComponent(item.id)}`}><h3>{item.title}</h3></Link>
                 <p>{item.excerpt}</p>
                 <Link href={"/news/" + encodeURIComponent(item.id)}>
                   รายละเอียด <ArrowRight />

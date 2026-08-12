@@ -15,7 +15,6 @@ import { listAdminAccounts } from "../../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath, adminNoticeReturnPath, safeAdminReturnPath } from "../../../lib/admin-flash";
 import { sendSubmissionAssignmentEmail } from "../../../lib/submission-assignment-mail";
-import { workCategoryLabel } from "../../../lib/work-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +53,6 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           item.position,
           item.division,
           item.bureau,
-          workCategoryLabel(item.work_category),
           item.status,
           item.review_assigned_admin_email,
         ]),
@@ -110,12 +108,11 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
           </select></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href="/admin/submissions">ล้าง</Link></div>
         </form>
-        <div className="admin-table-wrap"><table className="admin-table compact-admin-table submissions-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>สายงาน</th><th>ผู้ตรวจเอกสาร</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
+        <div className="admin-table-wrap"><table className="admin-table compact-admin-table submissions-admin-table"><thead><tr><th>ลำดับ</th><th>รหัส</th><th>ผลงาน</th><th>ผู้สมัคร</th><th>ผู้ตรวจเอกสาร</th><th>คะแนน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item, index) => <tr id={`submission-${item.submission_code}`} key={item.submission_code}>
           <td data-label="ลำดับ"><b>{((currentPage - 1) * pageSize + index + 1).toLocaleString("th-TH")}</b></td>
           <td data-label="รหัส"><b>{item.submission_code}</b><small>{formatAdminDate(item.submitted_at)}</small></td>
           <td data-label="ผลงาน">{item.title_th}<small>{item.submission_type === "team" ? `ชื่อทีม: ${item.team_name ?? "-"}` : "ส่งเดี่ยว"}</small></td>
           <td data-label="ผู้สมัคร">{item.first_name} {item.last_name}<small>{item.email}</small></td>
-          <td data-label="สายงาน"><Link className="status-pill work-category-pill work-category-link" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}?edit=1#edit-submission`}>{workCategoryLabel(item.work_category)}</Link></td>
           <td data-label="ผู้ตรวจเอกสาร">{isSuperAdmin ? <AssignInlineForm submissionCode={item.submission_code} current={item.review_assigned_admin_email} admins={activeAdmins} returnTo={`${currentListPath}#submission-${item.submission_code}`}/> : item.review_assigned_admin_email || "-"}</td>
           <td data-label="คะแนน"><span className={`status-pill ${item.review_total_score !== null && item.review_total_score !== undefined ? "attended" : "registered"}`}><Trophy/>{item.review_total_score ?? "-"}/100</span></td>
           <td data-label="สถานะ">{reviewStatus(item)}</td>
@@ -127,7 +124,7 @@ export default async function AdminSubmissionsPage({ searchParams }: { searchPar
             <Link className="secondary small-action" href={`/admin/submissions/${encodeURIComponent(item.submission_code)}?edit=1#edit-submission`}><Eye/>ดู/แก้ไข</Link>
             <a className="secondary small-action" href={`/api/admin/submissions/${encodeURIComponent(item.submission_code)}/print`} target="_blank" rel="noreferrer"><Printer/>พิมพ์</a>
           </div></td>
-        </tr>) : <tr><td colSpan={9}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
+        </tr>) : <tr><td colSpan={8}>ไม่พบข้อมูล</td></tr>}</tbody></table></div>
         <Pagination basePath="/admin/submissions" q={q} sort={sort} review={review} reviewer={reviewer} page={currentPage} totalPages={totalPages}/>
       </section>
     </div>

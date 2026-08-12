@@ -22,7 +22,7 @@ import { deleteSubmission, getSubmissionDetail, saveSubmissionScore, updateSubmi
 import { actorFromAdminSession, recordAuditEvent } from "../../../../lib/audit-log";
 import { adminNoticePath } from "../../../../lib/admin-flash";
 import { isThaiCitizenId } from "../../../../lib/validation";
-import { normalizeWorkCategory, workCategories, workCategoryLabel } from "../../../../lib/work-categories";
+import { defaultWorkCategory, normalizeWorkCategory } from "../../../../lib/work-categories";
 
 export const dynamic = "force-dynamic";
 
@@ -99,7 +99,6 @@ export default async function AdminSubmissionDetail({ params, searchParams }: { 
             <Detail label="ชื่อผลงานภาษาไทย" value={item.title_th}/>
             <Detail label="Innovation Title" value={item.title_en || "-"}/>
             <Detail label="ประเภทการส่ง" value={item.submission_type === "team" ? `ส่งแบบกลุ่ม${item.team_name ? ` (${item.team_name})` : ""}` : "ส่งเดี่ยว"}/>
-            <Detail label="สายงานที่เกี่ยวข้อง" value={workCategoryLabel(item.work_category)}/>
             <Detail label="บัญชีอีเมล" value={item.email}/>
             <Detail label="Link Video" value={item.video_url || "-"}/>
             <Detail label="คำอธิบายย่อ" value={item.summary} wide/>
@@ -207,9 +206,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       </select></label>
       <label>ชื่อทีม<input name="teamName" defaultValue={item.team_name ?? ""} placeholder="กรอกเมื่อเป็นการส่งแบบกลุ่ม"/></label>
       <label>สถานะ<select name="status" defaultValue={item.status}>{submissionStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-      <label>สายงานที่เกี่ยวข้อง<select name="workCategory" defaultValue={item.work_category}>
-        {workCategories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}
-      </select><small className="field-help">Super Admin สามารถเลือกหรือแก้ไขสายงานได้เอง</small></label>
+      <input type="hidden" name="workCategory" value={item.work_category || defaultWorkCategory}/>
       <label className="span-2">ชื่อผลงานภาษาไทย<input name="titleTh" defaultValue={item.title_th} required/></label>
       <label>Innovation Title<input name="titleEn" defaultValue={item.title_en ?? ""}/></label>
       <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
