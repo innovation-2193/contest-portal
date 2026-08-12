@@ -78,8 +78,8 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
                 <label>เลขบัตรประชาชน<input name="citizenId" defaultValue={item.citizen_id} inputMode="numeric" pattern="\d{13}" maxLength={13} placeholder="เว้นว่างได้ถ้าลงทะเบียนจากไฟล์"/></label>
                 <label>เบอร์ติดต่อ<input name="phone" defaultValue={item.phone} inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} placeholder="เว้นว่างได้ถ้าลงทะเบียนจากไฟล์"/></label>
                 <label>ตำแหน่ง<input name="position" defaultValue={item.position} required/></label>
-                <label>สังกัด / กองบังคับการ<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required/></label>
-                <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ<input name="bureau" defaultValue={item.bureau} placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required/></label>
+                <label>สังกัด / กองบังคับการ{session.role === "super_admin" && <small>ไม่บังคับกรอก</small>}<input name="division" defaultValue={item.division} placeholder="เช่น กลุ่มงาน / ฝ่าย / กองบังคับการ หรือสังกัดผู้ประสานงาน" required={session.role !== "super_admin"}/></label>
+                <label>กองบัญชาการ / ชื่อหน่วยงาน / หน่วยจัดบูธ{session.role === "super_admin" && <small>ไม่บังคับกรอก</small>}<input name="bureau" defaultValue={item.bureau} placeholder="ถ้าเป็น Exhibitor ให้ใส่หน่วยที่มากับบูธ เช่น สถาบันเทคโนโลยีป้องกันประเทศ" required={session.role !== "super_admin"}/></label>
                 <label>สถานะ<select name="status" defaultValue={item.status}>{participantStatuses.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
               </div>
               <button className="primary" type="submit"><Pencil/>บันทึกข้อมูลผู้เข้าร่วมงาน</button>
