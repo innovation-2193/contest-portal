@@ -99,6 +99,15 @@ export async function listEventBooths(actorEmail = "system") {
   return (await listEventBoothSources(actorEmail)).flatMap((source) => source.booths.map((booth) => ({ ...booth, sourceLabel: source.sourceLabel })));
 }
 
+export async function getEventBoothContext(id: string, actorEmail = "system") {
+  const boothId = id.trim();
+  for (const source of await listEventBoothSources(actorEmail)) {
+    const booth = source.booths.find((item) => item.id === boothId);
+    if (booth) return { source, booth };
+  }
+  return null;
+}
+
 export async function setEventBoothCount(input: { sourceType: EventBoothSourceType; sourceKey: string; count: number; actorEmail: string }) {
   const source = await findSource(input.sourceType, input.sourceKey, input.actorEmail);
   const count = Math.min(20, Math.max(1, Math.floor(input.count)));
