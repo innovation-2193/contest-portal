@@ -5,7 +5,7 @@ import { sendRegistrationConfirmation } from "./registration-artifacts";
 import path from "path";
 
 const lineCoordinationQrCid = "police-innovation-line-coordination-qr";
-const lineCoordinationDeadline = "17 สิงหาคม 2569";
+const lineCoordinationDeadline = "20 สิงหาคม 2569";
 const lineCoordinationUrl = "https://line.me/ti/g/Fg6PscYxwQ";
 const winnerEmailContactLine = "กลุ่มงานวิจัยและพัฒนานวัตกรรมฯ บก.สสท. โทร. 0 2205 2193";
 
