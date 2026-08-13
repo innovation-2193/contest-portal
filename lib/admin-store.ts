@@ -201,6 +201,8 @@ export type SubmissionChecklistRow = {
   submission_type: string;
   team_name: string | null;
   video_url: string | null;
+  review_assigned_admin_email: string | null;
+  review_scored_by_email: string | null;
   submitted_at: string;
   email: string;
   title: string;
@@ -1090,14 +1092,14 @@ export async function listSubmissionChecklistRows(): Promise<SubmissionChecklist
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      `SELECT s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.submitted_at,
+      `SELECT s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.review_assigned_admin_email,s.review_scored_by_email,s.submitted_at,
         u.email,m.title,m.first_name,m.last_name,m.phone,m.position,m.division,m.bureau,
         GROUP_CONCAT(f.document_type ORDER BY FIELD(f.document_type,'ownership','concept','prototype','implementation') SEPARATOR ',') AS file_types
        FROM submissions s
        JOIN users u ON u.id=s.user_id
        JOIN submission_members m ON m.submission_id=s.id AND m.member_order=1
        LEFT JOIN submission_files f ON f.submission_id=s.id
-       GROUP BY s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.submitted_at,
+       GROUP BY s.submission_code,s.title_th,s.submission_type,s.team_name,s.video_url,s.review_assigned_admin_email,s.review_scored_by_email,s.submitted_at,
         u.email,m.title,m.first_name,m.last_name,m.phone,m.position,m.division,m.bureau
        ORDER BY s.submitted_at DESC
        LIMIT 1000`,
@@ -2249,6 +2251,8 @@ function localSubmissionToChecklistRow(local: LocalSubmissionRecord): Submission
     submission_type: local.submission_type,
     team_name: local.team_name,
     video_url: local.video_url || null,
+    review_assigned_admin_email: local.review_assigned_admin_email ?? null,
+    review_scored_by_email: local.review_scored_by_email ?? null,
     submitted_at: local.submitted_at,
     email: local.email,
     title: primary?.title ?? local.title,
@@ -2328,6 +2332,8 @@ function checklistRowToItem(row: Omit<SubmissionChecklistRow, "files"> & { file_
     submission_type: row.submission_type,
     team_name: row.team_name,
     video_url: row.video_url,
+    review_assigned_admin_email: row.review_assigned_admin_email,
+    review_scored_by_email: row.review_scored_by_email,
     submitted_at: row.submitted_at,
     email: row.email,
     title: row.title,
