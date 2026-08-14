@@ -23,7 +23,7 @@ const participantStatuses = [
   ["cancelled", "ยกเลิก"],
 ] as const;
 
-export default async function AdminParticipantDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ notice?: string }> }) {
+export default async function AdminParticipantDetail({ params, searchParams }: { params: Promise<{ code: string }>; searchParams: Promise<{ notice?: string; error?: string }> }) {
   const session = await requireAdmin();
 
   const { code } = await params;
@@ -41,7 +41,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
         </div>
         <div className="admin-actions"><BackButton />{item && <AdminPrintButton />}</div>
       </div>
-      <AdminNotice code={query.notice}/>
+      <AdminNotice code={query.notice} error={query.error}/>
       {item ? <article className="admin-panel printable-sheet">
         <header className="print-heading"><img className="print-brand-mark" src="/favicon.png" alt="Police Innovation Contest"/><div className="print-heading-copy"><span className="eyebrow">Registration Confirmation</span><h2>{item.registration_code}</h2><p>ลงทะเบียนเมื่อ {formatAdminDate(item.registered_at)}</p></div><div className="print-heading-meta"><b>ใบยืนยันการลงทะเบียน</b><span>ออกเอกสาร {issuedAt}</span></div></header>
         <section className="admin-detail-summary">

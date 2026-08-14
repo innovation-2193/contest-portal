@@ -203,42 +203,59 @@ async function createParticipantAction(formData: FormData) {
   if (!session) redirect("/admin");
   const isUciWorkspace = session.role === "uci" || text(formData, "workspace") === "uci";
   const requestHeaders = await headers();
-  const citizenId = text(formData, "citizenId");
-  const phone = text(formData, "phone");
-  const participantRole = text(formData, "participantRole") as ParticipantRole;
-  if (citizenId && (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId))) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
-  if (phone && !/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
-  if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
-  const result = await createParticipant({
-    email: text(formData, "email"),
-    provider: "local",
-    participantRole,
-    title: text(formData, "title"),
-    firstName: text(formData, "firstName"),
-    lastName: text(formData, "lastName"),
-    citizenId,
-    phone,
-    position: text(formData, "position"),
-    division: text(formData, "division"),
-    bureau: text(formData, "bureau"),
-  });
-  const autoCheckedIn = isUciWorkspace
-    ? Boolean(await recordUciAutoCheckIn(result.record.registration_code, isUciWorkspace, session, requestHeaders))
-    : false;
-  await recordAuditEvent({
-    actor: actorFromAdminSession(session),
-    action: "registration.created.by_admin",
-    entityType: "registration",
-    entityId: result.record.registration_code,
-    summary: `แอดมินลงทะเบียนผู้เข้าร่วมงาน ${result.record.registration_code}`,
-    payload: { registrationCode: result.record.registration_code, emailStatus: result.emailStatus, autoCheckedIn },
-  }, requestHeaders);
-  revalidatePath("/admin");
-  revalidatePath("/admin/participants");
-  const returnPath = isUciWorkspace
-    ? `/admin/participants/${encodeURIComponent(result.record.registration_code)}?from=uci`
-    : `/admin/participants/${encodeURIComponent(result.record.registration_code)}`;
-  redirect(adminNoticePath(returnPath, autoCheckedIn ? "participant_created_checked_in" : "participant_created"));
+  const listPath = isUciWorkspace ? "/admin/participants?from=uci" : "/admin/participants";
+  let successPath = "";
+
+  try {
+    const citizenId = text(formData, "citizenId");
+    const phone = text(formData, "phone");
+    const participantRole = text(formData, "participantRole") as ParticipantRole;
+    if (citizenId && (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId))) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
+    if (phone && !/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
+    if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
+    const result = await createParticipant({
+      email: text(formData, "email"),
+      provider: "local",
+      participantRole,
+      title: text(formData, "title"),
+      firstName: text(formData, "firstName"),
+      lastName: text(formData, "lastName"),
+      citizenId,
+      phone,
+      position: text(formData, "position"),
+      division: text(formData, "division"),
+      bureau: text(formData, "bureau"),
+    });
+    let autoCheckedIn = false;
+    let autoCheckInError = "";
+    if (isUciWorkspace) {
+      try {
+        autoCheckedIn = Boolean(await recordUciAutoCheckIn(result.record.registration_code, true, session, requestHeaders));
+      } catch (error) {
+        console.error("UCI automatic check-in failed after participant registration", error);
+        autoCheckInError = "ลงทะเบียนเรียบร้อยแล้ว แต่เช็คอินอัตโนมัติไม่สำเร็จ กรุณาเช็คอินรายการนี้จากหน้าเช็คอินอีกครั้ง";
+      }
+    }
+    await recordAuditEvent({
+      actor: actorFromAdminSession(session),
+      action: "registration.created.by_admin",
+      entityType: "registration",
+      entityId: result.record.registration_code,
+      summary: `แอดมินลงทะเบียนผู้เข้าร่วมงาน ${result.record.registration_code}`,
+      payload: { registrationCode: result.record.registration_code, emailStatus: result.emailStatus, autoCheckedIn },
+    }, requestHeaders);
+    revalidatePath("/admin");
+    revalidatePath("/admin/participants");
+    const returnPath = isUciWorkspace
+      ? `/admin/participants/${encodeURIComponent(result.record.registration_code)}?from=uci`
+      : `/admin/participants/${encodeURIComponent(result.record.registration_code)}`;
+    successPath = autoCheckInError
+      ? participantErrorPath(returnPath, autoCheckInError)
+      : adminNoticePath(returnPath, autoCheckedIn ? "participant_created_checked_in" : "participant_created");
+  } catch (error) {
+    redirect(participantErrorPath(listPath, participantActionErrorMessage(error)));
+  }
+  redirect(successPath);
 }
 
 async function recordUciAutoCheckIn(registrationCode: string, isUciWorkspace: boolean, session: NonNullable<ReturnType<typeof getAdminSession>>, requestHeaders: Headers) {
@@ -305,6 +322,22 @@ function participantsClearHref(role: string, from = "") {
 
 function participantBulkErrorPath(message: string) {
   return `/admin/participants?${new URLSearchParams({ error: message })}`;
+}
+
+function participantErrorPath(path: string, message: string) {
+  const [base, query = ""] = path.split("?");
+  const params = new URLSearchParams(query);
+  params.set("error", message);
+  return `${base}?${params.toString()}`;
+}
+
+function participantActionErrorMessage(error: unknown) {
+  const code = String((error as { code?: string })?.code ?? "");
+  if (code === "DUPLICATE_NAME") return "ไม่สามารถลงทะเบียนได้: ชื่อและนามสกุลนี้มีอยู่ในระบบแล้ว";
+  if (code === "DUPLICATE_CITIZEN_ID") return "ไม่สามารถลงทะเบียนได้: เลขบัตรประชาชนนี้มีอยู่ในระบบแล้ว";
+  if (code === "ER_DUP_ENTRY") return "ไม่สามารถลงทะเบียนได้: ข้อมูลนี้มีอยู่ในระบบแล้ว กรุณาตรวจสอบชื่อ อีเมล หรือเลขบัตรประชาชน";
+  if (error instanceof Error && ["หมายเลขบัตรประชาชนไม่ถูกต้อง", "เบอร์ติดต่อไม่ถูกต้อง", "Role ผู้เข้าร่วมไม่ถูกต้อง"].includes(error.message)) return error.message;
+  return "ไม่สามารถลงทะเบียนผู้เข้าร่วมงานได้ กรุณาตรวจสอบข้อมูลแล้วลองใหม่อีกครั้ง";
 }
 
 function errorMessage(error: unknown) {
