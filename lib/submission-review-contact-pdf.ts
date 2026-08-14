@@ -21,6 +21,7 @@ const tableBottomY = 548;
 export type SubmissionReviewContactRow = SubmissionChecklistRow & {
   reviewerName: string;
   primaryApplicantName: string;
+  primaryApplicantAffiliation: string;
   coordinatorPhone: string;
 };
 
@@ -33,6 +34,7 @@ export function buildSubmissionReviewContactReport(rows: SubmissionChecklistRow[
         ...row,
         reviewerName: adminNames.get(reviewerEmail) || reviewerEmail || "ยังไม่ระบุ",
         primaryApplicantName: formatApplicantName(row),
+        primaryApplicantAffiliation: affiliation(row),
         coordinatorPhone: clean(row.phone),
       } satisfies SubmissionReviewContactRow;
     })
@@ -52,7 +54,7 @@ export async function submissionReviewContactPdf(rows: SubmissionReviewContactRo
   const totalPages = Math.max(1, pages.length);
 
   doc.info.Title = "Police Innovation Contest 2026 preliminary review contacts";
-  doc.info.Subject = "รายงานผลงาน ผู้ตรวจเอกสารเบื้องต้น ผู้สมัครหลัก และเบอร์ติดต่อ";
+  doc.info.Subject = "รายงานผลงาน ผู้ตรวจเอกสารเบื้องต้น ผู้สมัครหลัก สังกัด และเบอร์ติดต่อ";
   doc.info.Author = "Police Innovation Contest 2026";
 
   for (let page = 0; page < totalPages; page += 1) {
@@ -69,12 +71,13 @@ type RowLayout = { cells: CellLayout[]; height: number };
 
 function reviewContactColumns() {
   return [
-    ["ลำดับ", 38],
-    ["เวลาสมัคร", 92],
-    ["ผลงาน", 236],
-    ["ผู้ตรวจเอกสารเบื้องต้น", 168],
-    ["ผู้สมัครหลัก", 174],
-    ["เบอร์โทรหลัก", 84],
+    ["ลำดับ", 34],
+    ["เวลาสมัคร", 82],
+    ["ผลงาน", 190],
+    ["ผู้ตรวจเอกสารเบื้องต้น", 140],
+    ["ผู้สมัครหลัก", 130],
+    ["สังกัด", 140],
+    ["เบอร์โทรหลัก", 74],
   ] as const;
 }
 
@@ -96,7 +99,7 @@ function drawPage(
     fonts,
   });
   doc.font(fonts.regular).fontSize(8.8).fillColor(PDF_THEME.muted).text(
-    "แสดงชื่อผลงาน ผู้ตรวจเอกสารเบื้องต้น ผู้สมัครหลัก และเบอร์ติดต่อผู้ประสานงานหลักของแต่ละใบสมัคร",
+    "แสดงชื่อผลงาน ผู้ตรวจเอกสารเบื้องต้น ผู้สมัครหลัก สังกัด และเบอร์ติดต่อผู้ประสานงานหลักของแต่ละใบสมัคร",
     tableX,
     118,
     { width: 760, lineBreak: false },
@@ -146,10 +149,11 @@ function layoutRow(
     row.title_th,
     row.reviewerName,
     row.primaryApplicantName,
+    row.primaryApplicantAffiliation,
     row.coordinatorPhone,
   ];
   const cells = values.map((value, valueIndex) => {
-    const centered = valueIndex === 0 || valueIndex === 5;
+    const centered = valueIndex === 0 || valueIndex === 6;
     const isStrong = valueIndex === 0 || valueIndex === 2 || valueIndex === 3;
     const size = valueIndex === 1 ? 7 : 7.5;
     const font = isStrong ? fonts.bold : fonts.regular;
@@ -229,6 +233,13 @@ function fitCellLines(doc: PDFKit.PDFDocument, value: string, width: number, max
     lines[lines.length - 1] = `${last}…`;
   }
   return lines.length ? lines : ["-"];
+}
+
+function affiliation(row: Pick<SubmissionChecklistRow, "division" | "bureau">) {
+  const values = [row.division, row.bureau]
+    .map((value) => clean(value))
+    .filter((value) => value !== "-");
+  return values.join(" / ") || "-";
 }
 
 function timestamp(value: string) {
