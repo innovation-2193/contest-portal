@@ -5,7 +5,7 @@ import type { PoolConnection, ResultSetHeader } from "mysql2/promise";
 import { db, transaction } from "./db";
 import { ensureDatabaseSchema } from "./db-schema";
 import { evaluationQuestionCount, evaluationQuestionLabels } from "./evaluation-form";
-import { findLocalRegistrationByCode, isDatabaseUnavailable } from "./local-registrations";
+import { findLocalRegistrationByCode, isDatabaseSchemaFallback, isDatabaseUnavailable } from "./local-registrations";
 import { formatApplicantName } from "./thai-rank-title";
 
 export type EvaluationRecord = {
@@ -164,7 +164,7 @@ export async function getEvaluationSummary(): Promise<EvaluationSummary> {
     );
     return summarizeEvaluations((rows as EvaluationRow[]).map(rowToRecord));
   } catch (error) {
-    if (!isDatabaseUnavailable(error)) throw error;
+    if (!isDatabaseUnavailable(error) && !isDatabaseSchemaFallback(error)) throw error;
     const store = await readStoreSafe();
     return summarizeEvaluations(await enrichLocalEvaluationRecords(store.evaluations));
   }

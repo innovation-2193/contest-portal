@@ -31,11 +31,12 @@ export function defaultPresentationJudgeProfiles() {
 }
 
 export const presentationScoreCriteria: PresentationScoreCriterion[] = [
-  { id: "real-use", label: "ความเป็นไปได้ในการใช้งานจริง", max: 25 },
-  { id: "measurable-result", label: "ผลลัพธ์หรือตัวชี้วัดที่พิสูจน์ได้", max: 25 },
-  { id: "scalability", label: "ศักยภาพในการขยายผล", max: 15 },
-  { id: "clarity", label: "ความชัดเจนของการนำเสนอ", max: 15 },
-  { id: "qa", label: "การตอบคำถามคณะกรรมการ", max: 20 },
+  { id: "innovation-concept", label: "แนวคิดหรือนวัตกรรม", max: 20 },
+  { id: "real-use", label: "ความเป็นไปได้ในการใช้งานจริง", max: 20 },
+  { id: "measurable-result", label: "ผลลัพธ์หรือตัวชี้วัดที่พิสูจน์ได้", max: 20 },
+  { id: "scalability", label: "ศักยภาพในการขยายผล", max: 20 },
+  { id: "clarity", label: "ความชัดเจนของการนำเสนอ", max: 10 },
+  { id: "qa", label: "การตอบคำถามคณะกรรมการ", max: 10 },
 ];
 
 export function formatPresentationJudge(profile: PresentationJudgeProfile) {

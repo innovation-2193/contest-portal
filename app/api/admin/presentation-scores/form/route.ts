@@ -100,7 +100,7 @@ function drawSheet(
   round1Records: Awaited<ReturnType<typeof listCommitteeScoreRecords>>,
 ) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
-  drawPrintHeader(doc, submission);
+  drawPrintHeader(doc, submission, submissionNumber, totalSubmissions);
   if (!submission) {
     doc.rect(80, 190, doc.page.width - 160, 110).fillAndStroke(PRINT.white, PRINT.line);
     doc.font(fonts.bold).fontSize(18).fillColor(PRINT.black).text("ยังไม่มีผลงานในประกาศผลการแข่งขัน", 100, 224, {
@@ -117,22 +117,23 @@ function drawSheet(
   drawPresentationScoreTable(doc, 24, 170);
 
   const weighted = round1WeightedScore(round1Records, submission.submission_code);
-  drawNotesAndSignature(doc, judge, 24, 474);
-  drawDashedDivider(doc, 24, 592);
-  drawSectionHeading(doc, 24, 604, "ส่วนของเจ้าหน้าที่ คณะกรรมการฯ รอบที่ 2");
-  drawWeightedBoxes(doc, weighted, 24, 626);
+  drawNotesAndSignature(doc, judge, 24, 516);
+  drawDashedDivider(doc, 24, 634);
+  drawSectionHeading(doc, 24, 646, "ส่วนของเจ้าหน้าที่ คณะกรรมการฯ รอบที่ 2");
+  drawWeightedBoxes(doc, weighted, 24, 668);
   drawWatermark(doc);
   drawDocumentFooter(doc, pageNumber, totalPages, `${submission.submission_code} • รอบที่ 2 Presentation`, fonts);
 }
 
-function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null) {
+function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem | null, submissionNumber: number, totalSubmissions: number) {
   const margin = 24;
   const width = doc.page.width - margin * 2;
+  drawPresentationOrder(doc, margin);
   doc.font(fonts.bold).fontSize(14.2).fillColor(PRINT.black).text(
     "แบบฟอร์มกรอกคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)",
     margin,
     24,
-    { width, align: "center", lineBreak: false },
+    { width: width - 112, align: "center", lineBreak: false },
   );
   doc.font(fonts.bold).fontSize(10.2).fillColor(PRINT.black).text(
     submission ? `รหัสโครงการ: ${submission.submission_code}` : "ผลงานที่ผ่านเข้ารอบการนำเสนอ",
@@ -141,6 +142,20 @@ function drawPrintHeader(doc: PDFKit.PDFDocument, submission: SubmissionListItem
     { width, align: "center", lineBreak: false },
   );
   doc.moveTo(margin, 78).lineTo(doc.page.width - margin, 78).lineWidth(0.8).stroke(PRINT.line);
+}
+
+function drawPresentationOrder(doc: PDFKit.PDFDocument, margin: number) {
+  const width = 104;
+  const height = 44;
+  const x = doc.page.width - margin - width;
+  const y = 16;
+  doc.roundedRect(x, y, width, height, 4).fillAndStroke("#fff5f5", PRINT.sectionRed);
+  doc.font(fonts.bold).fontSize(7.5).fillColor(PRINT.sectionRed).text("ลำดับการนำเสนอผลงาน", x + 5, y + 8, {
+    width: width - 10,
+    align: "center",
+    lineBreak: false,
+  });
+  doc.moveTo(x + 16, y + 32).lineTo(x + width - 16, y + 32).lineWidth(0.7).stroke(PRINT.sectionRed);
 }
 
 function drawSectionHeading(doc: PDFKit.PDFDocument, x: number, y: number, label: string) {
