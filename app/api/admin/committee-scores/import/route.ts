@@ -75,8 +75,14 @@ export async function POST(request: Request) {
     ]);
     const deletedIds = new Set(parsed.deleteRecordIds);
     const snapshotByKey = new Map<string, typeof persistedRecords[number]>();
-    for (const record of persistedRecords) {
+    for (const record of existingRecords) {
       if (!deletedIds.has(record.id)) snapshotByKey.set(`${record.submissionCode}:${record.judgeKey}`, record);
+    }
+    for (const record of persistedRecords) {
+      if (deletedIds.has(record.id)) continue;
+      const key = `${record.submissionCode}:${record.judgeKey}`;
+      const previous = snapshotByKey.get(key);
+      if (!previous || scoreRecordTime(record) >= scoreRecordTime(previous)) snapshotByKey.set(key, record);
     }
     for (const record of saved) {
       snapshotByKey.set(`${record.submissionCode}:${record.judgeKey}`, record);
@@ -127,4 +133,9 @@ export async function POST(request: Request) {
 
 function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_at: string }) {
   return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
+}
+
+function scoreRecordTime(record: { updatedAt: string }) {
+  const timestamp = new Date(record.updatedAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }

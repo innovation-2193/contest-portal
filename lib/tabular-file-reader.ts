@@ -144,7 +144,13 @@ function parseSheetRows(xml: string, sharedStrings: string[]) {
 function parseCellValue(attributes: string, body: string, sharedStrings: string[]) {
   const type = attributes.match(/\bt="([^"]+)"/)?.[1] ?? "";
   const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? "";
-  if (type === "s") return sharedStrings[Number(value)] ?? "";
+  if (type === "s") {
+    const shared = sharedStrings[Number(value)] ?? "";
+    // Some Excel exports in this workflow mark plain numeric cells as shared
+    // strings but point them at an empty shared-string entry. Preserve the raw
+    // value so a visible score such as 11 is not silently imported as blank.
+    return shared || value;
+  }
   if (type === "inlineStr") {
     return [...body.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((match) => decodeXml(match[1])).join("");
   }
