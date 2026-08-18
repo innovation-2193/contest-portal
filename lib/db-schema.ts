@@ -200,6 +200,8 @@ async function ensureNewsPostsTable() {
       body LONGTEXT NOT NULL,
       image_name VARCHAR(255) NULL,
       image_original_name VARCHAR(255) NULL,
+      image_names TEXT NULL,
+      image_original_names TEXT NULL,
       attachment_name VARCHAR(255) NULL,
       attachment_original_name VARCHAR(255) NULL,
       publish_at VARCHAR(40) NOT NULL,
@@ -210,6 +212,8 @@ async function ensureNewsPostsTable() {
     ) ENGINE=InnoDB
   `);
   await ensureColumn("news_posts", "view_count", "ALTER TABLE news_posts ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER published");
+  await ensureColumn("news_posts", "image_names", "ALTER TABLE news_posts ADD COLUMN image_names TEXT NULL AFTER image_original_name");
+  await ensureColumn("news_posts", "image_original_names", "ALTER TABLE news_posts ADD COLUMN image_original_names TEXT NULL AFTER image_names");
 }
 
 export async function ensureAppAuditEventsTable() {

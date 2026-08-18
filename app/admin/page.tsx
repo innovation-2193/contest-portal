@@ -191,7 +191,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <section className="admin-panel">
       <header><Newspaper/><div><h2>ข่าวประชาสัมพันธ์</h2><p>เพิ่มภาพ ข้อความสรุป เนื้อหา และกำหนดวันที่ต้องการให้ข่าวปรากฏบนหน้าบ้าน โดยหน้านี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div></header>
       <form action={addNewsAction} className="admin-form news-form">
-        <label className="field-wide">ภาพข่าว<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required/></label>
+        <label className="field-wide">ภาพข่าว (เลือกได้หลายภาพ)<input type="file" name="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple required/><small>เพิ่มภาพเป็น gallery ได้หลายภาพ ไฟล์ละไม่เกิน 8 MB</small></label>
         <label className="field-wide news-attachment-field"><span><Paperclip/>ไฟล์แนบข่าว / รายชื่อผู้ผ่านการประกวด</span><input type="file" name="attachment" accept=".pdf,.xlsx,.xls,.docx,.doc,.csv"/><small>แนบ PDF, Excel, Word หรือ CSV ขนาดไม่เกิน 20 MB</small></label>
         <label>วันที่ต้องการโพสต์ (GMT+7)<input type="datetime-local" name="publishAt" defaultValue={formatThaiDateTimeInput(new Date())}/></label>
         <label className="field-wide">หัวข้อข่าว<input name="title" placeholder="เช่น เปิดรับสมัครผลงานนวัตกรรมตำรวจ ประจำปี 2569" required maxLength={255}/></label>
@@ -1104,7 +1104,7 @@ async function addNewsAction(formData: FormData) {
     body,
     publishAt,
     published: formData.get("published") === "on",
-    image: formData.get("image") as File | null,
+    images: getUploadedFiles(formData, "images"),
     attachment: formData.get("attachment") as File | null,
   });
   await recordAuditEvent({
@@ -1117,6 +1117,10 @@ async function addNewsAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/admin");
   redirect(adminNoticePath("/admin", "news_added"));
+}
+
+function getUploadedFiles(formData: FormData, fieldName: string) {
+  return formData.getAll(fieldName).filter((value): value is File => value instanceof File && value.size > 0);
 }
 
 async function deleteNewsAction(formData: FormData) {

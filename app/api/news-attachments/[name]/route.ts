@@ -13,7 +13,7 @@ const attachmentTypes: Record<string, string> = {
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 };
 
-export async function GET(_request: Request, { params }: { params: Promise<{ name: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ name: string }> }) {
   const { name } = await params;
   const attachmentName = decodeURIComponent(name);
   const filePath = getNewsAttachmentPath(attachmentName);
@@ -27,10 +27,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ nam
     const bytes = await readFile(filePath);
     const extension = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
     const originalName = item.attachmentOriginalName || ("news-attachment" + extension);
+    const inlinePdf = extension === ".pdf" && new URL(request.url).searchParams.get("inline") === "1";
     return new NextResponse(new Uint8Array(bytes), {
       headers: {
         "Content-Type": attachmentTypes[extension] ?? "application/octet-stream",
-        "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(originalName),
+        "Content-Disposition": (inlinePdf ? "inline" : "attachment") + "; filename*=UTF-8''" + encodeURIComponent(originalName),
         "Content-Length": String(bytes.byteLength),
         "Cache-Control": "public, max-age=3600",
       },

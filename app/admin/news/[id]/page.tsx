@@ -39,7 +39,8 @@ export default async function EditNewsPage({ params, searchParams }: EditNewsPag
         <header className="admin-section-head"><Pencil/><div><h2>{item.title}</h2><p>แก้ไขข่าวรายการนี้แล้วกดบันทึกเพื่ออัปเดตหน้าเว็บไซต์</p></div></header>
         <form action={updateNewsAction} className="admin-form news-form">
           <input type="hidden" name="id" value={item.id}/>
-          <label className="field-wide">ภาพข่าว (เลือกไฟล์ใหม่เมื่อต้องการเปลี่ยน)<input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"/><small>{item.imageOriginalName ? `ไฟล์ปัจจุบัน: ${item.imageOriginalName}` : "ยังไม่มีรูปภาพข่าว"}</small></label>
+          <label className="field-wide">ภาพข่าว (เลือกภาพชุดใหม่เพื่อแทนที่ gallery เดิม)<input type="file" name="images" accept="image/png,image/jpeg,image/webp,image/gif" multiple/><small>{item.imageNames.length ? `ภาพปัจจุบัน ${item.imageNames.length} ภาพ • ${item.imageOriginalNames.join(", ")}` : "ยังไม่มีรูปภาพข่าว"}</small></label>
+          {item.imageNames.length > 0 && <label className="inline-check"><input type="checkbox" name="removeImages"/> ลบภาพข่าวทั้งหมด</label>}
           <label className="field-wide news-attachment-field"><span><Paperclip/>ไฟล์แนบข่าว / รายชื่อผู้ผ่านการประกวด</span><input type="file" name="attachment" accept=".pdf,.xlsx,.xls,.docx,.doc,.csv"/><small>{item.attachmentOriginalName ? `ไฟล์ปัจจุบัน: ${item.attachmentOriginalName} • เลือกไฟล์ใหม่เพื่อแทนที่` : "ยังไม่มีไฟล์แนบ • แนบ PDF, Excel, Word หรือ CSV ขนาดไม่เกิน 20 MB"}</small>{item.attachmentName && <a href={`/api/news-attachments/${encodeURIComponent(item.attachmentName)}`} download><Download/>ดาวน์โหลดไฟล์แนบเดิม</a>}</label>
           {item.attachmentName && <label className="inline-check"><input type="checkbox" name="removeAttachment"/> ลบไฟล์แนบเดิม</label>}
           <label>วันที่ต้องการโพสต์ (GMT+7)<input type="datetime-local" name="publishAt" defaultValue={formatThaiDateTimeInput(item.publishAt)}/></label>
@@ -72,8 +73,9 @@ async function updateNewsAction(formData: FormData) {
     body,
     publishAt,
     published: formData.get("published") === "on",
-    image: formData.get("image") as File | null,
+    images: getUploadedFiles(formData, "images"),
     attachment: formData.get("attachment") as File | null,
+    removeImages: formData.get("removeImages") === "on",
     removeAttachment: formData.get("removeAttachment") === "on",
   });
   await recordAuditEvent({
@@ -90,6 +92,10 @@ async function updateNewsAction(formData: FormData) {
   revalidatePath(`/admin/news/${id}`);
   revalidatePath(`/news/${id}`);
   redirect(adminNoticePath(`/admin/news/${id}`, "news_updated"));
+}
+
+function getUploadedFiles(formData: FormData, fieldName: string) {
+  return formData.getAll(fieldName).filter((value): value is File => value instanceof File && value.size > 0);
 }
 
 async function getAdminSessionFromCookies() {

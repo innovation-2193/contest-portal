@@ -84,6 +84,8 @@ export type NewsRecord = {
   body: string;
   imageName: string | null;
   imageOriginalName: string | null;
+  imageNames: string[];
+  imageOriginalNames: string[];
   attachmentName: string | null;
   attachmentOriginalName: string | null;
   publishAt: string;
@@ -99,6 +101,7 @@ export type NewsInput = {
   publishAt: string;
   published: boolean;
   image?: File | null;
+  images?: File[];
   attachment?: File | null;
 };
 
@@ -109,7 +112,9 @@ export type NewsUpdateInput = {
   publishAt?: string;
   published: boolean;
   image?: File | null;
+  images?: File[];
   attachment?: File | null;
+  removeImages?: boolean;
   removeAttachment?: boolean;
 };
 
@@ -1581,7 +1586,7 @@ export async function listNews(options?: { publicOnly?: boolean }) {
   try {
     await ensureNewsTable();
     const [rows] = await db.execute(
-      "SELECT id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,view_count,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
+      "SELECT id,title,excerpt,body,image_name,image_original_name,image_names,image_original_names,attachment_name,attachment_original_name,publish_at,published,view_count,created_at FROM news_posts ORDER BY publish_at DESC, created_at DESC LIMIT 100",
     );
     return filterAndSortNews((rows as NewsDbRow[]).map(newsDbRowToRecord), options?.publicOnly);
   } catch (error) {
@@ -1617,15 +1622,19 @@ export async function incrementNewsViewCount(id: string) {
 export async function addNews(input: NewsInput) {
   const now = new Date().toISOString();
   const id = randomUUID();
-  const image = input.image && input.image.size > 0 ? await saveNewsImage(input.image) : null;
+  const images = await saveNewsImages(input.images?.length ? input.images : input.image ? [input.image] : []);
   const attachment = input.attachment && input.attachment.size > 0 ? await saveNewsAttachment(input.attachment) : null;
+  const imageNames = images.map((image) => image.storedName);
+  const imageOriginalNames = images.map((image) => image.originalName);
   const record: NewsRecord = {
     id,
     title: input.title.trim(),
     excerpt: input.excerpt.trim(),
     body: input.body.trim(),
-    imageName: image?.storedName ?? null,
-    imageOriginalName: image?.originalName ?? null,
+    imageName: imageNames[0] ?? null,
+    imageOriginalName: imageOriginalNames[0] ?? null,
+    imageNames,
+    imageOriginalNames,
     attachmentName: attachment?.storedName ?? null,
     attachmentOriginalName: attachment?.originalName ?? null,
     publishAt: input.publishAt || now,
@@ -1637,7 +1646,7 @@ export async function addNews(input: NewsInput) {
   try {
     await ensureNewsTable();
     await db.execute(
-      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,attachment_name,attachment_original_name,publish_at,published,view_count,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+      "INSERT INTO news_posts(id,title,excerpt,body,image_name,image_original_name,image_names,image_original_names,attachment_name,attachment_original_name,publish_at,published,view_count,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
       [
         record.id,
         record.title,
@@ -1645,6 +1654,8 @@ export async function addNews(input: NewsInput) {
         record.body,
         record.imageName,
         record.imageOriginalName,
+        JSON.stringify(record.imageNames),
+        JSON.stringify(record.imageOriginalNames),
         record.attachmentName,
       record.attachmentOriginalName,
       record.publishAt,
@@ -1665,22 +1676,25 @@ export async function addNews(input: NewsInput) {
 
 export async function deleteNews(id: string) {
   const targetId = id.trim();
-  let imageName: string | null = null;
+  let imageNames: string[] = [];
   let attachmentName: string | null = null;
   try {
     await ensureNewsTable();
-    const [rows] = await db.execute("SELECT image_name,attachment_name FROM news_posts WHERE id=? LIMIT 1", [targetId]);
-    imageName = ((rows as Array<{ image_name: string | null }>)[0]?.image_name) ?? null;
-    attachmentName = ((rows as Array<{ attachment_name: string | null }>)[0]?.attachment_name) ?? null;
+    const [rows] = await db.execute("SELECT image_name,image_names,attachment_name FROM news_posts WHERE id=? LIMIT 1", [targetId]);
+    const row = (rows as Array<{ image_name: string | null; image_names: string | null; attachment_name: string | null }>)[0];
+    imageNames = parseStoredStringArray(row?.image_names);
+    if (!imageNames.length && row?.image_name) imageNames = [row.image_name];
+    attachmentName = row?.attachment_name ?? null;
     await db.execute("DELETE FROM news_posts WHERE id=?", [targetId]);
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     const news = await readJson<NewsRecord[]>(newsStorePath, []);
-    imageName = news.find((item) => item.id === targetId)?.imageName ?? null;
-    attachmentName = news.find((item) => item.id === targetId)?.attachmentName ?? null;
+    const current = news.find((item) => item.id === targetId);
+    imageNames = current?.imageNames ?? (current?.imageName ? [current.imageName] : []);
+    attachmentName = current?.attachmentName ?? null;
     await writeJson(newsStorePath, news.filter((item) => item.id !== targetId));
   }
-  if (imageName) await deleteNewsImage(imageName);
+  await deleteNewsImages(imageNames);
   if (attachmentName) await deleteNewsAttachment(attachmentName);
 }
 
@@ -1689,10 +1703,20 @@ export async function updateNews(id: string, input: NewsUpdateInput) {
   const current = (await listNews()).find((item) => item.id === targetId);
   if (!current) throw new Error("ไม่พบข่าวประชาสัมพันธ์ที่ต้องการแก้ไข");
 
-  const image = input.image && input.image.size > 0 ? await saveNewsImage(input.image) : null;
+  const images = await saveNewsImages(input.images?.length ? input.images : input.image ? [input.image] : []);
   const attachment = input.attachment && input.attachment.size > 0 ? await saveNewsAttachment(input.attachment) : null;
-  const nextImageName = image?.storedName ?? current.imageName;
-  const nextImageOriginalName = image?.originalName ?? current.imageOriginalName;
+  const nextImageNames = images.length
+    ? images.map((image) => image.storedName)
+    : input.removeImages
+      ? []
+      : current.imageNames;
+  const nextImageOriginalNames = images.length
+    ? images.map((image) => image.originalName)
+    : input.removeImages
+      ? []
+      : current.imageOriginalNames;
+  const nextImageName = nextImageNames[0] ?? null;
+  const nextImageOriginalName = nextImageOriginalNames[0] ?? null;
   const nextAttachmentName = attachment
     ? attachment.storedName
     : input.removeAttachment
@@ -1710,6 +1734,8 @@ export async function updateNews(id: string, input: NewsUpdateInput) {
     body: input.body.trim(),
     imageName: nextImageName,
     imageOriginalName: nextImageOriginalName,
+    imageNames: nextImageNames,
+    imageOriginalNames: nextImageOriginalNames,
     attachmentName: nextAttachmentName,
     attachmentOriginalName: nextAttachmentOriginalName,
     publishAt: input.publishAt?.trim() || current.publishAt,
@@ -1719,13 +1745,15 @@ export async function updateNews(id: string, input: NewsUpdateInput) {
   try {
     await ensureNewsTable();
     await db.execute(
-      "UPDATE news_posts SET title=?,excerpt=?,body=?,image_name=?,image_original_name=?,attachment_name=?,attachment_original_name=?,publish_at=?,published=? WHERE id=?",
+      "UPDATE news_posts SET title=?,excerpt=?,body=?,image_name=?,image_original_name=?,image_names=?,image_original_names=?,attachment_name=?,attachment_original_name=?,publish_at=?,published=? WHERE id=?",
       [
         next.title,
         next.excerpt,
         next.body,
         next.imageName,
         next.imageOriginalName,
+        JSON.stringify(next.imageNames),
+        JSON.stringify(next.imageOriginalNames),
         next.attachmentName,
         next.attachmentOriginalName,
         next.publishAt,
@@ -1739,7 +1767,7 @@ export async function updateNews(id: string, input: NewsUpdateInput) {
     await writeJson(newsStorePath, news.map((item) => item.id === targetId ? next : item));
   }
 
-  if (image?.storedName && current.imageName) await deleteNewsImage(current.imageName);
+  if (images.length || input.removeImages) await deleteNewsImages(current.imageNames.filter((imageName) => !nextImageNames.includes(imageName)));
   if (attachment?.storedName && current.attachmentName) await deleteNewsAttachment(current.attachmentName);
   if (input.removeAttachment && current.attachmentName && !attachment) await deleteNewsAttachment(current.attachmentName);
   return next;
@@ -1830,6 +1858,8 @@ type NewsDbRow = {
   body: string;
   image_name: string | null;
   image_original_name: string | null;
+  image_names: string | null;
+  image_original_names: string | null;
   attachment_name: string | null;
   attachment_original_name: string | null;
   publish_at: string | Date;
@@ -1859,27 +1889,51 @@ type ParkingReservationDbRow = {
 };
 
 function newsDbRowToRecord(row: NewsDbRow): NewsRecord {
-  return {
+  return normalizeNewsRecord({
     id: row.id,
     title: row.title,
     excerpt: row.excerpt,
     body: row.body,
     imageName: row.image_name,
     imageOriginalName: row.image_original_name,
+    imageNames: parseStoredStringArray(row.image_names),
+    imageOriginalNames: parseStoredStringArray(row.image_original_names),
     attachmentName: row.attachment_name,
     attachmentOriginalName: row.attachment_original_name,
     publishAt: normalizeStoredDate(row.publish_at),
     published: Boolean(row.published),
     viewCount: Math.max(0, Number(row.view_count ?? 0)),
     createdAt: normalizeStoredDate(row.created_at),
-  };
+  });
 }
 
 function normalizeNewsRecord(record: NewsRecord): NewsRecord {
+  const imageNames = uniqueStrings(Array.isArray(record.imageNames) ? record.imageNames : []);
+  if (!imageNames.length && record.imageName) imageNames.push(record.imageName);
+  const imageOriginalNames = Array.isArray(record.imageOriginalNames) ? record.imageOriginalNames.filter(Boolean) : [];
+  if (!imageOriginalNames.length && record.imageOriginalName) imageOriginalNames.push(record.imageOriginalName);
   return {
     ...record,
+    imageName: imageNames[0] ?? null,
+    imageOriginalName: imageOriginalNames[0] ?? null,
+    imageNames,
+    imageOriginalNames,
     viewCount: Math.max(0, Number(record.viewCount ?? 0)),
   };
+}
+
+function parseStoredStringArray(value: string | null | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === "string" && entry.length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function parkingReservationDbRowToRecord(row: ParkingReservationDbRow): ParkingReservationRecord {
@@ -2005,15 +2059,25 @@ function roundScore(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-async function saveNewsImage(file: File) {
+async function saveNewsImages(files: File[]) {
   const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-  if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
-  if (file.size > 8 * 1024 * 1024) throw new Error("ไฟล์ภาพต้องมีขนาดไม่เกิน 8 MB");
+  const validFiles = files.filter((file) => file && file.size > 0);
+  for (const file of validFiles) {
+    if (!allowedTypes.has(file.type)) throw new Error("รองรับเฉพาะไฟล์ภาพ JPG, PNG, WebP หรือ GIF");
+    if (file.size > 8 * 1024 * 1024) throw new Error("ไฟล์ภาพแต่ละไฟล์ต้องมีขนาดไม่เกิน 8 MB");
+  }
+  if (!validFiles.length) return [];
   await mkdir(newsUploadsDir, { recursive: true });
-  const extension = extensionFromFile(file);
-  const storedName = `${randomUUID()}${extension}`;
-  await writeFile(path.join(newsUploadsDir, storedName), Buffer.from(await file.arrayBuffer()));
-  return { storedName, originalName: file.name || storedName };
+  return Promise.all(validFiles.map(async (file) => {
+    const extension = extensionFromFile(file);
+    const storedName = `${randomUUID()}${extension}`;
+    await writeFile(path.join(newsUploadsDir, storedName), Buffer.from(await file.arrayBuffer()));
+    return { storedName, originalName: file.name || storedName };
+  }));
+}
+
+async function deleteNewsImages(imageNames: string[]) {
+  await Promise.all(uniqueStrings(imageNames).map((imageName) => deleteNewsImage(imageName)));
 }
 
 async function saveNewsAttachment(file: File) {
@@ -2091,6 +2155,8 @@ async function ensureNewsTable() {
       body LONGTEXT NOT NULL,
       image_name VARCHAR(255) NULL,
       image_original_name VARCHAR(255) NULL,
+      image_names TEXT NULL,
+      image_original_names TEXT NULL,
       attachment_name VARCHAR(255) NULL,
       attachment_original_name VARCHAR(255) NULL,
       publish_at VARCHAR(40) NOT NULL,
@@ -2103,6 +2169,8 @@ async function ensureNewsTable() {
   for (const column of [
     "ALTER TABLE news_posts ADD COLUMN attachment_name VARCHAR(255) NULL",
     "ALTER TABLE news_posts ADD COLUMN attachment_original_name VARCHAR(255) NULL",
+    "ALTER TABLE news_posts ADD COLUMN image_names TEXT NULL",
+    "ALTER TABLE news_posts ADD COLUMN image_original_names TEXT NULL",
     "ALTER TABLE news_posts ADD COLUMN view_count INT UNSIGNED NOT NULL DEFAULT 0",
   ]) {
     try {
