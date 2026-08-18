@@ -175,8 +175,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
-      <div className="admin-checkin-copy"><Database/><div><span className="eyebrow">Super Admin Only</span><h2>สำรองข้อมูลฐานข้อมูลทั้งระบบ</h2><p>ดาวน์โหลดโครงสร้าง ตาราง และข้อมูลทั้งหมดเป็นไฟล์ SQL สำหรับเก็บสำรองหรือกู้คืนระบบ • รวมข้อมูลส่วนบุคคลและคะแนน</p></div></div>
-      <a className="primary" href="/api/admin/database/export"><Download/>Export Database</a>
+      <div className="admin-checkin-copy"><Database/><div><span className="eyebrow">Super Admin Only</span><h2>สำรองข้อมูลเว็บไซต์ทั้งระบบ</h2><p>ดาวน์โหลด Full Backup เป็น ZIP รวม database.sql ครบทุกตาราง/ทุกแถว พร้อมไฟล์ storage เช่น เอกสาร รูปภาพ และข้อมูลระบบ • รวมข้อมูลส่วนบุคคลและคะแนน</p></div></div>
+      <a className="primary" href="/api/admin/database/export"><Download/>Export Database ทั้งเว็บ</a>
     </section>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
