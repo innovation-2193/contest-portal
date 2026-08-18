@@ -22,12 +22,21 @@ type WinnerAnnouncementResult = {
 };
 
 export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInput) {
+  const registrations = new Map<number, Awaited<ReturnType<typeof ensureSubmissionMemberParticipant>>>();
+  const memberOrders = input.submission.members.length
+    ? input.submission.members.map((member) => member.member_order)
+    : [1];
+  for (const memberOrder of [...new Set(memberOrders)]) {
+    registrations.set(memberOrder, await ensureSubmissionMemberParticipant(input.submission.submission_code, memberOrder));
+  }
+
   const recipients = winnerRecipients(input.submission);
   if (!recipients.length) return [] satisfies WinnerAnnouncementResult[];
 
   const results: WinnerAnnouncementResult[] = [];
   for (const recipient of recipients) {
-    const registration = await ensureSubmissionMemberParticipant(input.submission.submission_code, recipient.memberOrder);
+    const registration = registrations.get(recipient.memberOrder)
+      ?? await ensureSubmissionMemberParticipant(input.submission.submission_code, recipient.memberOrder);
     const registrationEmail = registration.created
       ? await sendRegistrationConfirmation(registration.record)
       : { status: "skipped" as const };

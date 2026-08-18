@@ -52,6 +52,28 @@ export async function findCommitteeScoreReportVersion(id: string) {
   return versions.find((version) => version.id === normalizedId) ?? null;
 }
 
+export async function deleteCommitteeScoreReportVersion(id: string) {
+  const normalizedId = id.trim();
+  if (!normalizedId) return null;
+
+  try {
+    await ensureDatabaseSchema();
+    const existing = await findCommitteeScoreReportVersion(normalizedId);
+    if (!existing) return null;
+    await db.execute("DELETE FROM committee_score_report_versions WHERE id=?", [normalizedId]);
+    return existing;
+  } catch (error) {
+    if (!shouldUseLocalStore(error)) throw error;
+    return writeQueued(async () => {
+      const store = await readLocalStore();
+      const existing = store.versions.find((version) => version.id === normalizedId) ?? null;
+      if (!existing) return null;
+      await writeLocalStore({ versions: store.versions.filter((version) => version.id !== normalizedId) });
+      return existing;
+    });
+  }
+}
+
 export async function createCommitteeScoreReportVersion(input: {
   sourceFileName: string;
   createdByEmail: string;

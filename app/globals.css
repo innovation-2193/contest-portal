@@ -21307,6 +21307,14 @@ footer {
   min-width: 0;
 }
 
+.committee-report-version-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: auto !important;
+}
+
 .committee-report-version-list b {
   color: #fff0a8;
   font-size: 15px;
@@ -21321,6 +21329,7 @@ footer {
 }
 
 .committee-report-version-list a,
+.committee-report-version-list button,
 .committee-score-report-versions > .ghost-action {
   max-width: 100%;
   min-width: 0;
@@ -21439,8 +21448,18 @@ footer {
     max-width: 100%;
   }
 
+  .committee-report-version-list article > .committee-report-version-actions {
+    width: 100% !important;
+    max-width: 100%;
+  }
+
   .committee-report-version-list a {
     flex: 1 1 auto;
+  }
+
+  .committee-report-version-actions a,
+  .committee-report-version-actions button {
+    flex: 1 1 0;
   }
 }
 

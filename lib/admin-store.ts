@@ -44,7 +44,6 @@ import {
   type WorkCategory,
 } from "./work-categories";
 import { formatApplicantName } from "./thai-rank-title";
-import { findRegistrationByName } from "./registration-lookup";
 import { participantNameKey } from "./participant-name";
 import { normalizeThaiDateValue, parseThaiDate } from "./thai-time";
 
@@ -686,9 +685,6 @@ export async function ensureSubmissionMemberParticipant(submissionCode: string, 
     division: member.division,
     bureau: member.bureau,
   };
-
-  const existing = await findRegistrationByName(input.firstName, input.lastName, input.citizenId);
-  if (existing) return { record: existing, created: false, member };
 
   let record: RegistrationRecord;
   let created = true;

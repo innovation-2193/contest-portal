@@ -1358,6 +1358,7 @@ function auditActionLabel(action: string) {
   if (action === "committee_score.template_xlsx") return "ดาวน์โหลด Template คะแนนรวม";
   if (action === "committee_score.template_file") return "ดาวน์โหลด Template คะแนนรวม";
   if (action === "committee_score.import_xlsx") return "Import คะแนนรวม Excel";
+  if (action === "committee_score.report_version_deleted") return "ลบ Report PDF Version";
   if (action === "committee_score.judge_profiles_updated") return "แก้ไขชื่อกรรมการ";
   if (action === "committee_score.ocr_submitted") return "บันทึกคะแนนรวมคณะกรรมการ";
   if (action === "committee_score.ocr_updated") return "แก้ไขคะแนนรวมคณะกรรมการ";

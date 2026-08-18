@@ -65,10 +65,23 @@ export async function POST(request: Request) {
       if (record) deleted.push(record);
     }
 
-    const snapshotRecords = await listCommitteeScoreRecords().catch(() => [
+    // Build the frozen report from the records just written as well as the
+    // unchanged records.  A read immediately after an upsert can briefly
+    // return a stale replica/local snapshot, which used to make the new PDF
+    // show the previous scores even though the import succeeded.
+    const persistedRecords = await listCommitteeScoreRecords().catch(() => [
       ...existingRecords.filter((record) => !parsed.deleteRecordIds.includes(record.id)),
       ...saved,
     ]);
+    const deletedIds = new Set(parsed.deleteRecordIds);
+    const snapshotByKey = new Map<string, typeof persistedRecords[number]>();
+    for (const record of persistedRecords) {
+      if (!deletedIds.has(record.id)) snapshotByKey.set(`${record.submissionCode}:${record.judgeKey}`, record);
+    }
+    for (const record of saved) {
+      snapshotByKey.set(`${record.submissionCode}:${record.judgeKey}`, record);
+    }
+    const snapshotRecords = [...snapshotByKey.values()];
     const reportRows = buildCommitteeScoreboard(sortedSubmissions, snapshotRecords);
     const reportVersion = await createCommitteeScoreReportVersion({
       sourceFileName: file.name,

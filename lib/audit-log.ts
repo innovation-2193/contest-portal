@@ -92,6 +92,7 @@ const allowedAuditActions = new Set([
   "committee_score.template_xlsx",
   "committee_score.template_file",
   "committee_score.import_xlsx",
+  "committee_score.report_version_deleted",
   "committee_score.judge_profiles_updated",
   "committee_score.ocr_submitted",
   "committee_score.ocr_updated",
