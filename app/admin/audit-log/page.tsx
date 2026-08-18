@@ -254,6 +254,7 @@ function auditActionLabel(action: string) {
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
   if (action === "evaluation.responses_reset") return "Reset แบบประเมินความพึงพอใจ";
   if (action === "evaluation.report_exported") return "Export รายงานแบบประเมิน PDF";
+  if (action === "system.database_export") return "Export ฐานข้อมูลทั้งระบบ";
   return action;
 }
 

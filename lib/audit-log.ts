@@ -124,6 +124,7 @@ const allowedAuditActions = new Set([
   "evaluation.responses_reset",
   "evaluation.report_exported",
   "evaluation.availability_updated",
+  "system.database_export",
 ]);
 const allowedActionList = [...allowedAuditActions];
 

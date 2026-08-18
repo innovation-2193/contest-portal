@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Database, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -174,6 +174,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
+      <div className="admin-checkin-copy"><Database/><div><span className="eyebrow">Super Admin Only</span><h2>สำรองข้อมูลฐานข้อมูลทั้งระบบ</h2><p>ดาวน์โหลดโครงสร้าง ตาราง และข้อมูลทั้งหมดเป็นไฟล์ SQL สำหรับเก็บสำรองหรือกู้คืนระบบ • รวมข้อมูลส่วนบุคคลและคะแนน</p></div></div>
+      <a className="primary" href="/api/admin/database/export"><Download/>Export Database</a>
+    </section>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}
     {isSuperAdmin && <SystemOverview registrations={activeRegistrations.length} attended={attendedParticipants.length} waiting={waitingCheckInCount} submissions={submissions.length}/>}
@@ -1389,6 +1393,7 @@ function auditActionLabel(action: string) {
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
   if (action === "evaluation.responses_reset") return "Reset แบบประเมินความพึงพอใจ";
   if (action === "evaluation.report_exported") return "Export รายงานแบบประเมิน PDF";
+  if (action === "system.database_export") return "Export ฐานข้อมูลทั้งระบบ";
   return action;
 }
 
