@@ -9,6 +9,7 @@ import { PrelanderCountdown } from "../components/PrelanderCountdown";
 import { PublicNewsShowcase } from "../components/PublicNewsShowcase";
 import { cookieName, getAdminSession } from "../lib/admin-auth";
 import { getAdminSettings, getHomePopup, isContestSubmissionOpen, isEventRegistrationOpen, isPrelanderActive, listNews, listWinners } from "../lib/admin-store";
+import { presentationScoreCriteria } from "../lib/presentation-score-config";
 
 const criteriaRounds: CriteriaRound[]=[
   {
@@ -27,14 +28,7 @@ const criteriaRounds: CriteriaRound[]=[
     title:"รอบที่ 2: การคัดเลือกรอบนำเสนอ (Presentation)",
     total:"100 คะแนน",
     note:"ประเมินจากการนำเสนอผลงานต่อคณะกรรมการฯ ในวันที่ 24 สิงหาคม 2569 ณ สโมสรตำรวจ",
-    items:[
-      ["แนวคิดหรือนวัตกรรม",20],
-      ["ความเป็นไปได้ในการใช้งานจริง",20],
-      ["ผลลัพธ์หรือตัวชี้วัดที่พิสูจน์ได้",20],
-      ["ศักยภาพในการขยายผล",20],
-      ["ความชัดเจนของการนำเสนอ",10],
-      ["การตอบคำถามคณะกรรมการ",10],
-    ],
+    items:presentationScoreCriteria.map(({ label, max, guidance }) => [label, max, guidance]),
   },
 ];
 const criteriaAward = {

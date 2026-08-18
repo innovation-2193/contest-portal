@@ -6,7 +6,7 @@ export type CriteriaRound = {
   title: string;
   total: string;
   note: string;
-  items: [string, number][];
+  items: [string, number, string?][];
 };
 
 type CriteriaAward = {
@@ -72,7 +72,7 @@ export function CriteriaToggle({ rounds, award }: { rounds: CriteriaRound[]; awa
           </button>
         )}
       </div>
-      <section className="criteria-round" role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${activeIndex}`}>
+      <section className={`criteria-round${activeRound.items.some(([, , guidance]) => guidance) ? " criteria-round-detailed" : ""}`} role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${activeIndex}`}>
         {isAwardTab && award ? (
           <>
             <header>
@@ -100,9 +100,12 @@ export function CriteriaToggle({ rounds, award }: { rounds: CriteriaRound[]; awa
               <b>คะแนนเต็ม {activeRound.total}</b>
             </header>
             <span>เกณฑ์การประเมิน</span>
-            {activeRound.items.map(([item, score]) => (
+            {activeRound.items.map(([item, score, guidance]) => (
               <p className="score" key={item}>
-                <span>{item}</span>
+                <span>
+                  {item}
+                  {guidance && <small className="score-guidance"><b>แนวทางการพิจารณา</b>{guidance}</small>}
+                </span>
                 <b>{score} คะแนน</b>
               </p>
             ))}

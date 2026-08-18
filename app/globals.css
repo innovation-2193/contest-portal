@@ -1935,6 +1935,23 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
   color: var(--ink);
 }
 
+.score-guidance {
+  display: block;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+
+.score-guidance b {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .criteria-note {
   margin: 14px 0 0;
   padding: 16px 18px;
@@ -2067,6 +2084,20 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
     font-size: 15px;
   }
 
+  .criteria-round-detailed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .criteria-round-detailed .score {
+    align-content: start;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  .criteria-round-detailed .score > b {
+    justify-self: start;
+  }
+
   .criteria-note {
     margin-top: 2px;
     padding: 13px 16px;
@@ -2076,6 +2107,10 @@ nav a:is(.primary, .secondary, .ghost-action, .small-action)::after {
 @media (min-width: 641px) and (max-width: 1180px) {
   .criteria-round {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .criteria-round-detailed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .criteria-award-grid {
