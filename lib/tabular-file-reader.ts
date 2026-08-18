@@ -145,11 +145,11 @@ function parseCellValue(attributes: string, body: string, sharedStrings: string[
   const type = attributes.match(/\bt="([^"]+)"/)?.[1] ?? "";
   const value = body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? "";
   if (type === "s") {
-    const shared = sharedStrings[Number(value)] ?? "";
-    // Some Excel exports in this workflow mark plain numeric cells as shared
-    // strings but point them at an empty shared-string entry. Preserve the raw
-    // value so a visible score such as 11 is not silently imported as blank.
-    return shared || value;
+    // An empty shared-string entry is a blank cell. Do not use the shared-string
+    // index itself as a fallback value: some Excel exports encode blank cells
+    // as t="s" with a numeric index that points to an empty <si>. Treating
+    // that index as a score would import phantom values such as 11.
+    return sharedStrings[Number(value)] ?? "";
   }
   if (type === "inlineStr") {
     return [...body.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((match) => decodeXml(match[1])).join("");
