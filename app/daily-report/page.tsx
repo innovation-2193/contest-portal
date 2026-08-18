@@ -27,7 +27,6 @@ import { buildAnnouncedFinalistSources } from "../../lib/announced-finalists";
 import { buildBoothUnitStats, type BoothUnitStat } from "../../lib/booth-units";
 import { buildParticipantTypeBreakdown, type ParticipantTypeGroup } from "../../lib/participant-type-breakdown";
 import { getSiteStats } from "../../lib/site-analytics";
-import { formatApplicantName } from "../../lib/thai-rank-title";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +141,6 @@ export default async function DailyReportPage() {
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
-  const reportSubmissions = submissions.slice(0, 5);
 
   return <div className="admin-page report-page">
     <div className="wide">
@@ -240,16 +238,6 @@ export default async function DailyReportPage() {
         <VisitTrendChart stats={siteStats}/>
       </section>
 
-      <section className="admin-panel report-panel">
-        <header className="admin-section-head">
-          <FileText/>
-          <div><h2>ผลงานที่ส่งมาแล้วทั้งหมด</h2><p>ผลงานล่าสุดจากระบบรับสมัคร</p></div>
-          <div className="admin-actions"><Link className="secondary report-action-button" href="/daily-report/submissions"><Eye/>ดูทั้งหมด</Link></div>
-        </header>
-        <div className="submission-report-list">
-          {reportSubmissions.length ? reportSubmissions.map((item) => <SubmissionReportItem key={item.submission_code} item={item}/>) : <p className="report-empty">ยังไม่มีผลงานที่ส่งเข้าระบบ</p>}
-        </div>
-      </section>
     </div>
   </div>;
 }
@@ -392,18 +380,6 @@ function BureauRow({ item }: { item: BureauStat }) {
     <i aria-hidden="true"><span style={{ width: `${width}%` }}/></i>
     <strong><b>{item.submissions.toLocaleString("th-TH")}</b><small>/ {item.registrations.toLocaleString("th-TH")}</small></strong>
   </div>;
-}
-
-function SubmissionReportItem({ item }: { item: SubmissionListItem }) {
-  return <article className="submission-report-item">
-    <div>
-      <b>{item.title_th}</b>
-      <small>{item.submission_code} • {formatShortThaiDate(item.submitted_at)}</small>
-    </div>
-    <span>{item.submission_type === "team" ? `ชื่อทีม: ${item.team_name || "ไม่ระบุชื่อทีม"}` : "ส่งเดี่ยว"}</span>
-    <p>ส่งผลงานโดย: {formatApplicantName(item)}<small>{item.division || "-"} / {item.bureau || "-"}</small></p>
-    <em>{statusLabel(item.status)}</em>
-  </article>;
 }
 
 function buildCommandStats(participants: RegistrationRecord[], submissions: SubmissionListItem[]) {
@@ -592,17 +568,6 @@ function participantStatusLabel(status: string) {
   return "ลงทะเบียนแล้ว";
 }
 
-function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    draft: "ฉบับร่าง",
-    submitted: "ส่งแล้ว",
-    screening: "กำลังตรวจ",
-    qualified: "ผ่านเกณฑ์",
-    rejected: "ไม่ผ่านเกณฑ์",
-  };
-  return labels[status] ?? (status || "-");
-}
-
 function bangkokDayKey(value: string | Date) {
   const date = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return "";
@@ -622,17 +587,4 @@ function formatFullThaiDate(value: Date) {
     timeStyle: "short",
     timeZone: "Asia/Bangkok",
   }).format(value);
-}
-
-function formatShortThaiDate(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("th-TH", {
-    day: "numeric",
-    month: "short",
-    year: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "Asia/Bangkok",
-  }).format(date);
 }

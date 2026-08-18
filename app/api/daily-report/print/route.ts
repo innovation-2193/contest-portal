@@ -72,7 +72,6 @@ async function dailyReportPdf(
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
   const attendedBoothUnits = boothUnits.filter((item) => item.attended > 0);
   const teams = submissions.filter((item) => item.submission_type === "team");
-  const reportSubmissions = submissions.slice(0, 5);
 
   doc.info.Title = "รายงานสรุปประจำวัน";
   doc.info.Subject = "Daily report for Police Innovation Contest 2026";
@@ -117,27 +116,6 @@ async function dailyReportPdf(
   }
   drawVisitChart(doc, siteStats.last7Days, margin, y, 474, 206);
   drawStatusPanel(doc, submissions, margin + 492, y, contentWidth - 492, 206);
-
-  y += 230;
-  if (y + 146 > height - 44) {
-    doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
-    drawPageChrome(doc);
-    y = drawDocumentHeader(doc, {
-      title: "รายงานสรุปประจำวัน",
-      subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
-      metaLabel: "ยอดเข้าชมวันนี้",
-      metaValue: siteStats.today.toLocaleString("th-TH"),
-      fonts,
-    }) + 20;
-  }
-  drawAllSubmissionsTable(
-    doc,
-    reportSubmissions,
-    margin,
-    y,
-    contentWidth,
-    () => addDailyReportPage(doc, siteStats),
-  );
 
   const pageRange = doc.bufferedPageRange();
   for (let index = pageRange.start; index < pageRange.start + pageRange.count; index += 1) {
