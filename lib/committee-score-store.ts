@@ -87,6 +87,7 @@ export type CommitteeScoreSummaryRow = {
   submissionOrder: number;
   ownerName: string;
   division: string;
+  phone: string;
   judgeScores: Record<string, number | null>;
   judgeCount: number;
   averageScore: number | null;
@@ -651,6 +652,7 @@ export function buildCommitteeScoreboard(submissions: SubmissionListItem[], reco
       submissionOrder: index + 1,
       ownerName: `${submission.first_name} ${submission.last_name}`.trim() || "-",
       division: submission.division || submission.bureau || "-",
+      phone: submission.phone || "-",
       judgeScores,
       judgeCount: totals.length,
       averageScore,

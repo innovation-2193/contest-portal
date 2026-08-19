@@ -58,6 +58,7 @@ const actionOptions = [
   ["committee_score.consensus_form_pdf", "Export แบบฟอร์มคะแนนรอบที่ 1 ทางเลือกที่ 2"],
   ["committee_score.coarse_form_pdf", "Export แบบฟอร์มคะแนนรอบที่ 1 ทางเลือกที่ 3"],
   ["committee_score.consensus_report_pdf", "Export รายงานจัดอันดับรอบที่ 1 ทางเลือกที่ 3"],
+  ["committee_score.scoreboard_xlsx", "Export Excel รายชื่อ Top 10 และอันดับที่เหลือ"],
   ["submission.review_packets_zip", "Export ZIP PDF ใบสมัคร"],
   ["admin.settings.updated", "แก้ไขตั้งค่าระบบ"],
   ["admin_user.created", "เพิ่มแอดมิน"],

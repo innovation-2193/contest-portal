@@ -10,10 +10,22 @@ export type SimpleXlsxOptions = {
   title: string;
   rows: string[][];
   columnWidths?: number[];
+  sheets?: SimpleXlsxSheet[];
+};
+
+export type SimpleXlsxSheet = {
+  sheetName: string;
+  rows: string[][];
+  columnWidths?: number[];
 };
 
 export function createSimpleXlsx(options: SimpleXlsxOptions) {
-  const columnCount = Math.max(1, ...options.rows.map((row) => row.length));
+  const sheets = options.sheets?.length
+    ? options.sheets
+    : [{ sheetName: options.sheetName, rows: options.rows, columnWidths: options.columnWidths }];
+  const sheetRelationships = sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("\n  ");
+  const sheetOverrides = sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("\n  ");
+  const workbookSheets = sheets.map((sheet, index) => `<sheet name="${escapeXml(safeSheetName(sheet.sheetName))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("\n    ");
   const files: WorkbookFile[] = [
     {
       name: "[Content_Types].xml",
@@ -22,7 +34,7 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  ${sheetOverrides}
   <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
   <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
   <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
@@ -41,8 +53,8 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
       name: "xl/_rels/workbook.xml.rels",
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  ${sheetRelationships}
+  <Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`,
     },
     {
@@ -50,7 +62,7 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets>
-    <sheet name="${escapeXml(safeSheetName(options.sheetName))}" sheetId="1" r:id="rId1"/>
+    ${workbookSheets}
   </sheets>
 </workbook>`,
     },
@@ -66,10 +78,10 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`,
     },
-    {
-      name: "xl/worksheets/sheet1.xml",
-      content: worksheetXml(options.rows, columnCount, options.columnWidths),
-    },
+    ...sheets.map((sheet, index) => ({
+      name: `xl/worksheets/sheet${index + 1}.xml`,
+      content: worksheetXml(sheet.rows, Math.max(1, ...sheet.rows.map((row) => row.length)), sheet.columnWidths),
+    })),
     {
       name: "docProps/core.xml",
       content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

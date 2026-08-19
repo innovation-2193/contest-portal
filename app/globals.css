@@ -21472,6 +21472,10 @@ footer {
   gap: 10px;
 }
 
+.committee-score-main-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .committee-score-actions > a,
 .committee-score-actions > label {
   width: 100%;
