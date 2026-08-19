@@ -53,6 +53,7 @@ const actionOptions = [
   ["committee_score.ocr_updated", "แก้ไขคะแนนรวมคณะกรรมการ"],
   ["committee_score.ocr_deleted", "ลบคะแนนรวมคณะกรรมการ"],
   ["committee_score.scoreboard_pdf", "Export ผลคะแนนคณะกรรมการ"],
+  ["committee_score.scoreboard_details_pdf", "Export รายละเอียดคะแนนรายกรรมการ"],
   ["committee_score.consensus_template_xlsx", "ดาวน์โหลด Template คะแนนรอบที่ 1 ทางเลือกที่ 2"],
   ["committee_score.consensus_import_xlsx", "Import คะแนนรอบที่ 1 ทางเลือกที่ 2"],
   ["committee_score.consensus_form_pdf", "Export แบบฟอร์มคะแนนรอบที่ 1 ทางเลือกที่ 2"],
