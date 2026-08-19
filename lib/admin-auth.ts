@@ -82,6 +82,14 @@ export function canOperateEventStaff(session: AdminSession | null | undefined) {
   return session?.role === "super_admin" || session?.role === "uci";
 }
 
+export function canOperateLuckyDraw(session: AdminSession | null | undefined) {
+  return session?.role === "super_admin" || session?.role === "admin" || session?.role === "uci";
+}
+
+export function canManageEvaluationAvailability(session: AdminSession | null | undefined) {
+  return session?.role === "super_admin" || session?.role === "admin" || session?.role === "uci";
+}
+
 export function adminCookieSecure() {
   if (process.env.ADMIN_COOKIE_SECURE === "false") return false;
   if (process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://")) return true;

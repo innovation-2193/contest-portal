@@ -30,12 +30,14 @@ export function LuckyDrawWheel({
   candidates,
   initialWinners,
   canRunLuckyDraw,
+  canResetLuckyDraw,
   resetOtpStatus,
   resetOtpAutoFill = "",
 }: {
   candidates: LuckyDrawCandidate[];
   initialWinners: LuckyWinner[];
   canRunLuckyDraw: boolean;
+  canResetLuckyDraw: boolean;
   resetOtpStatus?: string;
   resetOtpAutoFill?: string;
 }) {
@@ -186,7 +188,7 @@ export function LuckyDrawWheel({
               {spinning ? `กำลังสุ่มรางวัลที่ ${nextPrize}` : nextPrize ? `เริ่มจับรางวัลที่ ${nextPrize}` : "ผลถูกล็อกครบ 3 รางวัล"}
             </button>
           ) : (
-            <div className="lucky-readonly-notice"><LockKeyhole />เฉพาะ Super Admin เท่านั้นที่เริ่มจับฉลากได้</div>
+            <div className="lucky-readonly-notice"><LockKeyhole />เฉพาะ Admin, UCI หรือ Super Admin ที่ได้รับสิทธิ์เท่านั้นที่เริ่มจับฉลากได้</div>
           )}
           {error && <div className="admin-login-alert">{error}</div>}
           <div className="lucky-draw-assurance">
@@ -209,7 +211,7 @@ export function LuckyDrawWheel({
 
       {resetOtpStatus && resetOtpMessage(resetOtpStatus)}
 
-      {canRunLuckyDraw && winners.length > 0 && (
+      {canResetLuckyDraw && winners.length > 0 && (
         <section className="lucky-reset-panel">
           <div><RotateCcw /><span><b>Reset ผล Lucky Draw</b><small>ใช้เฉพาะเมื่อระบบผิดพลาด ต้องยืนยันด้วย OTP ของ Super Admin และระบบจะแจ้งผู้ได้รับรางวัลเดิมทุกคน</small></span></div>
           <div className="lucky-reset-actions">

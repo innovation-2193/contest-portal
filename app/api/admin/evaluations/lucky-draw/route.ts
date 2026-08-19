@@ -1,14 +1,14 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-import { canOperateEventStaff, cookieName, getAdminSession } from "../../../../../lib/admin-auth";
+import { canOperateLuckyDraw, cookieName, getAdminSession } from "../../../../../lib/admin-auth";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { drawLuckyWinner, markLuckyWinnerNotified, markLuckyWinnerNotifiedInLocalStore, type EvaluationRecord } from "../../../../../lib/evaluation-store";
 import { sendLuckyDrawWinnerEmail } from "../../../../../lib/lucky-draw-mail";
 
 export async function POST(request: NextRequest) {
   const session = getAdminSession(request.cookies.get(cookieName)?.value);
-  if (!session || !canOperateEventStaff(session)) {
+  if (!session || !canOperateLuckyDraw(session)) {
     return NextResponse.json({ error: "ไม่มีสิทธิ์ดำเนินการ" }, { status: 403 });
   }
 

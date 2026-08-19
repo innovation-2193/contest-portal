@@ -8,7 +8,7 @@ import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { LuckyDrawWheel } from "../../../components/LuckyDrawWheel";
 import { ResetEvaluationsButton } from "../../../components/ResetEvaluationsButton";
-import { adminOtpAutoFillCookie, canOperateEventStaff, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
+import { adminOtpAutoFillCookie, canManageEvaluationAvailability, canOperateEventStaff, canOperateLuckyDraw, cookieName, getAdminOtpAutoFillCode, getAdminSession } from "../../../lib/admin-auth";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { getAdminSettings, getParticipantRegistrationRoleCounts, saveAdminSettings } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
@@ -48,7 +48,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
   ]);
   const totalParticipants = Object.values(participantRoleCounts).reduce((total, count) => total + count, 0);
   const isSuperAdmin = session.role === "super_admin";
-  const canRunLuckyDraw = canOperateEventStaff(session);
+  const canRunLuckyDraw = canOperateLuckyDraw(session);
   const resetOtpAutoFill = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "reset_lucky_draw" });
 
   return <div className="admin-page">
@@ -71,7 +71,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           </div>
             <div className="admin-actions">
               <span className={`status-pill ${settings.satisfactionEvaluationEnabled ? "attended" : "registered"}`}>{settings.satisfactionEvaluationEnabled ? "เปิดให้ประเมิน" : "ยังไม่เปิด"}</span>
-              {canOperateEventStaff(session) && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}
+              {canManageEvaluationAvailability(session) && <form action={toggleEvaluationAction}><input type="hidden" name="enabled" value={settings.satisfactionEvaluationEnabled ? "0" : "1"}/><button className={settings.satisfactionEvaluationEnabled ? "secondary" : "primary"} type="submit">{settings.satisfactionEvaluationEnabled ? "ปิดแบบสอบถาม" : "เปิดแบบสอบถาม"}</button></form>}
               {isSuperAdmin && <form action={resetEvaluationsAction}><ResetEvaluationsButton disabled={!summary.total}/></form>}
           </div>
         </header>
@@ -162,6 +162,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
             notifiedAt: winner.lucky_notified_at,
           }))}
           canRunLuckyDraw={canRunLuckyDraw}
+          canResetLuckyDraw={isSuperAdmin}
           resetOtpStatus={params.resetOtp}
           resetOtpAutoFill={resetOtpAutoFill}
         />
@@ -207,7 +208,7 @@ async function toggleEvaluationAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
-  if (!session || !canOperateEventStaff(session)) redirect("/admin");
+  if (!session || !canManageEvaluationAvailability(session)) redirect("/admin");
   const settings = await getAdminSettings();
   const enabled = String(formData.get("enabled") ?? "") === "1";
   await saveAdminSettings({ ...settings, satisfactionEvaluationEnabled: enabled });

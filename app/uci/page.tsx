@@ -84,7 +84,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/admin/participants?from=uci"><UserPlus/>เปิด Walk-in</Link>
     </section>
 
-    {(session.role === "uci" || session.role === "super_admin") && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
+    {(session.role === "admin" || session.role === "uci" || session.role === "super_admin") && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Live Lucky Draw</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการเหมือน Super Admin</p></div></div>
       <Link className="primary" href="/admin/evaluations?from=uci#lucky-draw"><Gift/>เปิดหน้า Lucky Draw</Link>
     </section>}

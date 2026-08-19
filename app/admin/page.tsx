@@ -15,6 +15,7 @@ import {
   createAdminOtpAutoFillValue,
   createAdminSessionToken,
   adminSessionMaxAgeSeconds,
+  canOperateLuckyDraw,
   clearAdminLoginFailures,
   cookieName,
   genericAdminLoginError,
@@ -169,8 +170,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div className="admin-checkin-copy"><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>เปิดหน้าสแกน QR Code หรือค้นหาชื่อผู้เข้าร่วมแบบ Live Search แล้วกดเช็คอินได้ทันที</p></div></div>
       <Link className="primary" href="/admin/scan"><UserCheck/>เปิดหน้าเช็คอิน</Link>
     </section>}
-    {isSuperAdmin && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
-      <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Super Admin Only</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
+    {canOperateLuckyDraw(session) && <section className="admin-panel admin-checkin-cta admin-lucky-draw-cta">
+      <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Admin • UCI • Super Admin</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
