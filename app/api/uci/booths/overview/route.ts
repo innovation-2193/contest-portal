@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   // Read the cookie from the incoming request so a new-tab download keeps the
   // same session behind the production proxy.
   const session = getAdminSession(request.cookies.get(cookieName)?.value);
-  if (!session || !["uci", "super_admin"].includes(session.role)) return unauthorizedResponse();
+  if (!session || !["admin", "uci", "super_admin"].includes(session.role)) return unauthorizedResponse();
   const booths = await listEventBooths(session.email);
   const pdf = await buildUciBoothOverviewPdf(booths);
   await recordAuditEvent({ actor: actorFromAdminSession(session), action: "event_booth.uci_overview_pdf", entityType: "event_booth", summary: `Export ภาพรวมบูธสำหรับ UCI ${booths.length} บูธ` }, request.headers);
