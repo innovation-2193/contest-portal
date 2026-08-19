@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { requireSuperAdminRequest } from "../../../../../../lib/admin-guard";
-import { listSubmissions } from "../../../../../../lib/admin-store";
+import {
+  listSubmissionApplicantsForExport,
+  listSubmissions,
+  type SubmissionApplicantExportRow,
+} from "../../../../../../lib/admin-store";
 import { findCommitteeScoreReportVersion } from "../../../../../../lib/committee-score-report-versions";
 import { buildCommitteeScoreboard, listCommitteeScoreRecords, type CommitteeScoreSummaryRow } from "../../../../../../lib/committee-score-store";
 import { createSimpleXlsx } from "../../../../../../lib/simple-xlsx";
@@ -9,7 +13,7 @@ import { createSimpleXlsx } from "../../../../../../lib/simple-xlsx";
 export const runtime = "nodejs";
 
 const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const columns = ["ลำดับ", "ชื่อโครงการ", "ผู้สมัครหลัก", "สังกัด", "เบอร์โทรศัพท์", "คะแนนเฉลี่ย"];
+const columns = ["ลำดับผลงาน", "ชื่อโครงการ", "ลำดับผู้สมัคร", "ผู้สมัคร", "สังกัด", "เบอร์โทรศัพท์", "คะแนนเฉลี่ย"];
 
 export async function GET(request: Request) {
   const session = requireSuperAdminRequest(request);
@@ -20,22 +24,26 @@ export async function GET(request: Request) {
   if (versionId && !version) return NextResponse.json({ ok: false, message: "ไม่พบ Version รายงานนี้" }, { status: 404 });
 
   const rows = version ? await enrichVersionRows(version.rows) : await buildCurrentRows();
+  const applicants = await listSubmissionApplicantsForExport();
+  const applicantsBySubmission = groupApplicantsBySubmission(applicants);
   const topRows = rows.slice(0, 10);
   const remainingRows = rows.slice(10);
+  const topExportRows = expandRowsWithApplicants(topRows, applicantsBySubmission);
+  const remainingExportRows = expandRowsWithApplicants(remainingRows, applicantsBySubmission);
   const workbook = createSimpleXlsx({
     sheetName: "10 อันดับแรก",
     title: "รายชื่อ 10 อันดับแรกและอันดับที่เหลือ รอบที่ 1",
-    rows: [columns, ...topRows.map(toExportRow)],
+    rows: [columns, ...topExportRows],
     sheets: [
       {
         sheetName: "10 อันดับแรก",
-        rows: [columns, ...topRows.map(toExportRow)],
-        columnWidths: [10, 62, 30, 36, 18, 14],
+        rows: [columns, ...topExportRows],
+        columnWidths: [12, 62, 14, 30, 36, 18, 14],
       },
       {
         sheetName: "อันดับที่เหลือ",
-        rows: [columns, ...remainingRows.map(toExportRow)],
-        columnWidths: [10, 62, 30, 36, 18, 14],
+        rows: [columns, ...remainingExportRows],
+        columnWidths: [12, 62, 14, 30, 36, 18, 14],
       },
     ],
   });
@@ -45,7 +53,13 @@ export async function GET(request: Request) {
     action: "committee_score.scoreboard_xlsx",
     entityType: "committee_score",
     summary: version ? `Export Excel รายชื่อ Top 10 และอันดับที่เหลือ Version ${version.version}` : "Export Excel รายชื่อ Top 10 และอันดับที่เหลือ",
-    payload: { topTen: topRows.length, remaining: remainingRows.length, version: version?.version ?? null },
+    payload: {
+      topTen: topRows.length,
+      remaining: remainingRows.length,
+      topTenApplicants: topExportRows.length,
+      remainingApplicants: remainingExportRows.length,
+      version: version?.version ?? null,
+    },
   }, request.headers);
 
   return new NextResponse(new Uint8Array(workbook), {
@@ -80,13 +94,44 @@ function compareSubmittedAt(left: { submitted_at: string }, right: { submitted_a
   return new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime();
 }
 
-function toExportRow(row: CommitteeScoreSummaryRow) {
+function groupApplicantsBySubmission(applicants: SubmissionApplicantExportRow[]) {
+  const grouped = new Map<string, SubmissionApplicantExportRow[]>();
+  for (const applicant of applicants) {
+    const list = grouped.get(applicant.submission_code) ?? [];
+    list.push(applicant);
+    grouped.set(applicant.submission_code, list);
+  }
+  for (const list of grouped.values()) {
+    list.sort((left, right) => left.member_order - right.member_order);
+  }
+  return grouped;
+}
+
+function expandRowsWithApplicants(rows: CommitteeScoreSummaryRow[], applicantsBySubmission: Map<string, SubmissionApplicantExportRow[]>) {
+  return rows.flatMap((row) => {
+    const applicants = applicantsBySubmission.get(row.submissionCode);
+    if (!applicants?.length) {
+      return [toExportRow(row, {
+        member_order: 1,
+        first_name: row.ownerName,
+        last_name: "",
+        division: row.division,
+        bureau: "",
+        phone: row.phone,
+      })];
+    }
+    return applicants.map((applicant) => toExportRow(row, applicant));
+  });
+}
+
+function toExportRow(row: CommitteeScoreSummaryRow, applicant: Pick<SubmissionApplicantExportRow, "member_order" | "first_name" | "last_name" | "division" | "bureau" | "phone">) {
   return [
     String(row.rank),
     row.submissionTitle || "-",
-    row.ownerName || "-",
-    row.division || "-",
-    row.phone || "-",
+    String(applicant.member_order),
+    `${applicant.first_name} ${applicant.last_name}`.trim() || "-",
+    applicant.division || applicant.bureau || row.division || "-",
+    applicant.phone || row.phone || "-",
     row.averageScore === null ? "-" : row.averageScore.toFixed(2),
   ];
 }
