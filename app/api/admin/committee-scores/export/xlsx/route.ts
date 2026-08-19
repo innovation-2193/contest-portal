@@ -14,6 +14,8 @@ export const runtime = "nodejs";
 
 const contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const columns = ["ลำดับผลงาน", "ชื่อโครงการ", "ลำดับผู้สมัคร", "ผู้สมัคร", "สังกัด", "เบอร์โทรศัพท์", "คะแนนเฉลี่ย"];
+const groupFills = ["#EAF3FF", "#F3EEFF", "#EEF8F0", "#FFF8E1", "#FFF0E8", "#EAF7F6"];
+const headerFill = "#17365D";
 
 export async function GET(request: Request) {
   const session = requireSuperAdminRequest(request);
@@ -30,21 +32,15 @@ export async function GET(request: Request) {
   const remainingRows = rows.slice(10);
   const topExportRows = expandRowsWithApplicants(topRows, applicantsBySubmission);
   const remainingExportRows = expandRowsWithApplicants(remainingRows, applicantsBySubmission);
+  const topSheet = scoreboardSheet(topExportRows, "10 อันดับแรก");
+  const remainingSheet = scoreboardSheet(remainingExportRows, "อันดับที่เหลือ");
   const workbook = createSimpleXlsx({
     sheetName: "10 อันดับแรก",
     title: "รายชื่อ 10 อันดับแรกและอันดับที่เหลือ รอบที่ 1",
-    rows: [columns, ...topExportRows],
+    rows: topSheet.rows,
     sheets: [
-      {
-        sheetName: "10 อันดับแรก",
-        rows: [columns, ...topExportRows],
-        columnWidths: [12, 62, 14, 30, 36, 18, 14],
-      },
-      {
-        sheetName: "อันดับที่เหลือ",
-        rows: [columns, ...remainingExportRows],
-        columnWidths: [12, 62, 14, 30, 36, 18, 14],
-      },
+      topSheet,
+      remainingSheet,
     ],
   });
 
@@ -113,6 +109,7 @@ function expandRowsWithApplicants(rows: CommitteeScoreSummaryRow[], applicantsBy
     if (!applicants?.length) {
       return [toExportRow(row, {
         member_order: 1,
+        title: "",
         first_name: row.ownerName,
         last_name: "",
         division: row.division,
@@ -124,14 +121,39 @@ function expandRowsWithApplicants(rows: CommitteeScoreSummaryRow[], applicantsBy
   });
 }
 
-function toExportRow(row: CommitteeScoreSummaryRow, applicant: Pick<SubmissionApplicantExportRow, "member_order" | "first_name" | "last_name" | "division" | "bureau" | "phone">) {
+function toExportRow(row: CommitteeScoreSummaryRow, applicant: Pick<SubmissionApplicantExportRow, "member_order" | "title" | "first_name" | "last_name" | "division" | "bureau" | "phone">) {
+  const name = `${applicant.first_name} ${applicant.last_name}`.trim() || "-";
+  const title = String(applicant.title ?? "").trim();
   return [
     String(row.rank),
     row.submissionTitle || "-",
     String(applicant.member_order),
-    `${applicant.first_name} ${applicant.last_name}`.trim() || "-",
+    `${title ? `${title} ` : ""}${name}`,
     applicant.division || applicant.bureau || row.division || "-",
     applicant.phone || row.phone || "-",
     row.averageScore === null ? "-" : row.averageScore.toFixed(2),
   ];
+}
+
+function scoreboardSheet(rows: string[][], sheetName: string) {
+  return {
+    sheetName,
+    rows: [columns, ...rows],
+    columnWidths: [12, 66, 14, 36, 40, 18, 14],
+    headerFill,
+    rowFills: [null, ...groupRowFills(rows)],
+  };
+}
+
+function groupRowFills(rows: string[][]) {
+  let previousKey = "";
+  let groupIndex = -1;
+  return rows.map((row) => {
+    const key = `${row[0] ?? ""}::${row[1] ?? ""}`;
+    if (key !== previousKey) {
+      previousKey = key;
+      groupIndex += 1;
+    }
+    return groupFills[groupIndex % groupFills.length];
+  });
 }

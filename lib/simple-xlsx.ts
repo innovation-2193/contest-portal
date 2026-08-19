@@ -17,6 +17,8 @@ export type SimpleXlsxSheet = {
   sheetName: string;
   rows: string[][];
   columnWidths?: number[];
+  headerFill?: string;
+  rowFills?: Array<string | null>;
 };
 
 export function createSimpleXlsx(options: SimpleXlsxOptions) {
@@ -26,6 +28,7 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
   const sheetRelationships = sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("\n  ");
   const sheetOverrides = sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("\n  ");
   const workbookSheets = sheets.map((sheet, index) => `<sheet name="${escapeXml(safeSheetName(sheet.sheetName))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("\n    ");
+  const fillColors = uniqueFillColors(sheets.flatMap((sheet) => [sheet.headerFill, ...(sheet.rowFills ?? [])]));
   const files: WorkbookFile[] = [
     {
       name: "[Content_Types].xml",
@@ -68,19 +71,11 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
     },
     {
       name: "xl/styles.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
-  <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/></cellXfs>
-  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
-</styleSheet>`,
+      content: stylesXml(fillColors),
     },
     ...sheets.map((sheet, index) => ({
       name: `xl/worksheets/sheet${index + 1}.xml`,
-      content: worksheetXml(sheet.rows, Math.max(1, ...sheet.rows.map((row) => row.length)), sheet.columnWidths),
+      content: worksheetXml(sheet.rows, Math.max(1, ...sheet.rows.map((row) => row.length)), sheet.columnWidths, sheet.rowFills, sheet.headerFill, fillColors),
     })),
     {
       name: "docProps/core.xml",
@@ -107,23 +102,57 @@ export function createSimpleXlsx(options: SimpleXlsxOptions) {
   return createZip(entries);
 }
 
-function worksheetXml(rows: string[][], columnCount: number, columnWidths?: number[]) {
+function worksheetXml(rows: string[][], columnCount: number, columnWidths?: number[], rowFills?: Array<string | null>, headerFill?: string, fillColors: string[] = []) {
   const widths = Array.from({ length: columnCount }, (_, index) => columnWidths?.[index] ?? 24);
+  const bodyStyleIds = new Map(fillColors.map((color, index) => [color, index + 2]));
+  const headerStyleIds = new Map(fillColors.map((color, index) => [color, index + 2 + fillColors.length]));
+  const headerStyleId = headerFill ? headerStyleIds.get(headerFill) ?? 1 : 1;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
   <dimension ref="A1:${cellRef(columnCount - 1, Math.max(1, rows.length))}"/>
   <cols>${widths.map((width, index) => `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`).join("")}</cols>
   <sheetData>
-${rows.map((row, rowIndex) => `    <row r="${rowIndex + 1}">${Array.from({ length: columnCount }, (_, columnIndex) => cellXml(row[columnIndex] ?? "", columnIndex, rowIndex + 1, rowIndex === 0)).join("")}</row>`).join("\n")}
+${rows.map((row, rowIndex) => {
+    const styleId = rowIndex === 0 ? headerStyleId : bodyStyleIds.get(rowFills?.[rowIndex] ?? "") ?? 0;
+    return `    <row r="${rowIndex + 1}">${Array.from({ length: columnCount }, (_, columnIndex) => cellXml(row[columnIndex] ?? "", columnIndex, rowIndex + 1, styleId)).join("")}</row>`;
+  }).join("\n")}
   </sheetData>
   <pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
   <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
 
-function cellXml(value: string, columnIndex: number, rowIndex: number, header: boolean) {
-  return `<c r="${cellRef(columnIndex, rowIndex)}" t="inlineStr"${header ? ' s="1"' : ""}><is><t>${escapeXml(value)}</t></is></c>`;
+function cellXml(value: string, columnIndex: number, rowIndex: number, styleId: number) {
+  return `<c r="${cellRef(columnIndex, rowIndex)}" t="inlineStr"${styleId > 0 ? ` s="${styleId}"` : ""}><is><t>${escapeXml(value)}</t></is></c>`;
+}
+
+function stylesXml(fillColors: string[]) {
+  const fills = [
+    "<fill><patternFill patternType=\"none\"/></fill>",
+    "<fill><patternFill patternType=\"gray125\"/></fill>",
+    ...fillColors.map((color) => `<fill><patternFill patternType="solid"><fgColor rgb="${rgbColor(color)}"/><bgColor indexed="64"/></patternFill></fill>`),
+  ].join("");
+  const bodyFillXfs = fillColors.map((_, index) => `<xf numFmtId="0" fontId="0" fillId="${index + 2}" borderId="0" xfId="0"/>`).join("");
+  const headerFillXfs = fillColors.map((_, index) => `<xf numFmtId="0" fontId="2" fillId="${index + 2}" borderId="0" xfId="0"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="${2 + fillColors.length}">${fills}</fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="${2 + fillColors.length * 2}"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0"/>${bodyFillXfs}${headerFillXfs}</cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+function uniqueFillColors(colors: Array<string | null | undefined>) {
+  return [...new Set(colors.map((color) => String(color ?? "").trim()).filter(Boolean))];
+}
+
+function rgbColor(value: string) {
+  const normalized = value.replace(/^#/, "").trim();
+  return normalized.length === 6 ? `FF${normalized.toUpperCase()}` : normalized.toUpperCase();
 }
 
 function cellRef(columnIndex: number, rowIndex: number) {
