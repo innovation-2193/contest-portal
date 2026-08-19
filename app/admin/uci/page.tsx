@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { ArrowLeft, Eye, Mail, Pencil, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, listUciAccounts } from "../../../lib/admin-users";
+import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, findAdminAccountById, listUciAccounts } from "../../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +35,10 @@ async function createUciAction(formData: FormData) {
 async function resendUciPasswordAction(formData: FormData) {
   "use server";
   const session = await requireSuperAdmin();
-  const result = await createAdminPasswordLink(text(formData, "id"));
-  if (result.account.role !== "uci") throw new Error("บัญชีนี้ไม่ใช่ผู้ใช้ UCI");
+  const id = text(formData, "id");
+  const existing = await findAdminAccountById(id);
+  if (!existing || existing.role !== "uci") throw new Error("ไม่พบผู้ใช้ UCI");
+  const result = await createAdminPasswordLink(id);
   await recordAuditEvent({ actor: actorFromAdminSession(session), action: "uci_user.password_link_sent", entityType: "uci_user", entityId: result.account.id, summary: `ส่งลิงก์ตั้งรหัสผ่านให้ ${result.account.email}` }, await headers());
   revalidatePath("/admin/uci");
   redirect(`/admin/uci/${encodeURIComponent(result.account.id)}?notice=password_link_sent`);

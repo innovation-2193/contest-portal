@@ -8,7 +8,7 @@ import { SecretInput } from "../../components/SecretInput";
 import { UciOnboardingPrompt } from "../../components/UciOnboardingPrompt";
 import { UciVideoCarousel } from "../../components/UciVideoCarousel";
 import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin } from "../../lib/admin-auth";
-import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, findAdminAccountByEmail, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
+import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, findAdminAccountByEmail, findAdminAccountById, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
 import { getEvaluationSummary } from "../../lib/evaluation-store";
@@ -169,8 +169,10 @@ async function createUciMemberAction(formData: FormData) {
 async function resendUciPasswordAction(formData: FormData) {
   "use server";
   const session = await requireUci();
-  const account = await createAdminPasswordLink(text(formData, "id"));
-  if (account.account.role !== "uci") throw new Error("บัญชีนี้ไม่ใช่สมาชิก UCI");
+  const id = text(formData, "id");
+  const existing = await findAdminAccountById(id);
+  if (!existing || existing.role !== "uci") throw new Error("ไม่พบสมาชิก UCI");
+  const account = await createAdminPasswordLink(id);
   await recordAuditEvent({ actor: actorFromAdminSession(session), action: "uci_user.password_link_sent", entityType: "uci_user", entityId: account.account.id, summary: `ส่งลิงก์ตั้งรหัสผ่านให้ ${account.account.email}` }, await headers());
   revalidatePath("/uci");
   redirect("/uci?notice=password_link_sent");

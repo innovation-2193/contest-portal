@@ -40,7 +40,7 @@ export default async function UciTeamMemberPage({ params, searchParams }: { para
         <h3>แก้ไขข้อมูลสมาชิก</h3>
         <form action={updateUciTeamMemberAction} className="admin-form admin-account-detail-form">
           <input type="hidden" name="id" value={account.id}/>
-          <div className="form-grid compact-grid"><label>ชื่อสมาชิก<input name="name" defaultValue={account.name} required/></label><label>อีเมล<input type="email" name="email" defaultValue={account.email} required/></label><label>เบอร์ติดต่อ<input name="phone" defaultValue={account.phone}/></label><label className="inline-check"><input type="checkbox" name="disabled" defaultChecked={account.disabled}/> ปิดใช้งานบัญชีนี้</label></div>
+          <div className="form-grid compact-grid"><label>ชื่อสมาชิก<input name="name" defaultValue={account.name} required/></label><label>อีเมล<input type="email" name="email" defaultValue={account.email} required readOnly={account.email === session.email}/></label><label>เบอร์ติดต่อ<input name="phone" defaultValue={account.phone}/></label><label className="inline-check"><input type="checkbox" name="disabled" defaultChecked={account.disabled} disabled={account.email === session.email}/> {account.email === session.email ? "บัญชีที่กำลังใช้งานอยู่ (ปิดใช้งานไม่ได้)" : "ปิดใช้งานบัญชีนี้"}</label></div>
           <button className="primary" type="submit"><Pencil/>บันทึกข้อมูลสมาชิก</button>
         </form>
       </section>
@@ -62,8 +62,7 @@ async function updateUciTeamMemberAction(formData: FormData) {
   const id = text(formData, "id");
   const existing = await findAdminAccountById(id);
   if (!existing || existing.role !== "uci") throw new Error("ไม่พบสมาชิก UCI");
-  const account = await updateAdminAccount(id, { name: text(formData, "name"), email: text(formData, "email"), phone: text(formData, "phone"), disabled: formData.get("disabled") === "on" });
-  if (account.role !== "uci") throw new Error("บัญชีนี้ไม่ใช่สมาชิก UCI");
+  const account = await updateAdminAccount(id, { role: "uci", name: text(formData, "name"), email: existing.email === session.email ? existing.email : text(formData, "email"), phone: text(formData, "phone"), disabled: existing.email === session.email ? false : formData.get("disabled") === "on" });
   await recordAuditEvent({ actor: actorFromAdminSession(session), action: "uci_user.updated", entityType: "uci_user", entityId: account.id, summary: `แก้ไขสมาชิก UCI ${account.email}`, payload: { disabled: account.disabled } }, await headers());
   revalidatePath("/uci");
   revalidatePath(`/uci/team/${encodeURIComponent(account.id)}`);

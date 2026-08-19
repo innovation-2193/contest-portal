@@ -1,5 +1,4 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookieName, getAdminSession } from "../../../../../lib/admin-auth";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audit-log";
 import { listEventBooths } from "../../../../../lib/event-booths";
@@ -7,8 +6,10 @@ import { buildUciBoothOverviewPdf } from "../../../../../lib/event-booth-reports
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
-  const session = getAdminSession((await cookies()).get(cookieName)?.value);
+export async function GET(request: NextRequest) {
+  // Read the cookie from the incoming request so a new-tab download keeps the
+  // same session behind the production proxy.
+  const session = getAdminSession(request.cookies.get(cookieName)?.value);
   if (!session || !["uci", "super_admin"].includes(session.role)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const booths = await listEventBooths(session.email);
   const pdf = await buildUciBoothOverviewPdf(booths);
