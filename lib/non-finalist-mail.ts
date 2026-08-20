@@ -3,6 +3,7 @@ import { sendAdminMail } from "./admin-mail";
 import { sendRegistrationReminder } from "./registration-artifacts";
 import type { RegistrationRecord } from "./local-registrations";
 import type { SubmissionApplicantExportRow } from "./admin-store";
+import { publicBaseUrl } from "./public-url";
 
 type NonFinalistInvitationResult = {
   email: string;
@@ -81,12 +82,13 @@ function invitationText(name: string, projects: Set<string>) {
     "",
     "ลานจอดฝั่งวิภาวดี สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่",
     "ลานจอดฝั่งลานมะพร้าว สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่",
-    "กรุณานำบัตรประชาชนมาแสดงต่อเจ้าหน้าที่ ณ จุดลงทะเบียน",
+    `กรุณาลงทะเบียนเข้าร่วมงานผ่านเว็บไซต์ ${publicBaseUrl()}/register เพื่อรับ QR Code แล้วนำ QR Code มาแสดงหน้างานเหมือนผู้เข้าร่วมงานทั่วไป`,
   ].join("\n");
 }
 
 function invitationHtml(name: string, projects: Set<string>) {
   const projectList = [...projects].map((project) => `<li style="margin:0 0 6px">${escapeHtml(project)}</li>`).join("");
+  const registrationUrl = `${publicBaseUrl()}/register`;
   return `<p style="margin:0 0 18px">เรียน <strong>${escapeHtml(name || "ผู้สมัคร")}</strong></p>
     <p style="margin:0 0 18px;line-height:1.8">ขอเชิญท่านเข้าร่วมงาน <strong>Police Innovation Contest 2026</strong> ในวันที่ 24 สิงหาคม 2569 แม้ผลงานของท่านไม่ได้รับการประกาศเป็น 10 ทีมรอบสุดท้าย แต่ทีมงานยินดีต้อนรับท่านเข้าร่วมงาน</p>
     <div style="margin:20px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
@@ -102,7 +104,10 @@ function invitationHtml(name: string, projects: Set<string>) {
       ลานจอดฝั่งลานมะพร้าว สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่
       <img src="cid:parking-map" alt="แผนผังลานจอดรถ" style="display:block;width:100%;max-width:900px;height:auto;margin:16px auto 0;border-radius:8px">
     </div>
-    <p style="margin:0;line-height:1.8">กรุณานำบัตรประชาชนมาแสดงต่อเจ้าหน้าที่ ณ จุดลงทะเบียน</p>`;
+    <div style="margin:0;padding:18px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;text-align:center">
+      <p style="margin:0 0 14px;line-height:1.8;color:#172033">กรุณาลงทะเบียนเข้าร่วมงานผ่านเว็บไซต์ เพื่อรับ QR Code แล้วนำ QR Code มาแสดงหน้างานเหมือนผู้เข้าร่วมงานทั่วไป</p>
+      <a href="${escapeHtml(registrationUrl)}" style="display:inline-block;background:#d8b62f;color:#07142b;text-decoration:none;font-weight:800;padding:13px 22px;border-radius:9px">ลงทะเบียนเข้าร่วมงานและรับ QR Code</a>
+    </div>`;
 }
 
 function applicantName(applicant: SubmissionApplicantExportRow) {
