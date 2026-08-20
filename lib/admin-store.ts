@@ -381,7 +381,7 @@ export async function listParticipants() {
   try {
     await ensureDatabaseSchema();
     const [rows] = await db.execute(
-      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,COALESCE(r.citizen_id,'') AS citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC LIMIT 500",
+      "SELECT r.registration_code,r.participant_role,r.title,r.first_name,r.last_name,COALESCE(r.citizen_id,'') AS citizen_id,r.phone,r.position,r.division,r.bureau,r.status,r.checked_in_at,r.checked_in_by_email,r.registered_at,COALESCE(u.email,'') AS email,u.provider FROM registrations r JOIN users u ON u.id=r.user_id ORDER BY r.registered_at DESC",
     );
     return (rows as RegistrationRecord[]).map((item) => ({ ...item, participant_role: normalizeParticipantRole(item.participant_role) }));
   } catch (error) {

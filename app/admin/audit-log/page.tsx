@@ -18,6 +18,7 @@ const actionOptions = [
   ["auth.participant_login", "เข้าสู่โปรไฟล์ผู้เข้าร่วม"],
   ["auth.participant_logout", "ออกจากโปรไฟล์ผู้เข้าร่วม"],
   ["registration.checked_in", "เช็คอินหน้างาน"],
+  ["registration.qr_reminder_sent", "ส่งอีเมล QR Code แจ้งกำหนดการ"],
   ["registration.updated", "แก้ไขข้อมูลผู้เข้าร่วม"],
   ["registration.deleted", "ลบข้อมูลผู้เข้าร่วม"],
   ["registration.bulk_deleted", "ลบผู้เข้าร่วมหลายรายการ"],
@@ -218,6 +219,7 @@ function auditActionLabel(action: string) {
   if (action === "registration.deleted") return "ลบข้อมูลผู้เข้าร่วม";
   if (action === "registration.bulk_deleted") return "ลบผู้เข้าร่วมหลายรายการ";
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
+  if (action === "registration.qr_reminder_sent") return "ส่งอีเมล QR Code แจ้งกำหนดการ";
   if (action === "registration.export_pdf") return "Export รายชื่อ PDF";
   if (action === "registration.export_xlsx") return "Export รายชื่อ Excel";
   if (action === "parking.created") return "เพิ่มที่จอดรถ";

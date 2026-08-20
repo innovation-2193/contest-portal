@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Download, Eye, FileSpreadsheet, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, Mail, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
@@ -14,13 +14,14 @@ import { adminNoticePath } from "../../../lib/admin-flash";
 import { participantRoles, type ParticipantRole, type RegistrationRecord } from "../../../lib/local-registrations";
 import { parseParticipantBulkFile } from "../../../lib/participant-bulk-import";
 import { participantRoleClass } from "../../../lib/participant-role-style";
+import { sendRegistrationReminder } from "../../../lib/registration-artifacts";
 import { isThaiCitizenId } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -50,6 +51,11 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
   const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const items = all.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const reminderEligibleCount = participants.filter((participant) => participant.status !== "cancelled" && isValidEmail(participant.email)).length;
+  const reminderSent = Number(params.sent ?? 0) || 0;
+  const reminderQueued = Number(params.queued ?? 0) || 0;
+  const reminderFailed = Number(params.failed ?? 0) || 0;
+  const reminderSkipped = Number(params.skipped ?? 0) || 0;
 
   return <div className="admin-page">
     <div className="wide">
@@ -58,8 +64,9 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
         <BackButton />
       </div>
       <AdminNotice code={params.notice} error={params.error}/>
+      {params.notice === "participant_qr_reminders_sent" && <div className={`admin-login-alert ${reminderFailed ? "warning" : "success"}`}>ส่งอีเมล QR Code แล้ว {reminderSent.toLocaleString("th-TH")} รายการ{reminderQueued ? ` • เข้าคิวทดสอบ ${reminderQueued.toLocaleString("th-TH")} รายการ` : ""}{reminderSkipped ? ` • ข้ามรายการไม่มีอีเมล/ยกเลิก ${reminderSkipped.toLocaleString("th-TH")} รายการ` : ""}{reminderFailed ? ` • ล้มเหลว ${reminderFailed.toLocaleString("th-TH")} รายการ` : ""}</div>}
       <section className={`admin-panel ${isUciWorkspace ? "uci-participants-panel" : ""}`}>
-        <header className="admin-section-head"><Users/><div><span className="eyebrow">{isUciWorkspace ? "Participants" : "รายการ"}</span><h2>ผู้เข้าร่วมงานทั้งหมด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div></header>
+        <header className="admin-section-head"><Users/><div><span className="eyebrow">{isUciWorkspace ? "Participants" : "รายการ"}</span><h2>ผู้เข้าร่วมงานทั้งหมด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><form action={sendParticipantQrReminderAction}><ConfirmSubmitButton className="primary" type="submit" message={`ยืนยันส่งอีเมล QR Code ให้ผู้ลงทะเบียนที่ยังไม่ยกเลิกและมีอีเมล ${reminderEligibleCount.toLocaleString("th-TH")} รายการ?`}><Mail/>ส่ง QR Code ให้ผู้ลงทะเบียน</ConfirmSubmitButton></form></div></header>
         <details className={`admin-edit-disclosure participant-create-disclosure ${isUciWorkspace ? "uci-walkin-disclosure" : ""}`}>
           <summary><UserPlus/><span className="participant-create-summary-copy"><strong>{isUciWorkspace ? "ลงทะเบียนผู้เข้าร่วมงานหน้างาน (Walk-in)" : "ลงทะเบียนผู้เข้าร่วมงานโดยแอดมิน"}</strong>{isUciWorkspace && <small>กรอกข้อมูลหน้างาน แล้วเช็คอินอัตโนมัติทันที</small>}</span></summary>
           <form action={createParticipantAction} className="admin-form admin-participant-detail-form participant-create-form">
@@ -258,6 +265,32 @@ async function createParticipantAction(formData: FormData) {
   redirect(successPath);
 }
 
+async function sendParticipantQrReminderAction() {
+  "use server";
+  const cookieStore = await cookies();
+  const session = getAdminSession(cookieStore.get(cookieName)?.value);
+  if (!session) redirect("/admin");
+  const requestHeaders = await headers();
+  const participants = await listParticipants();
+  const recipients = participants.filter((participant) => participant.status !== "cancelled" && isValidEmail(participant.email));
+  const results = await mapWithConcurrency(recipients, (participant) => sendRegistrationReminder(participant), 4);
+  const sent = results.filter((result) => result.status === "sent").length;
+  const queued = results.filter((result) => result.status === "outbox").length;
+  const failed = results.filter((result) => result.status === "failed").length;
+  const skipped = participants.length - recipients.length;
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "registration.qr_reminder_sent",
+    entityType: "registration",
+    entityId: "bulk",
+    summary: `ส่งอีเมล QR Code แจ้งกำหนดการให้ผู้ลงทะเบียน ${sent + queued} รายการ`,
+    payload: { total: participants.length, recipients: recipients.length, sent, queued, failed, skipped, eventDate: "2026-08-24", venue: "สโมสรตำรวจ" },
+  }, requestHeaders);
+  revalidatePath("/admin/participants");
+  revalidatePath("/uci");
+  redirect(`/admin/participants?notice=participant_qr_reminders_sent&sent=${sent}&queued=${queued}&failed=${failed}&skipped=${skipped}`);
+}
+
 async function recordUciAutoCheckIn(registrationCode: string, isUciWorkspace: boolean, session: NonNullable<ReturnType<typeof getAdminSession>>, requestHeaders: Headers) {
   if (!isUciWorkspace) return null;
   const checkedIn = await checkInParticipant(registrationCode, session.email);
@@ -302,6 +335,24 @@ async function deleteParticipantsAction(formData: FormData) {
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
+}
+
+async function mapWithConcurrency<T, R>(items: T[], worker: (item: T) => Promise<R>, concurrency: number) {
+  const results = Array<R | undefined>(items.length);
+  let nextIndex = 0;
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(Math.max(concurrency, 1), items.length) }, () => run()));
+  return results as R[];
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function Pagination({ basePath, q, role, page, totalPages, from }: { basePath: string; q: string; role: string; page: number; totalPages: number; from?: string }) {

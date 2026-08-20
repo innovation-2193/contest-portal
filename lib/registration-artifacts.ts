@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
@@ -17,8 +17,15 @@ import { publicBaseUrl } from "./public-url";
 import { formatApplicantName } from "./thai-rank-title";
 
 type MailStatus = "sent" | "outbox" | "skipped" | "failed";
+type RegistrationEmailMessage = {
+  subject: string;
+  html: string;
+  text: string;
+  includeParkingMap?: boolean;
+};
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
+const parkingMapPath = path.join(process.cwd(), "public", "email", "parking-map.png");
 
 export function registrationQrText(registrationCode: string) {
   return registrationCode.trim();
@@ -118,6 +125,23 @@ export async function registrationTicketPdf(record: RegistrationRecord) {
 }
 
 export async function sendRegistrationConfirmation(record: RegistrationRecord) {
+  return sendRegistrationEmail(record, {
+    subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`,
+    html: confirmationHtml(record),
+    text: confirmationText(record),
+  });
+}
+
+export async function sendRegistrationReminder(record: RegistrationRecord) {
+  return sendRegistrationEmail(record, {
+    subject: "แจ้งกำหนดการเข้าร่วมงาน Police Innovation Contest 2026 พร้อม QR Code",
+    html: reminderHtml(record),
+    text: reminderText(record),
+    includeParkingMap: true,
+  });
+}
+
+async function sendRegistrationEmail(record: RegistrationRecord, message: RegistrationEmailMessage) {
   try {
     const email = record.email.trim().toLowerCase();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -128,13 +152,14 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
       registrationQrPng(record.registration_code),
       registrationTicketPdf(record),
     ]);
+    const parkingMap = message.includeParkingMap ? await readFile(parkingMapPath) : undefined;
 
     const smtpUrl = process.env.SMTP_URL;
     const smtpHost = process.env.SMTP_HOST;
     const from = process.env.SMTP_FROM ?? "Police Innovation Contest 2026 <no-reply@police.go.th>";
 
     if (!smtpUrl && !smtpHost) {
-      await writeDevOutbox(record, qr, pdf);
+      await writeDevOutbox(record, qr, pdf, message, parkingMap);
       return { status: "outbox" satisfies MailStatus };
     }
 
@@ -152,17 +177,20 @@ export async function sendRegistrationConfirmation(record: RegistrationRecord) {
             : undefined,
         });
 
+    const attachments = [
+      brandedEmailLogoAttachment(),
+      { filename: `${record.registration_code}.png`, content: qr, contentType: "image/png", cid: "registration-qr" },
+      { filename: `${record.registration_code}.pdf`, content: pdf, contentType: "application/pdf" },
+      ...(parkingMap ? [{ filename: "parking-map.png", content: parkingMap, contentType: "image/png", cid: "parking-map" }] : []),
+    ];
+
     await transporter.sendMail({
       from,
       to: email,
-      subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`,
-      html: confirmationHtml(record),
-      text: confirmationText(record),
-      attachments: [
-        brandedEmailLogoAttachment(),
-        { filename: `${record.registration_code}.png`, content: qr, contentType: "image/png", cid: "registration-qr" },
-        { filename: `${record.registration_code}.pdf`, content: pdf, contentType: "application/pdf" },
-      ],
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+      attachments,
     });
 
     return { status: "sent" satisfies MailStatus };
@@ -207,14 +235,64 @@ function confirmationText(record: RegistrationRecord) {
 กรุณาแสดง QR Code หรือ PDF ที่แนบมากับอีเมลนี้ต่อเจ้าหน้าที่เพื่อลงทะเบียนเช็คอินหน้างาน`;
 }
 
-async function writeDevOutbox(record: RegistrationRecord, qr: Buffer, pdf: Buffer) {
+function reminderHtml(record: RegistrationRecord) {
+  const detailUrl = `${publicBaseUrl()}/profile/login`;
+  const recipientName = formatApplicantName(record);
+  return brandedEmailHtml({
+    heading: "ขอเชิญเข้าร่วมงาน Police Innovation Contest 2026",
+    subtitle: `แจ้งกำหนดการและ QR Code สำหรับเช็คอิน · ${record.registration_code}`,
+    content: `<p style="margin:0 0 18px">เรียน ${escapeHtml(recipientName)}</p>
+        <p style="margin:0 0 22px">ขอเชิญท่านเข้าร่วมงาน Police Innovation Contest 2026 ตามกำหนดการดังนี้</p>
+        <div style="margin:22px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
+          <p style="margin:0 0 8px"><strong>วันที่:</strong> 24 สิงหาคม 2569 (24 ส.ค. 69)</p>
+          <p style="margin:0 0 8px"><strong>เริ่มลงทะเบียน:</strong> เวลา 08.00 น.</p>
+          <p style="margin:0"><strong>สถานที่:</strong> สโมสรตำรวจ</p>
+        </div>
+        <p style="margin:0 0 18px">กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน เพื่อความสะดวกและรวดเร็วในการเข้าร่วมงาน</p>
+        <div style="margin:24px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
+          <h2 style="margin:0 0 14px;font-size:22px;color:#0a2d63">ข้อมูลลานจอดรถ</h2>
+          <p style="margin:0 0 8px"><strong>ลานจอดฝั่งวิภาวดี:</strong> สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่</p>
+          <p style="margin:0 0 18px"><strong>ลานจอดฝั่งลานมะพร้าว:</strong> สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่</p>
+          <img src="cid:parking-map" alt="แผนผังลานจอดรถ" style="width:100%;height:auto;display:block;border-radius:8px;background:#fff">
+        </div>
+        <div style="margin:24px 0;padding:24px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;text-align:center">
+          <h2 style="margin:0 0 6px;font-size:22px;color:#0a2d63">QR Code สำหรับเช็คอิน</h2>
+          <p style="margin:0 0 18px;color:#4b5870">รหัสลงทะเบียน ${escapeHtml(record.registration_code)}</p>
+          <img src="cid:registration-qr" alt="QR Code ${escapeHtml(record.registration_code)}" style="width:220px;height:220px;border-radius:12px;background:#fff;display:block;margin:0 auto 16px">
+          <div style="display:inline-block;background:#0a2d63;color:#fff0a8;border-radius:999px;padding:8px 18px;font-weight:700">${escapeHtml(record.registration_code)}</div>
+        </div>
+        <a href="${escapeHtml(detailUrl)}" style="display:inline-block;background:#d8b62f;color:#07142b;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:9px">เข้าสู่โปรไฟล์และดู QR Code</a>
+      `,
+  });
+}
+
+function reminderText(record: RegistrationRecord) {
+  return `ขอเชิญเข้าร่วมงาน Police Innovation Contest 2026
+เลขลงทะเบียน: ${record.registration_code}
+ชื่อ: ${formatApplicantName(record)}
+
+กำหนดการ
+วันที่: 24 สิงหาคม 2569 (24 ส.ค. 69)
+เริ่มลงทะเบียน: เวลา 08.00 น.
+สถานที่: สโมสรตำรวจ
+
+ข้อมูลลานจอดรถ
+ลานจอดฝั่งวิภาวดี: สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่
+ลานจอดฝั่งลานมะพร้าว: สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่
+
+กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน
+อีเมลนี้มี QR Code, แผนผังลานจอดรถ และ PDF ใบยืนยันการลงทะเบียนแนบมาด้วย`;
+}
+
+async function writeDevOutbox(record: RegistrationRecord, qr: Buffer, pdf: Buffer, message: RegistrationEmailMessage, parkingMap?: Buffer) {
   const outbox = path.join(storageDir, "email-outbox", record.registration_code);
   await mkdir(outbox, { recursive: true });
   await writeFile(path.join(outbox, "qr.png"), qr);
   await writeFile(path.join(outbox, "ticket.pdf"), pdf);
-    await writeFile(
+  if (parkingMap) await writeFile(path.join(outbox, "parking-map.png"), parkingMap);
+  await writeFile(
     path.join(outbox, "email.json"),
-    `${JSON.stringify({ to: record.email, subject: `ยืนยันการลงทะเบียนเข้าร่วมงาน ${record.registration_code}`, createdAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({ to: record.email, subject: message.subject, text: message.text, html: message.html, createdAt: new Date().toISOString() }, null, 2)}\n`,
     "utf8",
   );
 }

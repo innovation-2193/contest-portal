@@ -59,6 +59,7 @@ const allowedAuditActions = new Set([
   "registration.deleted",
   "registration.bulk_deleted",
   "registration.checked_in",
+  "registration.qr_reminder_sent",
   "registration.export_pdf",
   "registration.export_xlsx",
   "parking.created",
@@ -649,6 +650,7 @@ function isAdminAuditAction(action: string) {
     action === "registration.deleted" ||
     action === "registration.bulk_deleted" ||
     action === "registration.checked_in" ||
+    action === "registration.qr_reminder_sent" ||
     action === "registration.export_pdf" ||
     action === "registration.export_xlsx" ||
     action.startsWith("parking.") ||

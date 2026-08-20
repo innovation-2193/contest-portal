@@ -1342,6 +1342,7 @@ function auditActionLabel(action: string) {
   if (action === "registration.deleted") return "ลบข้อมูลผู้เข้าร่วม";
   if (action === "registration.bulk_deleted") return "ลบผู้เข้าร่วมหลายรายการ";
   if (action === "registration.checked_in") return "เช็คอินหน้างาน";
+  if (action === "registration.qr_reminder_sent") return "ส่งอีเมล QR Code แจ้งกำหนดการ";
   if (action === "registration.export_pdf") return "Export รายชื่อ PDF";
   if (action === "registration.export_xlsx") return "Export รายชื่อ Excel";
   if (action === "parking.created") return "เพิ่มที่จอดรถ";
