@@ -74,6 +74,7 @@ const actionOptions = [
   ["news.created", "เพิ่มข่าวประชาสัมพันธ์"],
   ["news.deleted", "ลบข่าวประชาสัมพันธ์"],
   ["winner.created", "เพิ่มประกาศผล"],
+  ["submission.non_finalist_invitation_sent", "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม"],
   ["winner.deleted", "ลบประกาศผล"],
   ["winner.export_pdf", "Export ประกาศผล PDF"],
   ["evaluation.lucky_draw", "สุ่ม Lucky Draw"],
@@ -251,6 +252,7 @@ function auditActionLabel(action: string) {
   if (action === "news.created") return "เพิ่มข่าวประชาสัมพันธ์";
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
+  if (action === "submission.non_finalist_invitation_sent") return "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม";
   if (action === "winner.deleted") return "ลบประกาศผล";
   if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";

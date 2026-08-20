@@ -50,9 +50,10 @@ import {
 		  createParkingReservation,
 		  deleteParkingReservation,
 		  listNews,
-		  listParkingReservations,
-		  listParticipants,
-		  listSubmissions,
+	  listParkingReservations,
+	  listParticipants,
+	  listSubmissionApplicantsForExport,
+	  listSubmissions,
 		  listWinners,
 		  registerSubmissionAsParticipant,
 		  saveAdminSettings,
@@ -61,6 +62,8 @@ import {
 		} from "../../lib/admin-store";
 import { getEvaluationSummary, type EvaluationSummary } from "../../lib/evaluation-store";
 import { sendWinnerAnnouncementEmails } from "../../lib/winner-mail";
+import { sendNonFinalistInvitationEmails } from "../../lib/non-finalist-mail";
+import { buildAnnouncedFinalistSources } from "../../lib/announced-finalists";
 import { sendSubmissionAssignmentEmail } from "../../lib/submission-assignment-mail";
 import { sortScoreboardSubmissions } from "../../lib/scoreboard-ranking";
 import { formatThaiDateTimeInput, parseThaiDate, thaiLocalDateTimeToIso } from "../../lib/thai-time";
@@ -88,7 +91,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const autoFillOtp = getAdminOtpAutoFillCode(cookieStore.get(adminOtpAutoFillCookie)?.value, { purpose: "login" });
     return <AdminShell><LoginPanel message={genericAdminLoginError(params.login)} autoFillOtp={autoFillOtp}/></AdminShell>;
   }
-  const { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
+  const { settings, participants, submissions, submissionApplicants, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations } = await loadAdminPageData(session);
   const isSuperAdmin = session.role === "super_admin";
   const participantRole = normalizeParticipantRoleFilter(params.participantRole);
   const participantSearch = (params.participantSearch ?? "").trim();
@@ -162,6 +165,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     const key = winnerFallbackKey(submission.title_th, submissionOwnerName(submission), submissionDivision(submission));
     return !awardedSubmissionKeys.has(submission.submission_code) && !awardedSubmissionKeys.has(key);
   });
+  const announcedFinalistSubmissionCodes = new Set(buildAnnouncedFinalistSources(winners, submissions).map((submission) => submission.submission_code));
+  const nonFinalistApplicants = submissionApplicants.filter((applicant) => !announcedFinalistSubmissionCodes.has(applicant.submission_code));
+  const nonFinalistRecipientCount = new Set(nonFinalistApplicants.map((applicant) => applicant.email.trim().toLowerCase()).filter(isValidEmail)).size;
+  const nonFinalistSubmissionCount = new Set(nonFinalistApplicants.map((applicant) => applicant.submission_code)).size;
 
   return <AdminShell>
     <div className="admin-topline"><div><span className="eyebrow">Admin Console</span><h1>ระบบหลังบ้าน</h1>{isSuperAdmin && <p>Super Admin สามารถจัดการทุกส่วนของระบบ รวมถึง Pre-lander ประกาศผล และบัญชีแอดมิน</p>}<small className="admin-role-badge"><ShieldCheck/>{isSuperAdmin ? "Super Admin" : "Admin"} • {session.email}</small></div><form action={logoutAction}><button className="secondary" type="submit"><LogOut/>ออกจากระบบ</button></form></div>
@@ -215,6 +222,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <label className="inline-check winner-publish-check"><input type="checkbox" name="published" defaultChecked/> เผยแพร่และส่งอีเมล</label>
         <button className="primary winner-submit" type="submit" disabled={!availableWinnerSubmissions.length}><UserPlus/>เพิ่มรายชื่อ</button>
       </form>
+      <div className="admin-checkin-cta admin-mail-cta">
+        <div className="admin-checkin-copy"><Mail/><div><span className="eyebrow">Event Invitation</span><h3>เชิญผู้สมัครที่ไม่ติด 10 ทีมเข้าร่วมงาน</h3><p>พบ {nonFinalistSubmissionCount.toLocaleString("th-TH")} ผลงาน และ {nonFinalistRecipientCount.toLocaleString("th-TH")} อีเมลที่ไม่อยู่ในรายชื่อ 10 ทีมสุดท้าย ระบบจะส่งกำหนดการวันที่ 24 สิงหาคม 2569 พร้อมแผนผังที่จอดรถ; ผู้ที่มีทะเบียนเข้าร่วมงานจะได้รับ QR Code ด้วย</p></div></div>
+        <form action={sendNonFinalistInvitationAction}><ConfirmSubmitButton className="primary" type="submit" disabled={!nonFinalistRecipientCount} message={`ยืนยันส่งอีเมลเชิญผู้สมัครที่ไม่ติด 10 ทีม จำนวน ${nonFinalistRecipientCount.toLocaleString("th-TH")} รายการ?`}><Mail/>ส่งอีเมลเชิญ</ConfirmSubmitButton></form>
+      </div>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>ลำดับ</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map((winner, index)=><tr key={winner.id}><td data-label="ลำดับ"><b>{(index + 1).toLocaleString("th-TH")}</b></td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     {isSuperAdmin && <section className="admin-panel">
@@ -269,10 +280,11 @@ const emptyEvaluationSummary: EvaluationSummary = {
 
 async function loadAdminPageData(session: AdminSession) {
   const isSuperAdmin = session.role === "super_admin";
-  const [settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations] = await Promise.all([
+  const [settings, participants, submissions, submissionApplicants, winners, news, homePopup, adminAccounts, auditEvents, parkingReservations] = await Promise.all([
     withAdminFallback("settings", getAdminSettings(), fallbackAdminSettings),
     withAdminFallback("participants", listParticipants(), []),
     withAdminFallback("submissions", listSubmissions({ assignedAdminEmail: isSuperAdmin ? null : session.email }), []),
+    isSuperAdmin ? withAdminFallback("submission applicants", listSubmissionApplicantsForExport(), []) : Promise.resolve([]),
     withAdminFallback("winners", listWinners(), []),
     withAdminFallback("news", listNews(), []),
     isSuperAdmin ? withAdminFallback("home popup", getHomePopup(), null) : Promise.resolve(null),
@@ -281,7 +293,7 @@ async function loadAdminPageData(session: AdminSession) {
     isSuperAdmin ? withAdminFallback("parking reservations", listParkingReservations(), []) : Promise.resolve([]),
   ]);
   const evaluationSummary = await withAdminFallback("evaluation summary", getEvaluationSummary(), emptyEvaluationSummary);
-  return { settings, participants, submissions, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations };
+  return { settings, participants, submissions, submissionApplicants, winners, news, homePopup, adminAccounts, auditEvents, evaluationSummary, parkingReservations };
 }
 
 async function withAdminFallback<T>(label: string, promise: Promise<T>, fallback: T) {
@@ -1046,6 +1058,46 @@ async function addWinnerAction(formData: FormData) {
   redirect(adminNoticePath("/admin", "winner_added"));
 }
 
+async function sendNonFinalistInvitationAction() {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const [applicants, participants, submissions, winners] = await Promise.all([
+    listSubmissionApplicantsForExport(),
+    listParticipants(),
+    listSubmissions(),
+    listWinners(),
+  ]);
+  const finalistSubmissionCodes = new Set(buildAnnouncedFinalistSources(winners, submissions).map((submission) => submission.submission_code));
+  const results = await sendNonFinalistInvitationEmails({ applicants, finalistSubmissionCodes, participants });
+  const sent = results.filter((result) => result.status === "sent").length;
+  const queued = results.filter((result) => result.status === "outbox").length;
+  const failed = results.filter((result) => result.status === "failed").length;
+  const skipped = results.filter((result) => result.status === "skipped").length;
+  const withQr = results.filter((result) => result.withQr).length;
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "submission.non_finalist_invitation_sent",
+    entityType: "submission",
+    entityId: "bulk",
+    summary: `ส่งอีเมลเชิญผู้สมัครที่ไม่ติด 10 ทีม ${sent + queued} รายการ`,
+    payload: {
+      totalApplicants: applicants.length,
+      finalistSubmissionCount: finalistSubmissionCodes.size,
+      recipients: results.length,
+      sent,
+      queued,
+      failed,
+      skipped,
+      withQr,
+      eventDate: "2026-08-24",
+      venue: "สโมสรตำรวจ",
+    },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  redirect(adminNoticePath("/admin", "non_finalist_invitations_sent"));
+}
+
 async function registerSubmissionParticipantAction(formData: FormData) {
   "use server";
   const session = await requireSuperAdmin();
@@ -1250,6 +1302,10 @@ function normalizeSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 function sortParticipants<T extends { registered_at: string }>(records: T[], sort: ParticipantSort) {
   return [...records].sort((a, b) => {
     const diff = new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime();
@@ -1395,6 +1451,7 @@ function auditActionLabel(action: string) {
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "submission.non_finalist_invitation_sent") return "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม";
   if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
