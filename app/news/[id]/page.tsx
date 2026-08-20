@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarDays, Download, FileText, Newspaper } from "lucide-react";
+import { ArrowLeft, CalendarDays, Download, Newspaper } from "lucide-react";
 import { NewsGallery } from "../../../components/NewsGallery";
 import { listNews } from "../../../lib/admin-store";
 import { NewsViewCount } from "../../../components/NewsViewCount";
@@ -62,10 +62,6 @@ function NewsAttachment({ item }: { item: NonNullable<Awaited<ReturnType<typeof 
   const attachmentUrl = "/api/news-attachments/" + encodeURIComponent(item.attachmentName!);
   const isPdf = item.attachmentName?.toLowerCase().endsWith(".pdf") === true;
   return <div className="news-post-attachment-wrap">
-    {isPdf && <div className="news-post-pdf-viewer">
-      <div className="news-post-pdf-heading"><FileText/><span>เอกสารแนบ PDF</span><small>{item.attachmentOriginalName || "เปิดดูเอกสาร"}</small></div>
-      <iframe src={attachmentUrl + "?inline=1"} title={item.attachmentOriginalName || "เอกสาร PDF ข่าวประชาสัมพันธ์"}/>
-    </div>}
     <a className="public-news-attachment news-post-attachment" href={attachmentUrl} download><Download/>{isPdf ? "ดาวน์โหลด PDF" : "ดาวน์โหลดเอกสารแนบ"}</a>
   </div>;
 }
