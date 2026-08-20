@@ -11,7 +11,8 @@ type AdminMailInput = {
   outboxKey: string;
   attachments?: Array<{
     filename: string;
-    path: string;
+    path?: string;
+    content?: Buffer | string;
     cid?: string;
     contentType?: string;
   }>;
@@ -93,6 +94,7 @@ async function writeDevOutbox(input: AdminMailInput) {
         filename: attachment.filename,
         cid: attachment.cid,
         contentType: attachment.contentType,
+        content: attachment.content ? Buffer.from(attachment.content).toString("base64") : undefined,
       })) ?? [],
       createdAt: new Date().toISOString(),
     }, null, 2)}\n`,

@@ -151,11 +151,17 @@ async function ensureSatisfactionEvaluationsTable() {
       lucky_drawn_at VARCHAR(40) NULL,
       lucky_drawn_by_email VARCHAR(255) NULL,
       lucky_notified_at VARCHAR(40) NULL,
+      gift_qr_token VARCHAR(96) NULL UNIQUE,
+      gift_claimed_at VARCHAR(40) NULL,
+      gift_claimed_by_email VARCHAR(255) NULL,
       CONSTRAINT fk_evaluation_registration FOREIGN KEY (registration_code) REFERENCES registrations(registration_code) ON DELETE CASCADE,
       UNIQUE KEY uq_lucky_draw_prize (lucky_draw_prize),
       INDEX idx_evaluation_submitted (submitted_at)
     ) ENGINE=InnoDB
   `);
+  await ensureColumn("satisfaction_evaluations", "gift_qr_token", "ALTER TABLE satisfaction_evaluations ADD COLUMN gift_qr_token VARCHAR(96) NULL AFTER lucky_notified_at");
+  await ensureColumn("satisfaction_evaluations", "gift_claimed_at", "ALTER TABLE satisfaction_evaluations ADD COLUMN gift_claimed_at VARCHAR(40) NULL AFTER gift_qr_token");
+  await ensureColumn("satisfaction_evaluations", "gift_claimed_by_email", "ALTER TABLE satisfaction_evaluations ADD COLUMN gift_claimed_by_email VARCHAR(255) NULL AFTER gift_claimed_at");
 }
 
 async function ensureLuckyDrawResultsTable() {

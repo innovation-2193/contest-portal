@@ -26,6 +26,9 @@ export type EvaluationRecord = {
   lucky_drawn_at: string | null;
   lucky_drawn_by_email: string | null;
   lucky_notified_at: string | null;
+  gift_qr_token: string;
+  gift_claimed_at: string | null;
+  gift_claimed_by_email: string | null;
   participant_name?: string;
   email?: string;
 };
@@ -73,6 +76,14 @@ export type EvaluationRespondent = {
   overallAverage: number;
 };
 
+export type GiftClaimResult = {
+  registrationCode: string;
+  name: string;
+  claimedAt: string;
+  claimedByEmail: string;
+  wasAlreadyClaimed: boolean;
+};
+
 type EvaluationStore = {
   evaluations: EvaluationRecord[];
 };
@@ -101,7 +112,7 @@ export async function findEvaluationByRegistrationCode(registrationCode: string)
       [code],
     );
     const row = (rows as EvaluationRow[])[0];
-    return row ? rowToRecord(row) : null;
+    return row ? ensureGiftQrToken(rowToRecord(row)) : null;
   } catch (error) {
     if (!isDatabaseUnavailable(error)) throw error;
     return findLocalEvaluationByRegistrationCode(code);
@@ -111,7 +122,8 @@ export async function findEvaluationByRegistrationCode(registrationCode: string)
 export async function submitEvaluation(input: EvaluationInput) {
   validateEvaluationInput(input);
   const code = input.registrationCode.trim();
-  const now = new Date().toISOString();
+    const now = new Date().toISOString();
+    const giftQrToken = createGiftQrToken();
   try {
     await ensureDatabaseSchema();
     const [registrationRows] = await db.execute(
@@ -127,8 +139,8 @@ export async function submitEvaluation(input: EvaluationInput) {
     await db.execute(
       `INSERT INTO satisfaction_evaluations(
         id,registration_code,gender,gender_other,age_range,organization_type,organization_other,attendee_status,attendee_status_other,
-        ${questionColumns.join(",")},impressive_text,suggestion_text,submitted_at
-      ) VALUES(${Array.from({ length: 9 + questionColumns.length + 3 }, () => "?").join(",")})`,
+        ${questionColumns.join(",")},impressive_text,suggestion_text,submitted_at,gift_qr_token
+      ) VALUES(${Array.from({ length: 9 + questionColumns.length + 4 }, () => "?").join(",")})`,
       [
         randomUUID(),
         code,
@@ -143,6 +155,7 @@ export async function submitEvaluation(input: EvaluationInput) {
         input.impressiveText.slice(0, 1000),
         input.suggestionText.slice(0, 1000),
         now,
+        giftQrToken,
       ],
     );
     return findEvaluationByRegistrationCode(code);
@@ -371,6 +384,35 @@ export async function markLuckyWinnerNotifiedInLocalStore(registrationCode: stri
   await updateLocalEvaluation(registrationCode.trim(), (item) => ({ ...item, lucky_notified_at: new Date().toISOString() }));
 }
 
+export async function claimGiftQr(token: string, actorEmail: string): Promise<GiftClaimResult> {
+  const giftToken = normalizeGiftQrToken(token);
+  if (!giftToken) throw Object.assign(new Error("invalid gift QR"), { code: "INVALID_GIFT_QR" });
+  const email = actorEmail.trim().toLowerCase();
+  const now = new Date().toISOString();
+  try {
+    await ensureDatabaseSchema();
+    return await transaction(async (connection) => {
+      const [rows] = await connection.execute(
+        `SELECT e.registration_code,e.gift_claimed_at,e.gift_claimed_by_email,
+          r.title AS participant_title,r.first_name AS participant_first_name,r.last_name AS participant_last_name
+         FROM satisfaction_evaluations e
+         JOIN registrations r ON r.registration_code=e.registration_code
+         WHERE e.gift_qr_token=? LIMIT 1 FOR UPDATE`,
+        [giftToken],
+      );
+      const row = (rows as Array<{ registration_code: string; gift_claimed_at: string | null; gift_claimed_by_email: string | null; participant_title: string; participant_first_name: string; participant_last_name: string }>)[0];
+      if (!row) throw Object.assign(new Error("gift QR not found"), { code: "NOT_FOUND" });
+      const name = formatApplicantName({ title: row.participant_title, first_name: row.participant_first_name, last_name: row.participant_last_name });
+      if (row.gift_claimed_at) return { registrationCode: row.registration_code, name, claimedAt: row.gift_claimed_at, claimedByEmail: row.gift_claimed_by_email ?? "", wasAlreadyClaimed: true };
+      await connection.execute("UPDATE satisfaction_evaluations SET gift_claimed_at=?,gift_claimed_by_email=? WHERE gift_qr_token=? AND gift_claimed_at IS NULL", [now, email, giftToken]);
+      return { registrationCode: row.registration_code, name, claimedAt: now, claimedByEmail: email, wasAlreadyClaimed: false };
+    });
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+    return claimLocalGiftQr(giftToken, email, now);
+  }
+}
+
 async function syncLuckyDrawHistory(connection: PoolConnection, winners: EvaluationRecord[]) {
   const [activeRows] = await connection.execute(
     "SELECT cycle_no FROM lucky_draw_results WHERE reset_at IS NULL ORDER BY cycle_no DESC LIMIT 1 FOR UPDATE",
@@ -473,6 +515,9 @@ function rowToRecord(row: EvaluationRow): EvaluationRecord {
     }),
     scores: questionColumns.map((column) => Number(row[column as `q${number}`] ?? 0)),
     lucky_draw_prize: row.lucky_draw_prize === null ? null : Number(row.lucky_draw_prize),
+    gift_qr_token: row.gift_qr_token ?? "",
+    gift_claimed_at: row.gift_claimed_at ?? null,
+    gift_claimed_by_email: row.gift_claimed_by_email ?? null,
   };
 }
 
@@ -505,7 +550,7 @@ async function findLocalEvaluationByRegistrationCode(registrationCode: string) {
   await writeQueue.catch(() => undefined);
   const store = await readStore();
   const record = store.evaluations.find((item) => item.registration_code === registrationCode.trim()) ?? null;
-  return record ? enrichLocalEvaluationRecord(record) : null;
+  return record ? ensureLocalGiftQrToken(record) : null;
 }
 
 async function submitLocalEvaluation(input: EvaluationInput) {
@@ -533,6 +578,9 @@ async function submitLocalEvaluation(input: EvaluationInput) {
       lucky_drawn_at: null,
       lucky_drawn_by_email: null,
       lucky_notified_at: null,
+      gift_qr_token: createGiftQrToken(),
+      gift_claimed_at: null,
+      gift_claimed_by_email: null,
     };
     store.evaluations.unshift(record);
     await writeStore(store);
@@ -613,6 +661,43 @@ async function updateLocalEvaluation(registrationCode: string, updater: (record:
   return result;
 }
 
+async function ensureGiftQrToken(record: EvaluationRecord) {
+  if (record.gift_qr_token) return record;
+  const token = createGiftQrToken();
+  try {
+    await db.execute("UPDATE satisfaction_evaluations SET gift_qr_token=? WHERE registration_code=? AND (gift_qr_token IS NULL OR gift_qr_token='')", [token, record.registration_code]);
+  } catch (error) {
+    if (!isDatabaseUnavailable(error)) throw error;
+  }
+  return { ...record, gift_qr_token: token };
+}
+
+async function ensureLocalGiftQrToken(record: EvaluationRecord) {
+  if (record.gift_qr_token) return enrichLocalEvaluationRecord(record);
+  const token = createGiftQrToken();
+  const updated = { ...record, gift_qr_token: token, gift_claimed_at: record.gift_claimed_at ?? null, gift_claimed_by_email: record.gift_claimed_by_email ?? null };
+  await updateLocalEvaluation(record.registration_code, () => updated);
+  return enrichLocalEvaluationRecord(updated);
+}
+
+async function claimLocalGiftQr(token: string, actorEmail: string, now: string): Promise<GiftClaimResult> {
+  const work = async () => {
+    const store = await readStore();
+    const record = store.evaluations.find((item) => item.gift_qr_token === token);
+    if (!record) throw Object.assign(new Error("gift QR not found"), { code: "NOT_FOUND" });
+    const registration = await findLocalRegistrationByCode(record.registration_code);
+    const name = registration ? formatApplicantName(registration) : record.registration_code;
+    if (record.gift_claimed_at) return { registrationCode: record.registration_code, name, claimedAt: record.gift_claimed_at, claimedByEmail: record.gift_claimed_by_email ?? "", wasAlreadyClaimed: true };
+    record.gift_claimed_at = now;
+    record.gift_claimed_by_email = actorEmail;
+    await writeStore(store);
+    return { registrationCode: record.registration_code, name, claimedAt: now, claimedByEmail: actorEmail, wasAlreadyClaimed: false };
+  };
+  const result = writeQueue.then(work, work);
+  writeQueue = result.catch(() => undefined);
+  return result;
+}
+
 async function enrichLocalEvaluationRecords(records: EvaluationRecord[]) {
   return Promise.all(records.map((record) => enrichLocalEvaluationRecord(record)));
 }
@@ -656,6 +741,15 @@ async function readStore(): Promise<EvaluationStore> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return { evaluations: [] };
     throw error;
   }
+}
+
+function createGiftQrToken() {
+  return `GIFT-${randomUUID().replace(/-/g, "").toUpperCase()}`;
+}
+
+function normalizeGiftQrToken(value: string) {
+  const normalized = value.trim().toUpperCase();
+  return /^GIFT-[A-Z0-9]{32}$/.test(normalized) ? normalized : "";
 }
 
 async function writeStore(store: EvaluationStore) {

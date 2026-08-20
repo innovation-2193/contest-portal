@@ -2,13 +2,14 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { CheckCircle2, Clock, Lock, Send, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, Gift, Lock, Send, Sparkles } from "lucide-react";
 import { PageHero, SideNotes } from "../../components/SiteChrome";
 import { getAdminSettings, isSatisfactionEvaluationOpen } from "../../lib/admin-store";
 import { evaluationProfileFields, evaluationScale, evaluationSections } from "../../lib/evaluation-form";
 import { findEvaluationByRegistrationCode, submitEvaluation } from "../../lib/evaluation-store";
 import { getParticipantSession, participantSessionCookie } from "../../lib/participant-session";
 import { findRegistrationsByEmail } from "../../lib/registration-lookup";
+import { sendGiftQrEmail } from "../../lib/gift-mail";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export default async function EvaluationPage({ searchParams }: { searchParams: P
           icon="done"
           title="ส่งแบบประเมินเรียบร้อยแล้ว"
           description="ขอบคุณสำหรับความคิดเห็น ทีมงานบันทึกผลสรุปไว้ในระบบหลังบ้านแล้ว"
+          giftQrToken={existing?.gift_qr_token}
           href={`/register/success?code=${encodeURIComponent(item.registration_code)}`}
           hrefLabel="กลับไปหน้าข้อมูลการลงทะเบียน"
         />}
@@ -122,13 +124,20 @@ export default async function EvaluationPage({ searchParams }: { searchParams: P
   </>;
 }
 
-function EvaluationStateCard({ icon, title, description, href, hrefLabel }: { icon: "lock" | "clock" | "done"; title: string; description: string; href?: string; hrefLabel?: string }) {
+function EvaluationStateCard({ icon, title, description, giftQrToken, href, hrefLabel }: { icon: "lock" | "clock" | "done"; title: string; description: string; giftQrToken?: string; href?: string; hrefLabel?: string }) {
   const Icon = icon === "done" ? CheckCircle2 : icon === "clock" ? Clock : Lock;
   return <article className={`evaluation-state-card ${icon}`}>
     <Icon/>
     <span>แบบประเมินความพึงพอใจ</span>
     <h2>{title}</h2>
     <p>{description}</p>
+    {icon === "done" && giftQrToken && <div className="gift-qr-card">
+      <Gift/>
+      <div><h3>QR Code สำหรับรับของชำร่วย</h3><p>กรุณานำ QR Code นี้มาแสดงที่จุดรับของชำร่วย เจ้าหน้าที่จะสแกนเพื่อบันทึกการรับของชำร่วย</p></div>
+      <img src={`/api/qr?text=${encodeURIComponent(giftQrToken)}`} alt="QR Code สำหรับรับของชำร่วย"/>
+      <small>QR นี้ใช้รับของชำร่วยเท่านั้น ไม่ใช่ QR เช็คอิน</small>
+      <a className="secondary" href={`/api/qr?text=${encodeURIComponent(giftQrToken)}`} download="gift-qr.png">ดาวน์โหลด QR Code</a>
+    </div>}
     {href && <Link className="primary" href={href}>{hrefLabel ?? "กลับ"}</Link>}
   </article>;
 }
@@ -178,7 +187,7 @@ async function submitEvaluationAction(formData: FormData) {
   }));
 
   try {
-    await submitEvaluation({
+    const savedEvaluation = await submitEvaluation({
       registrationCode,
       gender: getString(formData, "gender"),
       genderOther: getString(formData, "genderOther"),
@@ -191,6 +200,13 @@ async function submitEvaluationAction(formData: FormData) {
       impressiveText: getString(formData, "impressiveText"),
       suggestionText: getString(formData, "suggestionText"),
     });
+    if (savedEvaluation) {
+      try {
+        await sendGiftQrEmail(savedEvaluation);
+      } catch (error) {
+        console.error("gift QR email failed after evaluation", error);
+      }
+    }
   } catch (error) {
     const typedError = error as { code?: string; message?: string };
     if (typedError.code === "DUPLICATE_EVALUATION" || typedError.message?.toLowerCase().includes("duplicate")) {

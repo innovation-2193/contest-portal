@@ -87,6 +87,12 @@ export default async function RegisterSuccess({ searchParams }: { searchParams: 
                 ทำแบบประเมินความพึงพอใจ
               </Link>}
               {evaluation && <div className="evaluation-status-note attended"><ClipboardCheck/><div><b>ส่งแบบประเมินแล้ว</b><p>ขอบคุณสำหรับความคิดเห็น ทีมงานบันทึกผลเรียบร้อยแล้ว</p></div></div>}
+              {evaluation?.gift_qr_token && <div className="gift-qr-card compact">
+                <Gift/>
+                <div><h3>QR Code สำหรับรับของชำร่วย</h3><p>นำ QR Code นี้มาแสดงที่จุดรับของชำร่วย</p></div>
+                <img src={`/api/qr?text=${encodeURIComponent(evaluation.gift_qr_token)}`} alt="QR Code สำหรับรับของชำร่วย"/>
+                <small>QR นี้ใช้รับของชำร่วยเท่านั้น ไม่ใช่ QR เช็คอิน</small>
+              </div>}
               {hasAttended && !evaluationOpen && !evaluation && <div className="evaluation-status-note"><ClipboardCheck/><div><b>แบบประเมินยังไม่เปิด</b><p>เมื่อแอดมินเปิดแบบประเมิน ปุ่มทำแบบประเมินจะแสดงบนหน้านี้</p></div></div>}
               <div className="email-note"><MailCheck/><div><b>ส่งอีเมลยืนยันแล้ว</b><p>กรุณาตรวจสอบกล่องจดหมาย และนำ QR Code หรือ PDF มาแสดงหน้างานเพื่อเช็คอิน</p></div></div>
             </div>

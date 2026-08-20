@@ -181,6 +181,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Admin • UCI • Super Admin</span><h2>Lucky Draw หน้างาน</h2><p>เปิดวงล้อจับฉลากรางวัลที่ 1–3 พร้อมบันทึกผล เวลา และผู้ดำเนินการลงฐานข้อมูล</p></div></div>
       <Link className="primary" href="/admin/evaluations#lucky-draw"><Trophy/>เปิดหน้า Lucky Draw</Link>
     </section>}
+    <section className="admin-panel admin-checkin-cta admin-gift-cta">
+      <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Survey Gift</span><h2>จุดรับของชำร่วย</h2><p>สแกน QR Code จากผู้ที่ทำแบบประเมินความพึงพอใจแล้ว ระบบจะบันทึกการรับของชำร่วยและป้องกันการสแกนซ้ำ</p></div></div>
+      <Link className="primary" href="/admin/gift-scan"><Gift/>เปิดจุดรับของชำร่วย</Link>
+    </section>
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
       <div className="admin-checkin-copy"><Database/><div><span className="eyebrow">Super Admin Only</span><h2>สำรองข้อมูลเว็บไซต์ทั้งระบบ</h2><p>ดาวน์โหลด Full Backup เป็น ZIP รวม database.sql ครบทุกตาราง/ทุกแถว พร้อมไฟล์ storage เช่น เอกสาร รูปภาพ และข้อมูลระบบ • รวมข้อมูลส่วนบุคคลและคะแนน</p></div></div>
@@ -1458,6 +1462,7 @@ function auditActionLabel(action: string) {
   if (action === "evaluation.lucky_draw_reset") return "Reset ผล Lucky Draw";
   if (action === "evaluation.responses_reset") return "Reset แบบประเมินความพึงพอใจ";
   if (action === "evaluation.report_exported") return "Export รายงานแบบประเมิน PDF";
+  if (action === "evaluation.gift_claimed") return "สแกนรับของชำร่วย";
   if (action === "system.database_export") return "Export ฐานข้อมูลทั้งระบบ";
   return action;
 }

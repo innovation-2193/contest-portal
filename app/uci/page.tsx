@@ -78,6 +78,10 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <div className="admin-checkin-copy"><QrCode/><div><span className="eyebrow">Event Check-in</span><h2>หน้าเช็คอินหน้างาน</h2><p>สแกน QR Code หรือค้นหาชื่อผู้เข้าร่วม แล้วกดเช็คอินได้ทันที</p></div></div>
       <Link className="primary" href="/admin/scan?from=uci"><QrCode/>เปิดหน้าเช็คอิน</Link>
     </section>
+    <section className="admin-panel admin-checkin-cta admin-gift-cta">
+      <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Survey Gift</span><h2>จุดรับของชำร่วย</h2><p>สแกน QR Code จากผู้ทำแบบประเมินและตรวจสอบการรับซ้ำ</p></div></div>
+      <Link className="primary" href="/admin/gift-scan"><Gift/>เปิดจุดรับของชำร่วย</Link>
+    </section>
 
     <section className="admin-panel admin-checkin-cta admin-walkin-cta">
       <div className="admin-checkin-copy"><UserPlus/><div><span className="eyebrow">Walk-in Registration</span><h2>ลงทะเบียน Walk-in หน้างาน</h2><p>กรอกข้อมูลผู้เข้าร่วมที่มาหน้างาน แล้วระบบจะเช็คอินให้อัตโนมัติทันที</p></div></div>

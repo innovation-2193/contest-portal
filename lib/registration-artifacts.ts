@@ -246,7 +246,8 @@ function reminderHtml(record: RegistrationRecord) {
         <div style="margin:22px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
           <p style="margin:0 0 8px"><strong>วันที่:</strong> 24 สิงหาคม 2569 (24 ส.ค. 69)</p>
           <p style="margin:0 0 8px"><strong>เริ่มลงทะเบียน:</strong> เวลา 08.00 น.</p>
-          <p style="margin:0"><strong>สถานที่:</strong> สโมสรตำรวจ</p>
+          <p style="margin:0 0 8px"><strong>สถานที่:</strong> สโมสรตำรวจ</p>
+          <p style="margin:0"><strong>การแต่งกาย:</strong> ผู้เข้าร่วมงานชุดสุภาพ (สีดำ)</p>
         </div>
         <p style="margin:0 0 18px">กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน เพื่อความสะดวกและรวดเร็วในการเข้าร่วมงาน</p>
         <div style="margin:24px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
@@ -279,6 +280,8 @@ function reminderText(record: RegistrationRecord) {
 ข้อมูลลานจอดรถ
 ลานจอดฝั่งวิภาวดี: สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่
 ลานจอดฝั่งลานมะพร้าว: สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่
+
+การแต่งกาย: ผู้เข้าร่วมงานชุดสุภาพ (สีดำ)
 
 กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน
 อีเมลนี้มี QR Code, แผนผังลานจอดรถ และ PDF ใบยืนยันการลงทะเบียนแนบมาด้วย`;
