@@ -12,6 +12,7 @@ export const revalidate = 0;
 
 type ContestRow = {
   hasUsableVideoLink: boolean;
+  videoNotSubmitted: boolean;
   submitterName: string;
   teamMemberNames: string[];
   submission: SubmissionListItem;
@@ -35,7 +36,8 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
   const rows = await Promise.all(prefilteredSubmissions.map(async (submission) => {
     const memberNames = memberNamesBySubmission.get(submission.submission_code) ?? [formatApplicantName(submission)];
     return {
-      hasUsableVideoLink: await checkVideoLink(submission.video_url) === "ok",
+      videoNotSubmitted: submission.video_not_submitted,
+      hasUsableVideoLink: !submission.video_not_submitted && (await checkVideoLink(submission.video_url)) === "ok",
       submitterName: memberNames[0] || "-",
       teamMemberNames: memberNames.slice(1),
       submission,
@@ -102,10 +104,10 @@ export default async function ContestPage({ searchParams }: { searchParams: Prom
                   </div>
                 </td>
                 <td className="contest-action-cell" data-label="Link Video">
-                  <ContestVideoButton
+                  {row.videoNotSubmitted ? <span className="contest-video-button is-missing">ไม่ได้ส่งวิดีโอตอนสมัคร</span> : <ContestVideoButton
                     hasVideoLink={row.hasUsableVideoLink}
                     submissionCode={row.submission.submission_code}
-                  />
+                  />}
                 </td>
                 <td className="contest-action-cell" data-label="ดาวน์โหลดเอกสาร">
                   <div className="contest-document-actions">

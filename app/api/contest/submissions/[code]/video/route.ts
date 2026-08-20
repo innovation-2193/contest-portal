@@ -11,6 +11,7 @@ export async function GET(
   const { code } = await params;
   const submission = await getSubmissionDetail(decodeURIComponent(code));
   if (!submission) return NextResponse.json({ ok: false }, { status: 404 });
+  if (submission.video_not_submitted) return NextResponse.json({ ok: false }, { status: 200 });
 
   const videoUrl = normalizeVideoUrl(submission.video_url);
   if (!videoUrl) return NextResponse.json({ ok: false }, { status: 200 });

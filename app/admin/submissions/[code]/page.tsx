@@ -212,6 +212,7 @@ function SubmissionEditForm({ item }: { item: AdminSubmissionDetail }) {
       <label className="span-2">คำอธิบายย่อ (ขั้นต่ำ 20 และไม่เกิน 500 ตัวอักษร)<textarea name="summary" minLength={20} maxLength={500} defaultValue={item.summary} required/></label>
       <label>Link Video<input type="url" name="videoUrl" defaultValue={item.video_url ?? ""} placeholder="https://..."/><small className="field-help">มีผลต่อการพิจารณาคะแนน</small></label>
       <label>บัญชีอีเมล<input type="email" name="email" defaultValue={item.email} required/></label>
+      <label className="inline-check span-2"><input type="checkbox" name="videoNotSubmitted" defaultChecked={item.video_not_submitted}/> ซ่อน Link Video บนหน้า /contest และแสดงว่า “ไม่ได้ส่งวิดีโอตอนสมัคร”</label>
     </div>
     <div className="admin-edit-member-list">
       {members.map((member, index) => <fieldset key={index}>
@@ -248,6 +249,7 @@ async function updateSubmissionAction(formData: FormData) {
   const workCategory = normalizeWorkCategory(text(formData, "workCategory"));
   const email = text(formData, "email").toLowerCase();
   const summary = text(formData, "summary").slice(0, 500);
+  const videoNotSubmitted = formData.get("videoNotSubmitted") === "on";
   const includedMembers = new Set(formData.getAll("includeMember").map(String));
   const formMembers = [1, 2, 3].map((order) => {
     const member = {
@@ -294,6 +296,7 @@ async function updateSubmissionAction(formData: FormData) {
     titleEn: text(formData, "titleEn"),
     summary,
     videoUrl,
+    videoNotSubmitted,
     status: status as "draft" | "submitted" | "screening" | "qualified" | "rejected",
     workCategory,
     members: members.map(({ order: _order, hasValue: _hasValue, ...member }) => member),
@@ -304,7 +307,7 @@ async function updateSubmissionAction(formData: FormData) {
     entityType: "submission",
     entityId: submissionCode,
     summary: `แก้ไขใบสมัครประกวด ${submissionCode}`,
-    payload: { status, submissionType: effectiveSubmissionType, workCategory },
+    payload: { status, submissionType: effectiveSubmissionType, workCategory, videoNotSubmitted },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/submissions");

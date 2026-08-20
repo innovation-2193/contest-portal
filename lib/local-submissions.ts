@@ -27,6 +27,7 @@ export type LocalSubmissionRecord = {
   hashtags?: string | null;
   work_category?: WorkCategory | null;
   video_url: string;
+  video_not_submitted?: boolean;
   status: string;
   review_assigned_admin_email?: string | null;
   review_assigned_at?: string | null;
@@ -68,6 +69,7 @@ export type LocalSubmissionUpdateInput = {
   titleEn: string;
   summary: string;
   videoUrl: string;
+  videoNotSubmitted: boolean;
   status: string;
   workCategory: WorkCategory;
   members: LocalSubmissionMember[];
@@ -188,6 +190,7 @@ export async function createLocalSubmission(input: LocalSubmissionInput) {
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: data.titleTh, titleEn: data.titleEn, summary: data.summary, documentText: data.hashtagContext })),
       work_category: defaultWorkCategory,
       video_url: data.videoUrl ?? "",
+      video_not_submitted: false,
       status: "submitted",
       review_assigned_admin_email: null,
       review_assigned_at: null,
@@ -270,6 +273,7 @@ export async function updateLocalSubmission(input: LocalSubmissionUpdateInput) {
       hashtags: serializeSubmissionHashtags(generateSubmissionHashtags({ titleTh: input.titleTh, titleEn: input.titleEn, summary: input.summary, documentText })),
       work_category: normalizeWorkCategory(input.workCategory) ?? defaultWorkCategory,
       video_url: input.videoUrl,
+      video_not_submitted: input.videoNotSubmitted,
       status: input.status,
       email: input.email.trim().toLowerCase(),
       title: primary.title,

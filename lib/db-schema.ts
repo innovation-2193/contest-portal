@@ -84,6 +84,7 @@ async function ensureSubmissionColumns() {
     await ensureColumn("submissions", "hashtags", "ALTER TABLE submissions ADD COLUMN hashtags VARCHAR(255) NOT NULL DEFAULT '' AFTER summary");
     await ensureColumn("submissions", "work_category", "ALTER TABLE submissions ADD COLUMN work_category VARCHAR(32) NULL AFTER hashtags");
     await ensureColumn("submissions", "video_url", "ALTER TABLE submissions ADD COLUMN video_url VARCHAR(1000) NULL AFTER summary");
+    await ensureColumn("submissions", "video_not_submitted", "ALTER TABLE submissions ADD COLUMN video_not_submitted TINYINT(1) NOT NULL DEFAULT 0 AFTER video_url");
     await ensureColumn("submissions", "review_assigned_admin_email", "ALTER TABLE submissions ADD COLUMN review_assigned_admin_email VARCHAR(255) NULL AFTER status");
     await ensureColumn("submissions", "review_assigned_at", "ALTER TABLE submissions ADD COLUMN review_assigned_at VARCHAR(40) NULL AFTER review_assigned_admin_email");
     await ensureColumn("submissions", "review_scored_by_email", "ALTER TABLE submissions ADD COLUMN review_scored_by_email VARCHAR(255) NULL AFTER review_assigned_at");
