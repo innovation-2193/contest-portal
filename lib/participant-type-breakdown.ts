@@ -6,6 +6,7 @@ export type ParticipantTypeKey = "vip" | "competitor" | "policeAttendee" | "gene
 
 export type CompetitorSource = {
   submission_code: string;
+  member_order?: number;
   title_th: string;
   review_total_score: number | null;
   email: string;
@@ -159,7 +160,7 @@ const educationKeywords = [
 export function buildParticipantTypeBreakdown(participants: RegistrationRecord[], options?: { competitorSubmissions?: CompetitorSource[] }): ParticipantTypeGroup[] {
   const groups: ParticipantTypeGroup[] = [
     { key: "vip", label: "VIP", detail: "ผู้เข้าร่วมระดับ VIP และแขกสำคัญ", people: [] },
-    { key: "competitor", label: "ผู้สมัครประกวด", detail: "แสดงเฉพาะรายชื่อที่ Super Admin ประกาศเป็น 10 ทีมสุดท้ายแล้ว", people: [] },
+    { key: "competitor", label: "ผู้สมัครประกวด", detail: "แสดงสมาชิกทุกคนจากผลงานที่ Super Admin ประกาศเป็น 10 ทีมสุดท้ายแล้ว", people: [] },
     { key: "policeAttendee", label: "ผู้เข้าร่วมงาน (ตำรวจ)", detail: "Guest จากหน่วยงานตำรวจ", people: [] },
     { key: "generalAttendee", label: "ผู้เข้าร่วมงาน (ทั่วไป)", detail: "Guest จากหน่วยงานทั่วไปหรือผู้เข้าร่วมภายนอก", people: [] },
     { key: "educationExhibitor", label: "ผู้จัดแสดงผลงาน (ส่วนการศึกษา)", detail: "Exhibitor จากสถาบันหรือหน่วยงานด้านการศึกษา", people: [] },
@@ -167,14 +168,18 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
     { key: "staff", label: "Staff", detail: "ทีมงานและเจ้าหน้าที่สนับสนุนการจัดงาน", people: [] },
   ];
   const byKey = new Map(groups.map((group) => [group.key, group]));
-  const competitorCodes = new Set<string>();
+  const competitorPeople = new Set<string>();
+  const competitorNames = new Set<string>();
 
   for (const submission of options?.competitorSubmissions ?? []) {
-    if (competitorCodes.has(submission.submission_code)) continue;
-    competitorCodes.add(submission.submission_code);
+    const personKey = `${submission.submission_code}:${submission.member_order ?? 1}`;
+    if (competitorPeople.has(personKey)) continue;
+    competitorPeople.add(personKey);
+    const name = formatApplicantName(submission);
+    competitorNames.add(normalizePersonName(name));
     byKey.get("competitor")?.people.push({
       registrationCode: submission.submission_code,
-      name: formatApplicantName(submission),
+      name,
       role: "ผู้สมัครประกวด",
       roleClassName: participantRoleClass("Competitor"),
       organization: compactOrg(submission.division, submission.bureau),
@@ -184,7 +189,20 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
 
   for (const participant of participants) {
     const key = participantTypeKey(participant);
-    if (key === "competitor") continue;
+    if (key === "competitor") {
+      const name = formatApplicantName(participant);
+      if (competitorNames.has(normalizePersonName(name))) continue;
+      competitorNames.add(normalizePersonName(name));
+      byKey.get("competitor")?.people.push({
+        registrationCode: participant.registration_code,
+        name,
+        role: participant.participant_role,
+        roleClassName: participantRoleClass(participant.participant_role),
+        organization: compactParticipantOrg(participant),
+        status: participant.status,
+      });
+      continue;
+    }
     byKey.get(key)?.people.push({
       registrationCode: participant.registration_code,
       name: formatApplicantName(participant),
@@ -196,6 +214,10 @@ export function buildParticipantTypeBreakdown(participants: RegistrationRecord[]
   }
 
   return groups.filter((group) => group.key !== "competitor" || group.people.length > 0);
+}
+
+function normalizePersonName(value: string) {
+  return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
 function participantTypeKey(participant: RegistrationRecord): ParticipantTypeKey {

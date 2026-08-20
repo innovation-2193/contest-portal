@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import {
   listParticipants,
+  listSubmissionApplicantsForExport,
   listSubmissions,
   listWinners,
   type SubmissionListItem,
@@ -124,9 +125,10 @@ const orgCommands: OrgCommand[] = [
 ];
 
 export default async function DailyReportPage() {
-  const [participants, submissions, siteStats, winners] = await Promise.all([
+  const [participants, submissions, submissionApplicants, siteStats, winners] = await Promise.all([
     listParticipants(),
     listSubmissions(),
+    listSubmissionApplicantsForExport(),
     getSiteStats(),
     listWinners(),
   ]);
@@ -136,7 +138,7 @@ export default async function DailyReportPage() {
   const registeredToday = activeParticipants.filter((item) => bangkokDayKey(item.registered_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const teams = submissions.filter((item) => item.submission_type === "team");
-  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions);
+  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions, submissionApplicants);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: announcedFinalists });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);

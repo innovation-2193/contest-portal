@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import PDFKitDocument from "pdfkit";
 import {
   listParticipants,
+  listSubmissionApplicantsForExport,
   listSubmissions,
   listWinners,
   type SubmissionListItem,
@@ -29,13 +30,14 @@ const fonts: PdfFontSet = { regular: pdfFontRegular, bold: pdfFontBold };
 
 export async function GET(request: Request) {
   const watermark = exportWatermarkFromRequest(request);
-  const [participants, submissions, siteStats, winners] = await Promise.all([
+  const [participants, submissions, submissionApplicants, siteStats, winners] = await Promise.all([
     listParticipants(),
     listSubmissions(),
+    listSubmissionApplicantsForExport(),
     getSiteStats(),
     listWinners(),
   ]);
-  const pdf = await dailyReportPdf(participants, submissions, siteStats, winners, watermark);
+  const pdf = await dailyReportPdf(participants, submissions, submissionApplicants, siteStats, winners, watermark);
   const fileDate = bangkokDayKey(new Date());
 
   return new NextResponse(new Uint8Array(pdf), {
@@ -50,6 +52,7 @@ export async function GET(request: Request) {
 async function dailyReportPdf(
   participants: RegistrationRecord[],
   submissions: SubmissionListItem[],
+  submissionApplicants: Awaited<ReturnType<typeof listSubmissionApplicantsForExport>>,
   siteStats: SiteStats,
   winners: Awaited<ReturnType<typeof listWinners>>,
   watermark: PdfExportWatermark,
@@ -66,7 +69,7 @@ async function dailyReportPdf(
   const submittedToday = submissions.filter((item) => bangkokDayKey(item.submitted_at) === todayKey);
   const attended = activeParticipants.filter((item) => item.status === "attended");
   const scored = submissions.filter((item) => item.review_total_score !== null && item.review_total_score !== undefined);
-  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions);
+  const announcedFinalists = buildAnnouncedFinalistSources(winners, submissions, submissionApplicants);
   const participantTypeBreakdown = buildParticipantTypeBreakdown(activeParticipants, { competitorSubmissions: announcedFinalists });
   const exhibitorParticipants = activeParticipants.filter((item) => item.participant_role === "Exhibitor");
   const boothUnits = buildBoothUnitStats(exhibitorParticipants);
