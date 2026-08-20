@@ -1,6 +1,6 @@
 import { sendAdminMail } from "./admin-mail";
 import { publicBaseUrl } from "./public-url";
-import { ensureSubmissionMemberParticipant, type AdminSubmissionDetail } from "./admin-store";
+import { ensureSubmissionTeamParticipants, type AdminSubmissionDetail } from "./admin-store";
 import { sendRegistrationConfirmation } from "./registration-artifacts";
 import path from "path";
 
@@ -22,13 +22,7 @@ type WinnerAnnouncementResult = {
 };
 
 export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInput) {
-  const registrations = new Map<number, Awaited<ReturnType<typeof ensureSubmissionMemberParticipant>>>();
-  const memberOrders = input.submission.members.length
-    ? input.submission.members.map((member) => member.member_order)
-    : [1];
-  for (const memberOrder of [...new Set(memberOrders)]) {
-    registrations.set(memberOrder, await ensureSubmissionMemberParticipant(input.submission.submission_code, memberOrder));
-  }
+  const registrations = new Map((await ensureSubmissionTeamParticipants(input.submission.submission_code)).map((item) => [item.member.member_order, item] as const));
 
   const recipients = winnerRecipients(input.submission);
   if (!recipients.length) return [] satisfies WinnerAnnouncementResult[];
@@ -36,7 +30,8 @@ export async function sendWinnerAnnouncementEmails(input: WinnerAnnouncementInpu
   const results: WinnerAnnouncementResult[] = [];
   for (const recipient of recipients) {
     const registration = registrations.get(recipient.memberOrder)
-      ?? await ensureSubmissionMemberParticipant(input.submission.submission_code, recipient.memberOrder);
+      ?? (await ensureSubmissionTeamParticipants(input.submission.submission_code)).find((item) => item.member.member_order === recipient.memberOrder);
+    if (!registration) continue;
     const registrationEmail = registration.created
       ? await sendRegistrationConfirmation(registration.record)
       : { status: "skipped" as const };

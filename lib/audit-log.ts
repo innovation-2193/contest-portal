@@ -119,6 +119,7 @@ const allowedAuditActions = new Set([
   "home_popup.deleted",
   "winner.created",
   "winner.deleted",
+  "winner.team_participants_synced",
   "winner.export_pdf",
   "submission.non_finalist_invitation_sent",
   "evaluation.lucky_draw",

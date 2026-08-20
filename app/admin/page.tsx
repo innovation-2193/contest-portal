@@ -54,6 +54,7 @@ import {
 	  listParticipants,
 	  listSubmissionApplicantsForExport,
 	  listSubmissions,
+	  ensureSubmissionTeamParticipants,
 		  listWinners,
 		  registerSubmissionAsParticipant,
 		  saveAdminSettings,
@@ -230,6 +231,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <div className="admin-checkin-copy"><Mail/><div><span className="eyebrow">Event Invitation</span><h3>เชิญผู้สมัครที่ไม่ติด 10 ทีมเข้าร่วมงาน</h3><p>พบ {nonFinalistSubmissionCount.toLocaleString("th-TH")} ผลงาน และ {nonFinalistRecipientCount.toLocaleString("th-TH")} อีเมลที่ไม่อยู่ในรายชื่อ 10 ทีมสุดท้าย ระบบจะส่งกำหนดการวันที่ 24 สิงหาคม 2569 พร้อมแผนผังที่จอดรถ; ผู้ที่มีทะเบียนเข้าร่วมงานจะได้รับ QR Code ด้วย</p></div></div>
         <form action={sendNonFinalistInvitationAction}><ConfirmSubmitButton className="primary" type="submit" disabled={!nonFinalistRecipientCount} message={`ยืนยันส่งอีเมลเชิญผู้สมัครที่ไม่ติด 10 ทีม จำนวน ${nonFinalistRecipientCount.toLocaleString("th-TH")} รายการ?`}><Mail/>ส่งอีเมลเชิญ</ConfirmSubmitButton></form>
       </div>
+      <div className="admin-actions winner-team-sync-actions"><form action={syncWinnerTeamParticipantsAction}><ConfirmSubmitButton className="secondary" type="submit" message="ยืนยันดึงสมาชิกทุกคนของทีมที่ประกาศผู้ชนะมาลงทะเบียนเป็น Competitor?">ซิงค์สมาชิกทีมผู้ชนะเป็น Competitor</ConfirmSubmitButton></form></div>
       <div className="admin-table-wrap"><table className="admin-table"><thead><tr><th>ลำดับ</th><th>ผลงาน</th><th>เจ้าของ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{winners.map((winner, index)=><tr key={winner.id}><td data-label="ลำดับ"><b>{(index + 1).toLocaleString("th-TH")}</b></td><td data-label="ผลงาน">{winner.projectTitle}</td><td data-label="เจ้าของ">{winner.ownerName}</td><td data-label="หน่วยงาน">{winner.division}</td><td data-label="สถานะ">{winner.published?"เผยแพร่":"ฉบับร่าง"}</td><td data-label="การจัดการ"><form action={deleteWinnerAction}><input type="hidden" name="id" value={winner.id}/><ConfirmSubmitButton className="danger-btn" type="submit" message="ยืนยันลบประกาศผลการแข่งขันรายการนี้?">ลบ</ConfirmSubmitButton></form></td></tr>)}</tbody></table></div>
     </section>}
     {isSuperAdmin && <section className="admin-panel">
@@ -1047,6 +1049,7 @@ async function addWinnerAction(formData: FormData) {
     division,
     published,
   });
+  const teamRegistrations = published ? [] : await ensureSubmissionTeamParticipants(submissionCode);
   const winnerNotifications = published
     ? await sendWinnerAnnouncementEmails({ submission: submissionDetail, award, ownerName })
     : [];
@@ -1055,11 +1058,35 @@ async function addWinnerAction(formData: FormData) {
     action: "winner.created",
     entityType: "winner",
     summary: `เพิ่มประกาศผลการแข่งขัน ${submission.title_th}`,
-    payload: { rank, submissionCode, published, winnerNotifications },
+    payload: { rank, submissionCode, published, winnerNotifications, teamCompetitorRegistrations: teamRegistrations.map((item) => ({ registrationCode: item.record.registration_code, memberOrder: item.member.member_order, created: item.created })) },
   }, requestHeaders);
   revalidatePath("/");
   revalidatePath("/admin");
   redirect(adminNoticePath("/admin", "winner_added"));
+}
+
+async function syncWinnerTeamParticipantsAction() {
+  "use server";
+  const session = await requireSuperAdmin();
+  const requestHeaders = await headers();
+  const winners = (await listWinners()).filter((winner) => winner.published && winner.submissionCode);
+  const synced = [] as Array<{ submissionCode: string; registrationCode: string; memberOrder: number; created: boolean }>;
+  for (const winner of winners) {
+    const registrations = await ensureSubmissionTeamParticipants(winner.submissionCode!);
+    for (const item of registrations) synced.push({ submissionCode: winner.submissionCode!, registrationCode: item.record.registration_code, memberOrder: item.member.member_order, created: item.created });
+  }
+  await recordAuditEvent({
+    actor: actorFromAdminSession(session),
+    action: "winner.team_participants_synced",
+    entityType: "winner",
+    entityId: "published",
+    summary: `ซิงค์สมาชิกทีมผู้ชนะเป็น Competitor ${synced.length} รายการ`,
+    payload: { winnerCount: winners.length, registrationCount: synced.length, createdCount: synced.filter((item) => item.created).length, registrations: synced },
+  }, requestHeaders);
+  revalidatePath("/admin");
+  revalidatePath("/admin/participants");
+  revalidatePath("/daily-report");
+  redirect(adminNoticePath("/admin", "winner_team_participants_synced"));
 }
 
 async function sendNonFinalistInvitationAction() {
@@ -1455,6 +1482,7 @@ function auditActionLabel(action: string) {
   if (action === "news.deleted") return "ลบข่าวประชาสัมพันธ์";
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "winner.team_participants_synced") return "ซิงค์สมาชิกทีมผู้ชนะเป็น Competitor";
   if (action === "submission.non_finalist_invitation_sent") return "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม";
   if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";

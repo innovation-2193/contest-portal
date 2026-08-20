@@ -7,6 +7,7 @@ export const adminNoticeMessages = {
   home_popup_deleted: "ลบ Popup หน้า Home เรียบร้อยแล้ว",
   winner_added: "เพิ่มประกาศผลการแข่งขันเรียบร้อยแล้ว",
   winner_deleted: "ลบประกาศผลการแข่งขันเรียบร้อยแล้ว",
+  winner_team_participants_synced: "ซิงค์สมาชิกทุกคนของทีมผู้ชนะเป็น Competitor เรียบร้อยแล้ว",
   non_finalist_invitations_sent: "ส่งอีเมลเชิญผู้สมัครที่ไม่ติด 10 ทีมรอบสุดท้ายเรียบร้อยแล้ว",
   assignment_saved: "บันทึกผู้ตรวจเอกสารใบสมัครเรียบร้อยแล้ว",
   competitor_registered: "ลงทะเบียนผู้สมัครประกวดเข้าร่วมงานและส่ง QR ยืนยันเรียบร้อยแล้ว",

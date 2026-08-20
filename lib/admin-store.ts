@@ -669,9 +669,27 @@ async function nextRegistrationCode(hasCollision: (candidate: string) => Promise
 }
 
 export async function registerSubmissionAsParticipant(submissionCode: string) {
-  const result = await ensureSubmissionMemberParticipant(submissionCode, 1);
-  const email = result.created ? await sendRegistrationConfirmation(result.record) : { status: "skipped" as const };
-  return { ...result, emailStatus: email.status };
+  const registrations = await ensureSubmissionTeamParticipants(submissionCode);
+  const primary = registrations[0];
+  if (!primary) throw Object.assign(new Error("submission member not found"), { code: "NOT_FOUND" });
+  const emailStatuses = await Promise.all(registrations.filter((item) => item.created).map((item) => sendRegistrationConfirmation(item.record)));
+  return {
+    ...primary,
+    registrations,
+    createdCount: registrations.filter((item) => item.created).length,
+    emailStatus: emailStatuses.some((item) => item.status === "failed") ? "failed" : emailStatuses.find((item) => item.status === "sent")?.status ?? emailStatuses.find((item) => item.status === "outbox")?.status ?? "skipped",
+  };
+}
+
+export async function ensureSubmissionTeamParticipants(submissionCode: string) {
+  const submission = await getSubmissionDetail(submissionCode);
+  if (!submission) throw Object.assign(new Error("submission not found"), { code: "NOT_FOUND" });
+  const memberOrders = submission.members.length ? submission.members.map((member) => member.member_order) : [1];
+  const registrations = [] as Array<Awaited<ReturnType<typeof ensureSubmissionMemberParticipant>>>;
+  for (const memberOrder of [...new Set(memberOrders)]) {
+    registrations.push(await ensureSubmissionMemberParticipant(submissionCode, memberOrder));
+  }
+  return registrations;
 }
 
 export async function ensureSubmissionMemberParticipant(submissionCode: string, memberOrder: number) {

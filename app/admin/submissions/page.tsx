@@ -222,6 +222,8 @@ async function registerSubmissionParticipantAction(formData: FormData) {
       registrationCode: result.record.registration_code,
       emailStatus: result.emailStatus,
       created: result.created,
+      teamRegistrationCount: result.registrations.length,
+      teamCreatedCount: result.createdCount,
     },
   }, requestHeaders);
   revalidatePath("/admin");

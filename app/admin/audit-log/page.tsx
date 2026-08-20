@@ -76,6 +76,7 @@ const actionOptions = [
   ["winner.created", "เพิ่มประกาศผล"],
   ["submission.non_finalist_invitation_sent", "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม"],
   ["winner.deleted", "ลบประกาศผล"],
+  ["winner.team_participants_synced", "ซิงค์สมาชิกทีมผู้ชนะเป็น Competitor"],
   ["winner.export_pdf", "Export ประกาศผล PDF"],
   ["evaluation.lucky_draw", "สุ่ม Lucky Draw"],
   ["evaluation.gift_claimed", "สแกนรับของชำร่วย"],
@@ -255,6 +256,7 @@ function auditActionLabel(action: string) {
   if (action === "winner.created") return "เพิ่มประกาศผล";
   if (action === "submission.non_finalist_invitation_sent") return "ส่งอีเมลเชิญผู้ไม่ติด 10 ทีม";
   if (action === "winner.deleted") return "ลบประกาศผล";
+  if (action === "winner.team_participants_synced") return "ซิงค์สมาชิกทีมผู้ชนะเป็น Competitor";
   if (action === "winner.export_pdf") return "Export ประกาศผล PDF";
   if (action === "evaluation.lucky_draw") return "สุ่ม Lucky Draw";
   if (action === "evaluation.lucky_draw_reset_otp_requested") return "ขอ OTP Reset Lucky Draw";
