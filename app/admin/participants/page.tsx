@@ -20,6 +20,7 @@ import { isThaiCitizenId } from "../../../lib/validation";
 export const dynamic = "force-dynamic";
 
 const pageSize = 20;
+const walkInParticipantRoles = ["Exhibitor", "Guest"] as const;
 
 export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string }> }) {
   const cookieStore = await cookies();
@@ -76,7 +77,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
               <label>ชื่อ<input name="firstName" required/></label>
               <label>นามสกุล<input name="lastName" required/></label>
               <label>อีเมล<input type="email" name="email" placeholder="เว้นว่างได้สำหรับลงทะเบียนหลังบ้าน"/></label>
-              <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue="Guest">{participantRoles.map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
+              <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue="Guest">{(isUciWorkspace ? walkInParticipantRoles : participantRoles).map((role)=><option key={role} value={role}>{role}</option>)}</select></label>
               <label>เลขบัตรประชาชน<input name="citizenId" inputMode="numeric" pattern="\d{13}" maxLength={13} placeholder="เว้นว่างได้"/></label>
               <label>เบอร์ติดต่อ<input name="phone" inputMode="numeric" pattern="0[689]\d{8}" maxLength={10} placeholder="เว้นว่างได้"/></label>
               <label>ตำแหน่ง<input name="position" required/></label>
@@ -219,7 +220,10 @@ async function createParticipantAction(formData: FormData) {
     const participantRole = text(formData, "participantRole") as ParticipantRole;
     if (citizenId && (!/^\d{13}$/.test(citizenId) || !isThaiCitizenId(citizenId))) throw new Error("หมายเลขบัตรประชาชนไม่ถูกต้อง");
     if (phone && !/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
-    if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
+    const walkInWorkspace = text(formData, "workspace") === "uci";
+    if (walkInWorkspace
+      ? !walkInParticipantRoles.includes(participantRole as typeof walkInParticipantRoles[number])
+      : !participantRoles.includes(participantRole)) throw new Error(walkInWorkspace ? "Role ผู้เข้าร่วม Walk-in ต้องเป็น Exhibitor หรือ Guest เท่านั้น" : "Role ผู้เข้าร่วมไม่ถูกต้อง");
     const result = await createParticipant({
       email: text(formData, "email"),
       provider: "local",

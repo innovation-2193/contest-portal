@@ -5,12 +5,13 @@ import { revalidatePath } from "next/cache";
 import { ArrowLeft, CheckCircle2, ClipboardCheck, UserPlus } from "lucide-react";
 import { checkInParticipant, createParticipant } from "../../../lib/admin-store";
 import { recordAuditEvent } from "../../../lib/audit-log";
-import { participantRoles, type ParticipantRole } from "../../../lib/local-registrations";
+import type { ParticipantRole } from "../../../lib/local-registrations";
 import { isThaiCitizenId } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
 
 const walkInCheckInActor = "walk-in@system";
+const walkInParticipantRoles = ["Exhibitor", "Guest"] as const;
 
 export default async function UciWalkInPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string; code?: string }> }) {
   const params = await searchParams;
@@ -47,7 +48,7 @@ export default async function UciWalkInPage({ searchParams }: { searchParams: Pr
             <label>คำนำหน้า *<input name="title" required placeholder="เช่น นาย / นาง / พ.ต.อ."/></label>
             <label>ชื่อ *<input name="firstName" required/></label>
             <label>นามสกุล *<input name="lastName" required/></label>
-            <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue="Guest">{participantRoles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
+            <label>Role ผู้เข้าร่วม<select name="participantRole" defaultValue="Guest">{walkInParticipantRoles.map((role) => <option key={role} value={role}>{role}</option>)}</select></label>
             <label>เลขบัตรประชาชน *<input name="citizenId" inputMode="numeric" pattern="\d{13}" maxLength={13} placeholder="13 หลัก" required/></label>
             <label>เบอร์ติดต่อ *<input name="phone" inputMode="tel" pattern="0[689]\d{8}" maxLength={10} placeholder="0812345678" required/></label>
             <label>ตำแหน่ง *<input name="position" required/></label>
@@ -91,7 +92,7 @@ async function registerWalkInAction(formData: FormData) {
     if (!/^0[689]\d{8}$/.test(phone)) throw new Error("เบอร์ติดต่อไม่ถูกต้อง");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("อีเมลไม่ถูกต้อง");
     if (formData.get("consentPdpa") !== "true") throw new Error("กรุณายอมรับนโยบายความเป็นส่วนตัวก่อนยืนยันการลงทะเบียน");
-    if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
+    if (!walkInParticipantRoles.includes(participantRole as typeof walkInParticipantRoles[number])) throw new Error("Role ผู้เข้าร่วม Walk-in ต้องเป็น Exhibitor หรือ Guest เท่านั้น");
   } catch (error) {
     redirect(`${returnPath}?error=${encodeURIComponent(walkInErrorMessage(error))}`);
   }
