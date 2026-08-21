@@ -172,15 +172,21 @@ function drawDashedDivider(doc: PDFKit.PDFDocument, x: number, y: number) {
 
 function drawProjectInfo(doc: PDFKit.PDFDocument, submission: SubmissionListItem, x: number, y: number, itemNumber: number, totalItems: number) {
   const width = doc.page.width - x * 2;
-  doc.rect(x, y, width, 48).fillAndStroke(PRINT.white, PRINT.line);
+  doc.rect(x, y, width, 58).fillAndStroke(PRINT.white, PRINT.line);
   doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text("ข้อมูลโครงการ", x + 14, y + 9, { width: 88, lineBreak: false });
   doc.font(fonts.bold).fontSize(8.4).fillColor(PRINT.black).text("ลำดับผลงาน", x + 14, y + 24, { width: 88, lineBreak: false });
   doc.font(fonts.bold).fontSize(8.7).fillColor(PRINT.black).text(`รายการที่ ${itemNumber} จาก ${totalItems}`, x + 14, y + 36, { width: 92, lineBreak: false });
   doc.font(fonts.bold).fontSize(11.3).fillColor(PRINT.black).text(clean(submission.title_th), x + 116, y + 9, { width: width - 130, height: 15, ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(8.4).fillColor(PRINT.text).text(
+    `English: ${clean(submission.title_en?.trim() || "-")}`,
+    x + 116,
+    y + 25,
+    { width: width - 130, height: 11, ellipsis: true, lineBreak: false },
+  );
   doc.font(fonts.regular).fontSize(8).fillColor(PRINT.text).text(
     `ผู้สมัคร/ทีม: ${formatApplicantName(submission)} • ประเภท: ${submission.submission_type === "team" ? `ทีม${submission.team_name ? ` ${submission.team_name}` : ""}` : "ส่งเดี่ยว"}`,
     x + 116,
-    y + 30,
+    y + 41,
     { width: width - 130, height: 11, ellipsis: true, lineBreak: false },
   );
 }
