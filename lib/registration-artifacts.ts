@@ -22,10 +22,12 @@ type RegistrationEmailMessage = {
   html: string;
   text: string;
   includeParkingMap?: boolean;
+  includeEventSchedule?: boolean;
 };
 
 const storageDir = process.env.APP_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 const parkingMapPath = path.join(process.cwd(), "public", "email", "parking-map.png");
+const eventSchedulePath = path.join(process.cwd(), "public", "email", "event-schedule-2026-08-24.png");
 
 export function registrationQrText(registrationCode: string) {
   return registrationCode.trim();
@@ -138,6 +140,7 @@ export async function sendRegistrationReminder(record: RegistrationRecord) {
     html: reminderHtml(record),
     text: reminderText(record),
     includeParkingMap: true,
+    includeEventSchedule: true,
   });
 }
 
@@ -152,14 +155,17 @@ async function sendRegistrationEmail(record: RegistrationRecord, message: Regist
       registrationQrPng(record.registration_code),
       registrationTicketPdf(record),
     ]);
-    const parkingMap = message.includeParkingMap ? await readFile(parkingMapPath) : undefined;
+    const [parkingMap, eventSchedule] = await Promise.all([
+      message.includeParkingMap ? readFile(parkingMapPath) : Promise.resolve(undefined),
+      message.includeEventSchedule ? readFile(eventSchedulePath) : Promise.resolve(undefined),
+    ]);
 
     const smtpUrl = process.env.SMTP_URL;
     const smtpHost = process.env.SMTP_HOST;
     const from = process.env.SMTP_FROM ?? "Police Innovation Contest 2026 <no-reply@police.go.th>";
 
     if (!smtpUrl && !smtpHost) {
-      await writeDevOutbox(record, qr, pdf, message, parkingMap);
+      await writeDevOutbox(record, qr, pdf, message, parkingMap, eventSchedule);
       return { status: "outbox" satisfies MailStatus };
     }
 
@@ -182,6 +188,7 @@ async function sendRegistrationEmail(record: RegistrationRecord, message: Regist
       { filename: `${record.registration_code}.png`, content: qr, contentType: "image/png", cid: "registration-qr" },
       { filename: `${record.registration_code}.pdf`, content: pdf, contentType: "application/pdf" },
       ...(parkingMap ? [{ filename: "parking-map.png", content: parkingMap, contentType: "image/png", cid: "parking-map" }] : []),
+      ...(eventSchedule ? [{ filename: "event-schedule-2026-08-24.png", content: eventSchedule, contentType: "image/png", cid: "event-schedule" }] : []),
     ];
 
     await transporter.sendMail({
@@ -249,6 +256,11 @@ function reminderHtml(record: RegistrationRecord) {
           <p style="margin:0 0 8px"><strong>สถานที่:</strong> สโมสรตำรวจ</p>
           <p style="margin:0"><strong>การแต่งกาย:</strong> ผู้เข้าร่วมงานชุดสุภาพ (สีดำ)</p>
         </div>
+        <div style="margin:22px 0;padding:18px;border:1px solid #dce3ed;border-radius:12px;background:#f6f8fc;color:#172033">
+          <h2 style="margin:0 0 14px;font-size:22px;color:#0a2d63">กำหนดการวันงาน 24 สิงหาคม 2569</h2>
+          <p style="margin:0 0 14px;color:#4b5870">รายละเอียดกำหนดการตามภาพตารางที่แนบมากับอีเมลฉบับนี้</p>
+          <img src="cid:event-schedule" alt="กำหนดการวันงาน 24 สิงหาคม 2569" style="width:100%;max-width:760px;height:auto;display:block;margin:0 auto;border-radius:8px;background:#fff">
+        </div>
         <p style="margin:0 0 18px">กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน เพื่อความสะดวกและรวดเร็วในการเข้าร่วมงาน</p>
         <div style="margin:24px 0;padding:20px 22px;border:1px solid #d8b62f;border-radius:12px;background:#fff9ec;color:#172033">
           <h2 style="margin:0 0 14px;font-size:22px;color:#0a2d63">ข้อมูลลานจอดรถ</h2>
@@ -276,6 +288,7 @@ function reminderText(record: RegistrationRecord) {
 วันที่: 24 สิงหาคม 2569 (24 ส.ค. 69)
 เริ่มลงทะเบียน: เวลา 08.00 น.
 สถานที่: สโมสรตำรวจ
+รายละเอียดกำหนดการ: ตามภาพตารางกำหนดการวันที่ 24 สิงหาคม 2569 ที่แนบมากับอีเมล
 
 ข้อมูลลานจอดรถ
 ลานจอดฝั่งวิภาวดี: สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่
@@ -284,18 +297,38 @@ function reminderText(record: RegistrationRecord) {
 การแต่งกาย: ผู้เข้าร่วมงานชุดสุภาพ (สีดำ)
 
 กรุณานำ QR Code ของท่านที่แนบมากับอีเมลฉบับนี้มาแสดง ณ จุดลงทะเบียน
-อีเมลนี้มี QR Code, แผนผังลานจอดรถ และ PDF ใบยืนยันการลงทะเบียนแนบมาด้วย`;
+อีเมลนี้มี QR Code, ผังที่จอดรถ, ภาพกำหนดการวันงาน และ PDF ใบยืนยันการลงทะเบียนแนบมาด้วย`;
 }
 
-async function writeDevOutbox(record: RegistrationRecord, qr: Buffer, pdf: Buffer, message: RegistrationEmailMessage, parkingMap?: Buffer) {
+async function writeDevOutbox(
+  record: RegistrationRecord,
+  qr: Buffer,
+  pdf: Buffer,
+  message: RegistrationEmailMessage,
+  parkingMap?: Buffer,
+  eventSchedule?: Buffer,
+) {
   const outbox = path.join(storageDir, "email-outbox", record.registration_code);
   await mkdir(outbox, { recursive: true });
   await writeFile(path.join(outbox, "qr.png"), qr);
   await writeFile(path.join(outbox, "ticket.pdf"), pdf);
   if (parkingMap) await writeFile(path.join(outbox, "parking-map.png"), parkingMap);
+  if (eventSchedule) await writeFile(path.join(outbox, "event-schedule-2026-08-24.png"), eventSchedule);
   await writeFile(
     path.join(outbox, "email.json"),
-    `${JSON.stringify({ to: record.email, subject: message.subject, text: message.text, html: message.html, createdAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({
+      to: record.email,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      attachmentFiles: [
+        "qr.png",
+        "ticket.pdf",
+        ...(parkingMap ? ["parking-map.png"] : []),
+        ...(eventSchedule ? ["event-schedule-2026-08-24.png"] : []),
+      ],
+      createdAt: new Date().toISOString(),
+    }, null, 2)}\n`,
     "utf8",
   );
 }

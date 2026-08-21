@@ -173,52 +173,28 @@ function drawDashedDivider(doc: PDFKit.PDFDocument, x: number, y: number) {
 function drawProjectInfo(doc: PDFKit.PDFDocument, submission: SubmissionListItem, x: number, y: number, itemNumber: number, totalItems: number) {
   const width = doc.page.width - x * 2;
   const textWidth = width - 130;
-  const title = clean(submission.title_th);
-  const titleSize = fitWrappedFontSize(doc, title, textWidth, 11.3, 7.5, 30, fonts.bold);
-  const englishTitle = clean(submission.title_en?.trim() || "-");
-  const englishSize = fitSingleLineFontSize(doc, englishTitle, textWidth, 8.4, 5.8, fonts.regular);
-  doc.rect(x, y, width, 74).fillAndStroke(PRINT.white, PRINT.line);
+  doc.rect(x, y, width, 58).fillAndStroke(PRINT.white, PRINT.line);
   doc.font(fonts.bold).fontSize(8.6).fillColor(PRINT.black).text("ข้อมูลโครงการ", x + 14, y + 9, { width: 88, lineBreak: false });
   doc.font(fonts.bold).fontSize(8.4).fillColor(PRINT.black).text("ลำดับผลงาน", x + 14, y + 24, { width: 88, lineBreak: false });
   doc.font(fonts.bold).fontSize(8.7).fillColor(PRINT.black).text(`รายการที่ ${itemNumber} จาก ${totalItems}`, x + 14, y + 36, { width: 92, lineBreak: false });
-  doc.font(fonts.bold).fontSize(titleSize).fillColor(PRINT.black).text(title, x + 116, y + 8, {
+  doc.font(fonts.bold).fontSize(11.3).fillColor(PRINT.black).text(clean(submission.title_th), x + 116, y + 9, {
     width: textWidth,
-    height: 31,
-    lineGap: 0,
-    lineBreak: true,
+    height: 15,
+    ellipsis: true,
+    lineBreak: false,
   });
-  doc.font(fonts.regular).fontSize(englishSize).fillColor(PRINT.text).text(
-    englishTitle,
+  doc.font(fonts.regular).fontSize(8.4).fillColor(PRINT.text).text(
+    clean(submission.title_en?.trim() || "-"),
     x + 116,
-    y + 42,
-    { width: textWidth, height: 11, lineBreak: false },
+    y + 25,
+    { width: textWidth, height: 11, ellipsis: true, lineBreak: false },
   );
   doc.font(fonts.regular).fontSize(8).fillColor(PRINT.text).text(
     `ผู้สมัคร/ทีม: ${formatApplicantName(submission)} • ประเภท: ${submission.submission_type === "team" ? `ทีม${submission.team_name ? ` ${submission.team_name}` : ""}` : "ส่งเดี่ยว"}`,
     x + 116,
-    y + 58,
+    y + 41,
     { width: textWidth, height: 11, ellipsis: true, lineBreak: false },
   );
-}
-
-function fitWrappedFontSize(doc: PDFKit.PDFDocument, value: string, width: number, initial: number, minimum: number, maxHeight: number, font: string) {
-  let size = initial;
-  while (size > minimum) {
-    doc.font(font).fontSize(size);
-    if (doc.heightOfString(value, { width, lineGap: 0 }) <= maxHeight) return size;
-    size -= 0.25;
-  }
-  return minimum;
-}
-
-function fitSingleLineFontSize(doc: PDFKit.PDFDocument, value: string, width: number, initial: number, minimum: number, font: string) {
-  let size = initial;
-  while (size > minimum) {
-    doc.font(font).fontSize(size);
-    if (doc.widthOfString(value) <= width) return size;
-    size -= 0.25;
-  }
-  return minimum;
 }
 
 function drawPresentationScoreTable(doc: PDFKit.PDFDocument, x: number, y: number) {

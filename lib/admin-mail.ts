@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, readFile, writeFile } from "fs/promises";
 import path from "path";
 import nodemailer from "nodemailer";
 import { brandedEmailHtml, brandedEmailLogoAttachment } from "./email-theme";
@@ -83,6 +83,16 @@ async function writeDevOutbox(input: AdminMailInput) {
     content: input.html,
   });
   await mkdir(outbox, { recursive: true });
+  const attachments = await Promise.all((input.attachments ?? []).map(async (attachment) => ({
+    filename: attachment.filename,
+    cid: attachment.cid,
+    contentType: attachment.contentType,
+    content: attachment.content
+      ? Buffer.from(attachment.content).toString("base64")
+      : attachment.path
+        ? (await readFile(attachment.path)).toString("base64")
+        : undefined,
+  })));
   await writeFile(
     path.join(outbox, "email.json"),
     `${JSON.stringify({
@@ -90,12 +100,7 @@ async function writeDevOutbox(input: AdminMailInput) {
       subject: input.subject,
       text: input.text,
       html,
-      attachments: input.attachments?.map((attachment) => ({
-        filename: attachment.filename,
-        cid: attachment.cid,
-        contentType: attachment.contentType,
-        content: attachment.content ? Buffer.from(attachment.content).toString("base64") : undefined,
-      })) ?? [],
+      attachments,
       createdAt: new Date().toISOString(),
     }, null, 2)}\n`,
     "utf8",

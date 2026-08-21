@@ -13,6 +13,7 @@ type NonFinalistInvitationResult = {
 };
 
 const parkingMapPath = path.join(process.cwd(), "public", "email", "parking-map.png");
+const eventSchedulePath = path.join(process.cwd(), "public", "email", "event-schedule-2026-08-24.png");
 
 export async function sendNonFinalistInvitationEmails(input: {
   applicants: SubmissionApplicantExportRow[];
@@ -60,7 +61,10 @@ export async function sendNonFinalistInvitationEmails(input: {
       outboxKey: `non-finalist-invitation-${safeOutboxKey(email)}-${Date.now()}`,
       text: invitationText(recipient.name, recipient.projects),
       html: invitationHtml(recipient.name, recipient.projects),
-      attachments: [{ filename: "parking-map.png", path: parkingMapPath, cid: "parking-map", contentType: "image/png" }],
+      attachments: [
+        { filename: "parking-map.png", path: parkingMapPath, cid: "parking-map", contentType: "image/png" },
+        { filename: "event-schedule-2026-08-24.png", path: eventSchedulePath, cid: "event-schedule", contentType: "image/png" },
+      ],
     });
     results.push({ email, status: normalizeMailStatus(result.status), withQr: false, projectCount: recipient.projects.size });
   }
@@ -83,6 +87,7 @@ function invitationText(name: string, projects: Set<string>) {
     "",
     "ลานจอดฝั่งวิภาวดี สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่",
     "ลานจอดฝั่งลานมะพร้าว สำหรับ ผู้เข้าร่วมงาน, สื่อมวลชน, คณะทำงานและเจ้าหน้าที่",
+    "รายละเอียดกำหนดการ: ตามภาพตารางกำหนดการวันที่ 24 สิงหาคม 2569 ที่แนบมากับอีเมล",
     `กรุณาลงทะเบียนเข้าร่วมงานผ่านเว็บไซต์ ${publicBaseUrl()}/register เพื่อรับ QR Code แล้วนำ QR Code มาแสดงหน้างานเหมือนผู้เข้าร่วมงานทั่วไป`,
   ].join("\n");
 }
@@ -100,6 +105,11 @@ function invitationHtml(name: string, projects: Set<string>) {
     </div>
     <p style="margin:0 0 8px"><strong>ผลงานที่เกี่ยวข้อง</strong></p>
     <ul style="margin:0 0 20px;padding-left:22px;line-height:1.7">${projectList}</ul>
+    <div style="margin:0 0 20px;padding:18px;border:1px solid #dce3ed;border-radius:12px;background:#f6f8fc;color:#172033">
+      <h2 style="margin:0 0 14px;font-size:22px;color:#0a2d63">กำหนดการวันงาน 24 สิงหาคม 2569</h2>
+      <p style="margin:0 0 14px;color:#4b5870">รายละเอียดกำหนดการตามภาพตารางที่แนบมากับอีเมลฉบับนี้</p>
+      <img src="cid:event-schedule" alt="กำหนดการวันงาน 24 สิงหาคม 2569" style="display:block;width:100%;max-width:760px;height:auto;margin:0 auto;border-radius:8px;background:#fff">
+    </div>
     <div style="margin:0 0 20px;padding:18px;border:1px solid #dce3ed;border-radius:12px;background:#f6f8fc;line-height:1.8">
       <strong>การจอดรถ</strong><br>
       ลานจอดฝั่งวิภาวดี สำหรับ VIP, ผู้จัดแสดงผลงาน, คณะทำงานและเจ้าหน้าที่<br>
