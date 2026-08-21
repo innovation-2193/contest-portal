@@ -80,7 +80,10 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
     </section>
     <section className="admin-panel admin-checkin-cta admin-gift-cta">
       <div className="admin-checkin-copy"><Gift/><div><span className="eyebrow">Survey Gift</span><h2>จุดรับของชำร่วย</h2><p>สแกน QR Code จากผู้ทำแบบประเมินและตรวจสอบการรับซ้ำ</p></div></div>
-      <Link className="primary" href="/admin/gift-scan"><Gift/>เปิดจุดรับของชำร่วย</Link>
+      <div className="admin-actions">
+        <Link className="primary" href="/admin/gift-scan"><Gift/>เปิดจุดรับของชำร่วย</Link>
+        <Link className="secondary" href="/uci/gift-summary"><ClipboardList/>สรุปการรับของชำร่วย</Link>
+      </div>
     </section>
 
     <section className="admin-panel admin-checkin-cta admin-walkin-cta">

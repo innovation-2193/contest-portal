@@ -51,7 +51,7 @@ export function CriteriaToggle({ rounds, award }: { rounds: CriteriaRound[]; awa
             onClick={() => setActiveIndex(index)}
             onKeyDown={(event) => selectWithKeyboard(event, index)}
           >
-            <span>รอบที่ {index + 1}</span>
+            <span>รอบที่ {index + 1} • น้ำหนัก {index === 0 ? "40%" : "60%"}</span>
             <b>{index === 0 ? "ประเมินเอกสาร" : "รอบนำเสนอ"}</b>
           </button>
         ))}
@@ -71,6 +71,10 @@ export function CriteriaToggle({ rounds, award }: { rounds: CriteriaRound[]; awa
             <b>เงินรางวัล</b>
           </button>
         )}
+      </div>
+      <div className="criteria-weight-note" role="note">
+        <b>การคำนวณคะแนนรวม</b>
+        <span>คะแนนรอบแรกถ่วงน้ำหนัก 40% และคะแนนรอบที่ 2 ถ่วงน้ำหนัก 60%</span>
       </div>
       <section className={`criteria-round${activeRound.items.some(([, , guidance]) => guidance) ? " criteria-round-detailed" : ""}`} role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-tab-${activeIndex}`}>
         {isAwardTab && award ? (

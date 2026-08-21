@@ -74,6 +74,8 @@ export type EvaluationRespondent = {
   email: string;
   submittedAt: string;
   overallAverage: number;
+  giftClaimedAt: string | null;
+  giftClaimedByEmail: string;
 };
 
 export type GiftClaimResult = {
@@ -533,6 +535,8 @@ function evaluationRespondent(record: EvaluationRecord): EvaluationRespondent {
     email: record.email ?? "-",
     submittedAt: record.submitted_at,
     overallAverage: average(record.scores),
+    giftClaimedAt: record.gift_claimed_at,
+    giftClaimedByEmail: record.gift_claimed_by_email ?? "",
   };
 }
 
