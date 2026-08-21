@@ -199,7 +199,7 @@ function drawProjectInfo(doc: PDFKit.PDFDocument, submission: SubmissionListItem
 
 function drawPresentationScoreTable(doc: PDFKit.PDFDocument, x: number, y: number) {
   const headerHeight = 30;
-  const rowHeight = 46;
+  const rowHeight = 44;
   let cursorY = y;
   doc.rect(x, cursorY, tableWidth, headerHeight).fillAndStroke(PRINT.white, PRINT.black);
   drawTableColumns(doc, x, cursorY, headerHeight, true);
