@@ -99,7 +99,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
       <Link className="primary" href="/uci/walk-in"><UserPlus/>ลงทะเบียนหน้างานและเช็คอิน</Link>
       <Link className="secondary" href="/admin/evaluations?from=uci"><ClipboardList/>ดูแบบสอบถามและผล Lucky Draw</Link>
       <a className="secondary" href="/api/admin/participants/export"><Download/>Export รายชื่อผู้เข้าร่วม PDF</a>
-      <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถ PDF ({parking.length})</a>
+      <a className="secondary" href="/api/admin/parking/list-export"><Car/>Export รายการสำรองที่จอดรถตามประเภท ({parking.length})</a>
     </div></section>
 
     <section className="admin-panel uci-booth-report-panel"><header className="admin-section-head"><LayoutGrid/><div><span className="eyebrow">Exhibition Booths</span><h2>รายงานบูธแสดงผลงาน</h2><p>ข้อมูลล่าสุด {booths.length.toLocaleString("th-TH")} บูธ จากผู้ลงทะเบียน Exhibitor และผลงานที่ผ่านการคัดเลือกรอบแรก</p></div></header><div className="admin-detail-actions uci-action-grid"><a className="primary" href="/api/uci/booths/overview?download=pdf-v2" target="_blank" rel="noreferrer"><Download/>Export PDF ภาพรวมบูธ</a><a className="secondary" href="/api/uci/booths/labels?download=pdf-v2" target="_blank" rel="noreferrer"><Printer/>พิมพ์ป้ายประจำบูธแนวนอน</a></div></section>

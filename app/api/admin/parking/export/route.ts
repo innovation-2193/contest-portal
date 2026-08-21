@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     actor: actorFromAdminSession(session),
     action: "parking.export_pdf",
     entityType: "parking",
-    summary: "Export ป้ายสำรองที่จอดรถ VIP / Exhibitor / Staff เป็น PDF",
+    summary: "Export ป้ายสำรองที่จอดรถสำหรับผู้บริหารและแขกผู้มีเกียรติ ผู้จัดแสดงผลงาน และคณะทำงานและเจ้าหน้าที่เป็น PDF",
     payload: { count: reservations.length },
   }, request.headers);
 

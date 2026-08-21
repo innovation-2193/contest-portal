@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Search } from "lucide-react";
+import { participantRoleFormalLabel } from "../lib/participant-role-labels";
 
 type ParkingParticipant = {
   registration_code: string;
@@ -92,7 +93,7 @@ export function ParkingParticipantPicker({
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
-        placeholder={participants.length ? placeholder : "ยังไม่มีรายชื่อ VIP, Exhibitor หรือ Staff"}
+        placeholder={participants.length ? placeholder : "ยังไม่มีรายชื่อผู้บริหารและแขกผู้มีเกียรติ ผู้จัดแสดงผลงาน หรือคณะทำงานและเจ้าหน้าที่"}
         ref={inputRef}
         required
         value={query}
@@ -110,7 +111,7 @@ export function ParkingParticipantPicker({
           role="option"
           type="button"
         >
-          <span><b>{participantLabel(participant)}</b><small>{participant.registration_code} • {participant.participant_role}</small></span>
+          <span><b>{participantLabel(participant)}</b><small>{participant.registration_code} • {participantRoleFormalLabel(participant.participant_role)}</small></span>
           {selected && <Check aria-hidden="true"/>}
         </button>;
       }) : <div className="parking-picker-empty">ไม่พบรายชื่อที่ค้นหา</div>}

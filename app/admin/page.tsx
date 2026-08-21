@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Database, Download, Eye, FileSpreadsheet, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Database, Download, Eye, FileSpreadsheet, FileText, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -37,6 +37,7 @@ import {
 import { actorFromAdminSession, listAuditEvents, recordAuditEvent, type AuditEventRecord } from "../../lib/audit-log";
 import { adminNoticePath, adminNoticeReturnPath, safeAdminReturnPath } from "../../lib/admin-flash";
 import { participantRoleClass } from "../../lib/participant-role-style";
+import { participantRoleFormalLabel } from "../../lib/participant-role-labels";
 import {
 	  addWinner,
 	  addNews,
@@ -504,17 +505,17 @@ function ParkingReservationPanel({
   return <section className="admin-panel parking-panel" id="parking-reservations">
     <header className="admin-section-head">
       <Car/>
-      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถ VIP / Exhibitor / Staff</h2><p>ค้นหารายชื่อจาก Role VIP, Exhibitor หรือ Staff แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน โดยตารางนี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div>
-      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a></div>
+      <div><span className="eyebrow">Super Admin Only</span><h2>สำรองที่จอดรถสำหรับผู้บริหารและแขกผู้มีเกียรติ / ผู้จัดแสดงผลงาน / คณะทำงานและเจ้าหน้าที่</h2><p>ค้นหารายชื่อผู้เข้าร่วมงานตามประเภทที่ได้รับสิทธิ์ แล้วเพิ่มทะเบียนรถสำหรับพิมพ์ป้ายจอดรถหน้างาน โดยตารางนี้แสดงล่าสุด {dashboardLimit.toLocaleString("th-TH")} รายการ</p></div>
+      <div className="admin-actions"><a className="primary" href="/api/admin/parking/export" target="_blank" rel="noreferrer"><Printer/>Export PDF ป้ายจอดรถ</a><a className="secondary" href="/api/admin/parking/list-export" target="_blank" rel="noreferrer"><FileText/>Export รายการสำรองที่จอดรถ PDF</a></div>
     </header>
     <div className="parking-summary">
       <div><Car/><b>{reservations.length.toLocaleString("th-TH")}</b><span>คันที่สำรองแล้ว</span></div>
-      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>VIP</span></div>
-      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>Exhibitor</span></div>
-      <div><UserCheck/><b>{staffCount.toLocaleString("th-TH")}</b><span>Staff</span></div>
+      <div><ShieldCheck/><b>{vipCount.toLocaleString("th-TH")}</b><span>{participantRoleFormalLabel("VIP")}</span></div>
+      <div><Users/><b>{exhibitorCount.toLocaleString("th-TH")}</b><span>{participantRoleFormalLabel("Exhibitor")}</span></div>
+      <div><UserCheck/><b>{staffCount.toLocaleString("th-TH")}</b><span>{participantRoleFormalLabel("Staff")}</span></div>
     </div>
     <form action={createParkingReservationAction} className="admin-form parking-form">
-      <label className="field-wide">ค้นหารายชื่อ VIP / Exhibitor / Staff<ParkingParticipantPicker participants={participants}/></label>
+      <label className="field-wide">ค้นหารายชื่อผู้บริหารและแขกผู้มีเกียรติ / ผู้จัดแสดงผลงาน / คณะทำงานและเจ้าหน้าที่<ParkingParticipantPicker participants={participants}/></label>
       <label>ทะเบียนรถ<input name="carPlate" required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
       <label>หมายเหตุ<input name="note" maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
       <button className="primary" type="submit" disabled={!hasEligibleParticipants}><Car/>เพิ่มที่จอดรถ</button>
@@ -525,18 +526,18 @@ function ParkingReservationPanel({
         <Pencil/>
         <div><b>แก้ไขรายการสำรองที่จอดรถ</b><span>{editingReservation.carPlate} • {editingReservation.participantName}</span></div>
       </div>
-      <label className="field-wide">ค้นหารายชื่อ VIP / Exhibitor / Staff<ParkingParticipantPicker participants={participants} defaultValue={editingReservation.registrationCode}/></label>
+      <label className="field-wide">ค้นหารายชื่อผู้บริหารและแขกผู้มีเกียรติ / ผู้จัดแสดงผลงาน / คณะทำงานและเจ้าหน้าที่<ParkingParticipantPicker participants={participants} defaultValue={editingReservation.registrationCode}/></label>
       <label>ทะเบียนรถ<input name="carPlate" defaultValue={editingReservation.carPlate} required maxLength={32} placeholder="เช่น 1กก 1234 กรุงเทพฯ"/></label>
       <label>หมายเหตุ<input name="note" defaultValue={editingReservation.note} maxLength={255} placeholder="เช่น รถตู้ / ผู้ติดตาม / ประตูทางเข้า"/></label>
       <div className="parking-edit-actions"><button className="primary" type="submit"><Car/>บันทึกการแก้ไข</button><Link className="secondary" href={listHref}>ยกเลิก</Link></div>
     </form>}
     <div className="admin-table-wrap parking-table-wrap">
       <table className="admin-table compact-admin-table parking-table">
-        <thead><tr><th>ทะเบียนรถ</th><th>ผู้ใช้สิทธิ์</th><th>Role</th><th>เบอร์โทร</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
+        <thead><tr><th>ทะเบียนรถ</th><th>ผู้ใช้สิทธิ์</th><th>ประเภทผู้เข้าร่วมงาน</th><th>เบอร์โทร</th><th>หมายเหตุ</th><th>จัดการ</th></tr></thead>
         <tbody>{visibleReservations.length ? visibleReservations.map((reservation) => <tr key={reservation.id}>
           <td data-label="ทะเบียนรถ"><b>{reservation.carPlate}</b><small>{reservation.registrationCode}</small></td>
           <td data-label="ผู้ใช้สิทธิ์">{reservation.participantName}<small>{reservation.division} / {reservation.bureau}</small></td>
-          <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(reservation.participantRole)}`}>{reservation.participantRole}</span></td>
+          <td data-label="ประเภทผู้เข้าร่วมงาน"><span className={`status-pill role-pill ${participantRoleClass(reservation.participantRole)}`}>{participantRoleFormalLabel(reservation.participantRole)}</span></td>
           <td data-label="เบอร์โทร"><span className="parking-phone"><Phone/>{reservation.phone}</span></td>
           <td data-label="หมายเหตุ">{reservation.note || "-"}</td>
           <td data-label="จัดการ">

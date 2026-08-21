@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     actor: actorFromAdminSession(session),
     action: "parking.export_list_pdf",
     entityType: "parking",
-    summary: "Export รายการสำรองที่จอดรถเป็น PDF",
+    summary: "Export รายการสำรองที่จอดรถจำแนกตามประเภทผู้เข้าร่วมงานเป็น PDF",
     payload: { count: reservations.length },
   }, request.headers);
 

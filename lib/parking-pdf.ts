@@ -10,6 +10,7 @@ import {
   type PdfFontSet,
 } from "./pdf-theme";
 import type { ParkingReservationRecord } from "./admin-store";
+import { participantRoleFormalLabel } from "./participant-role-labels";
 
 const fonts: PdfFontSet = {
   regular: pdfFontRegular,
@@ -36,7 +37,7 @@ export async function parkingReservationsPdf(reservations: ParkingReservationRec
   }
 
   doc.info.Title = "Police Innovation Contest 2026 parking reservations";
-  doc.info.Subject = "ป้ายสำรองที่จอดรถ VIP / Exhibitor / Staff";
+  doc.info.Subject = "ป้ายสำรองที่จอดรถสำหรับผู้บริหารและแขกผู้มีเกียรติ ผู้จัดแสดงผลงาน และคณะทำงานและเจ้าหน้าที่";
   doc.info.Author = "Police Innovation Contest 2026";
   doc.end();
   return pdf;
@@ -49,7 +50,7 @@ export async function parkingReservationsListPdf(reservations: ParkingReservatio
   const pageCount = Math.max(1, Math.ceil(reservations.length / rowsPerPage));
 
   doc.info.Title = "Police Innovation Contest 2026 parking reservation list";
-  doc.info.Subject = "รายการสำรองที่จอดรถ VIP / Exhibitor / Staff";
+  doc.info.Subject = "รายการสำรองที่จอดรถจำแนกตามประเภทผู้เข้าร่วมงาน";
   doc.info.Author = "Police Innovation Contest 2026";
 
   for (let page = 0; page < pageCount; page += 1) {
@@ -57,10 +58,11 @@ export async function parkingReservationsListPdf(reservations: ParkingReservatio
     doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_THEME.paper);
     drawDocumentHeader(doc, {
       title: "รายการสำรองที่จอดรถ",
-      subtitle: `ออกรายการเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+      subtitle: `จำแนกตามประเภท: ผู้บริหารและแขกผู้มีเกียรติ • ผู้จัดแสดงผลงาน • คณะทำงานและเจ้าหน้าที่ • ออกรายการเมื่อ ${formatPdfThaiDateTime(new Date())}`,
       metaLabel: "จำนวนรายการ",
       metaValue: `${reservations.length.toLocaleString("th-TH")} รายการ`,
     });
+    drawParkingRoleSummary(doc, reservations);
     drawParkingReservationListTable(
       doc,
       reservations.slice(page * rowsPerPage, (page + 1) * rowsPerPage),
@@ -79,16 +81,16 @@ export async function parkingReservationsListPdf(reservations: ParkingReservatio
 
 function drawParkingReservationListTable(doc: PDFKit.PDFDocument, reservations: ParkingReservationRecord[], offset: number) {
   const x = 30;
-  const y = 132;
+  const y = 162;
   const rowHeight = 28;
   const columns = [
     { label: "ลำดับ", width: 42, align: "center" as const },
     { label: "ทะเบียนรถ", width: 100, align: "left" as const },
     { label: "ผู้ใช้สิทธิ์", width: 170, align: "left" as const },
     { label: "เลขลงทะเบียน", width: 115, align: "left" as const },
-    { label: "Role", width: 75, align: "center" as const },
-    { label: "สังกัด / หน่วยงาน", width: 180, align: "left" as const },
-    { label: "เบอร์ติดต่อ", width: 100, align: "left" as const },
+    { label: "ประเภทผู้เข้าร่วมงาน", width: 145, align: "center" as const },
+    { label: "สังกัด / หน่วยงาน", width: 150, align: "left" as const },
+    { label: "เบอร์ติดต่อ", width: 60, align: "left" as const },
   ];
   const tableWidth = columns.reduce((sum, column) => sum + column.width, 0);
 
@@ -125,7 +127,7 @@ function drawParkingReservationListTable(doc: PDFKit.PDFDocument, reservations: 
       reservation.carPlate,
       reservation.participantName,
       reservation.registrationCode,
-      reservation.participantRole,
+      participantRoleFormalLabel(reservation.participantRole),
       affiliation,
       reservation.phone,
     ];
@@ -143,6 +145,24 @@ function drawParkingReservationListTable(doc: PDFKit.PDFDocument, reservations: 
         });
       cellX += column.width;
     });
+  });
+}
+
+function drawParkingRoleSummary(doc: PDFKit.PDFDocument, reservations: ParkingReservationRecord[]) {
+  const roles = [
+    ["ผู้บริหารและแขกผู้มีเกียรติ", "VIP"],
+    ["ผู้จัดแสดงผลงาน", "Exhibitor"],
+    ["คณะทำงานและเจ้าหน้าที่", "Staff"],
+  ] as const;
+  const x = 30;
+  const gap = 10;
+  const width = (pageWidth - x * 2 - gap * 2) / 3;
+  roles.forEach(([label, role], index) => {
+    const count = reservations.filter((reservation) => reservation.participantRole === role).length;
+    const boxX = x + index * (width + gap);
+    doc.roundedRect(boxX, 120, width, 30, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(fonts.bold).fontSize(8.2).fillColor(PDF_THEME.navy).text(label, boxX + 8, 126, { width: width - 62, lineBreak: false });
+    doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text(count.toLocaleString("th-TH"), boxX + width - 48, 125, { width: 40, align: "right", lineBreak: false });
   });
 }
 
@@ -228,11 +248,11 @@ function drawPlateOwner(doc: PDFKit.PDFDocument, value: string, x: number, y: nu
 
 function drawRoleBanner(doc: PDFKit.PDFDocument, role: ParkingReservationRecord["participantRole"], x: number, y: number, width: number, height: number, color: string) {
   doc.roundedRect(x, y, width, height, 14).fillAndStroke(color, color);
-  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("ROLE / สิทธิ์จอดรถ", x + 20, y + 14, {
+  doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.navy).text("ประเภทผู้เข้าร่วมงาน / สิทธิ์จอดรถ", x + 20, y + 14, {
     width: width - 40,
     lineBreak: false,
   });
-  doc.font(fonts.bold).fontSize(30).fillColor(PDF_THEME.navy).text(role, x + 20, y + 32, {
+  doc.font(fonts.bold).fontSize(24).fillColor(PDF_THEME.navy).text(participantRoleFormalLabel(role), x + 20, y + 36, {
     width: width - 40,
     lineBreak: false,
   });
