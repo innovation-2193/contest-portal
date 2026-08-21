@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
-import { Download, FileText, Plus, Save, Trash2, Trophy, Upload, Users } from "lucide-react";
+import { Download, FileText, History, Plus, Save, Trash2, Trophy, Upload, Users } from "lucide-react";
 
 type JudgeProfile = {
   judgeKey: string;
@@ -24,9 +24,20 @@ type ScoreRow = {
   judgeCount: number;
 };
 
+type PresentationReportVersion = {
+  id: string;
+  version: number;
+  sourceFileName: string;
+  createdByEmail: string;
+  createdAt: string;
+};
+
 export function PresentationScorePanel() {
   const [profiles, setProfiles] = useState<JudgeProfile[]>([]);
   const [rows, setRows] = useState<ScoreRow[]>([]);
+  const [versions, setVersions] = useState<PresentationReportVersion[]>([]);
+  const [versionTotal, setVersionTotal] = useState(0);
+  const [showAllVersions, setShowAllVersions] = useState(false);
   const [finalistCount, setFinalistCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
@@ -38,16 +49,58 @@ export function PresentationScorePanel() {
   async function loadData() {
     setLoading(true);
     try {
-      const response = await fetch("/api/admin/presentation-scores", { cache: "no-store" });
+      const [response, versionResponse] = await Promise.all([
+        fetch("/api/admin/presentation-scores", { cache: "no-store" }),
+        fetch("/api/admin/presentation-scores/versions", { cache: "no-store" }),
+      ]);
       const payload = await response.json() as { ok?: boolean; profiles?: JudgeProfile[]; rows?: ScoreRow[]; finalists?: unknown[]; message?: string };
+      const versionPayload = await versionResponse.json() as { ok?: boolean; versions?: PresentationReportVersion[]; total?: number; message?: string };
       if (!response.ok || !payload.ok) throw new Error(payload.message || "โหลดข้อมูลรอบที่ 2 ไม่สำเร็จ");
+      if (!versionResponse.ok || !versionPayload.ok) throw new Error(versionPayload.message || "โหลด Version รายงานไม่สำเร็จ");
       setProfiles(payload.profiles ?? []);
       setRows(payload.rows ?? []);
       setFinalistCount(payload.finalists?.length ?? 0);
+      setVersions(versionPayload.versions ?? []);
+      setVersionTotal(versionPayload.total ?? 0);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "โหลดข้อมูลรอบที่ 2 ไม่สำเร็จ");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadAllVersions() {
+    setWorking(true);
+    try {
+      const response = await fetch("/api/admin/presentation-scores/versions?all=1", { cache: "no-store" });
+      const payload = await response.json() as { ok?: boolean; versions?: PresentationReportVersion[]; total?: number; message?: string };
+      if (!response.ok || !payload.ok) throw new Error(payload.message || "โหลด Version รายงานไม่สำเร็จ");
+      setVersions(payload.versions ?? []);
+      setVersionTotal(payload.total ?? 0);
+      setShowAllVersions(true);
+    } catch (versionError) {
+      setError(versionError instanceof Error ? versionError.message : "โหลด Version รายงานไม่สำเร็จ");
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  async function deleteVersion(version: PresentationReportVersion) {
+    if (!window.confirm(`ยืนยันลบ Report PDF คะแนนรอบที่ 2 Version ${version.version}? ไฟล์เวอร์ชันนี้จะเปิดดูไม่ได้อีก`)) return;
+    setWorking(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/presentation-scores/versions", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: version.id }) });
+      const payload = await response.json() as { ok?: boolean; message?: string };
+      if (!response.ok || !payload.ok) throw new Error(payload.message || "ลบ Version รายงานไม่สำเร็จ");
+      setShowAllVersions(false);
+      setMessage(`ลบ Report PDF คะแนนรอบที่ 2 Version ${version.version} เรียบร้อยแล้ว`);
+      await loadData();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "ลบ Version รายงานไม่สำเร็จ");
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -89,15 +142,18 @@ export function PresentationScorePanel() {
     setWorking(true);
     setError("");
     setMessage("");
+    const reportWindow = window.open("about:blank", "_blank");
     const formData = new FormData();
     formData.append("file", file);
     try {
       const response = await fetch("/api/admin/presentation-scores/import", { method: "POST", body: formData });
-      const payload = await response.json() as { ok?: boolean; message?: string; errors?: string[] };
+      const payload = await response.json() as { ok?: boolean; message?: string; errors?: string[]; reportVersion?: number; reportUrl?: string };
       if (!response.ok || !payload.ok) throw new Error([payload.message, ...(payload.errors ?? []).slice(0, 3)].filter(Boolean).join("\n"));
-      setMessage(payload.message || "นำเข้าคะแนนรอบที่ 2 เรียบร้อยแล้ว");
+      setMessage(payload.message || `นำเข้าคะแนนรอบที่ 2 เรียบร้อยแล้ว และบันทึกเป็น Version ${payload.reportVersion ?? "ใหม่"}`);
       await loadData();
+      if (reportWindow) reportWindow.location.href = payload.reportUrl || "/api/admin/presentation-scores/report";
     } catch (importError) {
+      reportWindow?.close();
       setError(importError instanceof Error ? importError.message : "นำเข้าคะแนนไม่สำเร็จ");
     } finally {
       setWorking(false);
@@ -113,10 +169,16 @@ export function PresentationScorePanel() {
       <button className="primary" type="submit" disabled={working || loading}><Save/>บันทึกรายชื่อกรรมการรอบที่ 2</button>
     </form>
     <div className="committee-score-actions"><a className="primary" href="/api/admin/presentation-scores/form"><FileText/><span>PDF แบบฟอร์มรอบที่ 2</span></a><a className="secondary" href="/api/admin/presentation-scores/report"><FileText/><span>PDF Report คะแนนถ่วงน้ำหนัก</span></a><a className="secondary" href="/api/admin/presentation-scores/template"><Download/><span>Template คะแนนรอบที่ 2</span></a><label className="secondary committee-upload-button"><Upload/><span>อัปโหลดคะแนนรอบที่ 2</span><input type="file" accept=".xlsx,.csv" onChange={importScores} disabled={working || loading}/></label></div>
+    <div className="committee-score-report-versions"><div className="committee-summary-heading"><div><h3><History/>Report PDF ตาม Version</h3><p>แสดง {Math.min(versions.length, 3).toLocaleString("th-TH")} Version ล่าสุด จากทั้งหมด {versionTotal.toLocaleString("th-TH")} Version</p></div><FileText/></div>{versions.length ? <div className="committee-report-version-list">{versions.map((version) => <article key={version.id}><div><b>Version {version.version}</b><span>{formatVersionDate(version.createdAt)} • {version.sourceFileName}</span></div><div className="committee-report-version-actions"><a className="secondary small-action" href={`/api/admin/presentation-scores/report?versionId=${encodeURIComponent(version.id)}`} target="_blank" rel="noreferrer"><Download/>ดาวน์โหลด PDF</a><button className="danger-btn small-action" type="button" onClick={() => void deleteVersion(version)} disabled={working}><Trash2/>ลบ Version</button></div></article>)}</div> : <p className="participant-empty">เมื่อ Import Excel แล้ว ระบบจะบันทึก Report เป็น Version ไว้ตรงนี้</p>}{versionTotal > 3 && !showAllVersions && <button className="ghost-action" type="button" onClick={loadAllVersions} disabled={working}>ดูทั้งหมด ({versionTotal.toLocaleString("th-TH")} Version)</button>}{showAllVersions && versionTotal > 3 && <button className="ghost-action" type="button" onClick={() => { setShowAllVersions(false); setVersions((current) => current.slice(0, 3)); }}>แสดงเฉพาะ 3 Version ล่าสุด</button>}</div>
     <div className="committee-score-summary"><div className="committee-summary-heading"><div><h3>สรุปคะแนนถ่วงน้ำหนัก</h3><p>{loading ? "กำลังโหลดข้อมูล..." : `แสดง ${finalistCount.toLocaleString("th-TH")} ผลงานจากประกาศผลการแข่งขัน`}</p></div><Trophy/></div>{!loading && !rows.length ? <p className="participant-empty">ยังไม่มีผลงานในประกาศผลการแข่งขัน หรือยังไม่พบคะแนนรอบที่ 1</p> : <div className="admin-table-wrap"><table className="admin-table committee-score-table presentation-score-table"><thead><tr><th>ลำดับ</th><th>ผลงาน</th><th>รอบที่ 1 × 40%</th><th>รอบที่ 2 × 60%</th><th>รวม</th><th>กรรมการ</th></tr></thead><tbody>{rows.map((row) => <tr key={row.submissionCode}><td data-label="ลำดับ"><b>{row.rank.toLocaleString("th-TH")}</b></td><td data-label="ผลงาน"><b>{row.submissionTitle}</b><small>{row.submissionCode}</small></td><td data-label="รอบที่ 1 × 40%">{displayScore(row.weightedRound1)}</td><td data-label="รอบที่ 2 × 60%">{displayScore(row.weightedPresentation)}</td><td data-label="รวม"><strong>{displayScore(row.finalScore)}</strong></td><td data-label="กรรมการ">{row.judgeCount}/{profiles.length}</td></tr>)}</tbody></table></div>}</div>
   </section>;
 }
 
 function displayScore(value: number | null) {
   return value === null ? "-" : value.toFixed(2);
+}
+
+function formatVersionDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" });
 }

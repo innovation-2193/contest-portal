@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Download, Eye, FileSpreadsheet, Mail, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { Download, Eye, FileSpreadsheet, FileText, Mail, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
@@ -99,7 +99,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
             </div>
           </form>
         </details>
-        <ParticipantRoleTabs activeRole={participantRole} basePath="/admin/participants" counts={participantRoleCounts} query={{ q, ...(isUciWorkspace ? { from: "uci" } : {}) }} />
+        <div className="participant-role-toolbar"><ParticipantRoleTabs activeRole={participantRole} basePath="/admin/participants" counts={participantRoleCounts} query={{ q, ...(isUciWorkspace ? { from: "uci" } : {}) }} /><Link className="secondary participant-role-export" href={participantExportHref(participantRole)}><FileText/>Export PDF {participantRole === "all" ? "ทั้งหมด" : participantRole}</Link></div>
         <form className="audit-filter-form" method="get">
           {isUciWorkspace && <input type="hidden" name="from" value="uci"/>}
           {participantRole !== "all" && <input type="hidden" name="participantRole" value={participantRole}/>}
@@ -373,6 +373,10 @@ function participantsClearHref(role: string, from = "") {
   if (role !== "all") params.set("participantRole", role);
   if (from) params.set("from", from);
   return params.toString() ? `/admin/participants?${params.toString()}` : "/admin/participants";
+}
+
+function participantExportHref(role: string) {
+  return role === "all" ? "/api/admin/participants/export" : `/api/admin/participants/export?role=${encodeURIComponent(role)}`;
 }
 
 function participantBulkErrorPath(message: string) {

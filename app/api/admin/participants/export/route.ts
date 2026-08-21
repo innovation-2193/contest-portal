@@ -5,7 +5,7 @@ import { actorFromAdminSession, recordAuditEvent } from "../../../../../lib/audi
 import { cookieName, getAdminSession } from "../../../../../lib/admin-auth";
 import { adminUnauthorizedResponse } from "../../../../../lib/admin-api-response";
 import { listParticipants } from "../../../../../lib/admin-store";
-import type { RegistrationRecord } from "../../../../../lib/local-registrations";
+import { participantRoles, type ParticipantRole, type RegistrationRecord } from "../../../../../lib/local-registrations";
 import {
   drawDocumentFooter,
   drawDocumentHeader,
@@ -31,25 +31,29 @@ export async function GET(request: Request) {
     return adminUnauthorizedResponse(request);
   }
 
-  const participants = await listParticipants();
+  const requestedRole = new URL(request.url).searchParams.get("role")?.trim() || "";
+  if (requestedRole && !participantRoles.includes(requestedRole as ParticipantRole)) {
+    return NextResponse.json({ ok: false, message: "Role ไม่ถูกต้อง" }, { status: 400 });
+  }
+  const participants = (await listParticipants()).filter((participant) => !requestedRole || participant.participant_role === requestedRole);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "registration.export_pdf",
     entityType: "registration",
-    summary: "Export รายชื่อผู้เข้าร่วมงานเป็น PDF",
-    payload: { count: participants.length },
+    summary: `Export รายชื่อผู้เข้าร่วมงานเป็น PDF${requestedRole ? ` Role ${requestedRole}` : ""}`,
+    payload: { count: participants.length, role: requestedRole || "all" },
   }, request.headers);
-  const pdf = await participantsPdf(participants);
+  const pdf = await participantsPdf(participants, requestedRole);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="participants-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      "Content-Disposition": `attachment; filename="participants${requestedRole ? `-${requestedRole.toLowerCase()}` : ""}-${new Date().toISOString().slice(0, 10)}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });
 }
 
-async function participantsPdf(participants: RegistrationRecord[]) {
+async function participantsPdf(participants: RegistrationRecord[], role = "") {
   const pageHeight = Math.max(595.28, 190 + participants.length * 46 + 76);
   const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
   const pdf = collectPdf(doc);
@@ -68,7 +72,7 @@ async function participantsPdf(participants: RegistrationRecord[]) {
   ] as const;
   const rowHeight = 42;
   const tableX = 26;
-  let y = drawPageHeader(doc, participants, generatedAt, reportFonts);
+  let y = drawPageHeader(doc, participants, generatedAt, reportFonts, role);
   drawTableHeader(doc, tableX, y, columns, reportFonts);
   y += 30;
 
@@ -99,6 +103,7 @@ function drawPageHeader(
   participants: RegistrationRecord[],
   generatedAt: Date,
   fonts: PdfFontSet,
+  role: string,
 ) {
   const attended = participants.filter((item) => item.status === "attended").length;
   const cancelled = participants.filter((item) => item.status === "cancelled").length;
@@ -106,8 +111,8 @@ function drawPageHeader(
 
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
-    title: "รายชื่อผู้เข้าร่วมงาน",
-    subtitle: `ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
+    title: `รายชื่อผู้เข้าร่วมงาน${role ? ` Role ${role}` : ""}`,
+    subtitle: `${role ? `เฉพาะ Role ${role} • ` : ""}ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     metaLabel: "จำนวนทั้งหมด",
     metaValue: `${participants.length} รายการ`,
     showLogo: false,

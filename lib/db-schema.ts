@@ -46,6 +46,7 @@ async function runSchemaRepair() {
   try {
     await ensurePresentationScoresTable();
     await ensurePresentationJudgeProfilesTable();
+    await ensurePresentationScoreReportVersionsTable();
   } catch (error) {
     console.warn("presentation score schema repair skipped", error);
   }
@@ -393,6 +394,21 @@ async function ensurePresentationJudgeProfilesTable() {
       sort_order INT UNSIGNED NOT NULL DEFAULT 1,
       updated_by_email VARCHAR(255) NOT NULL,
       updated_at VARCHAR(40) NOT NULL
+    ) ENGINE=InnoDB
+  `);
+}
+
+async function ensurePresentationScoreReportVersionsTable() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS presentation_score_report_versions (
+      id CHAR(36) PRIMARY KEY,
+      version_no INT UNSIGNED NOT NULL,
+      source_file_name VARCHAR(255) NOT NULL,
+      created_by_email VARCHAR(255) NOT NULL,
+      created_at VARCHAR(40) NOT NULL,
+      rows_json LONGTEXT NOT NULL,
+      UNIQUE KEY uq_presentation_score_report_version (version_no),
+      INDEX idx_presentation_score_report_created (created_at)
     ) ENGINE=InnoDB
   `);
 }

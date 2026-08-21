@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, CheckCircle2, ClipboardCheck, UserPlus } from "lucide-react";
+import { PageHero } from "../../../components/SiteChrome";
 import { checkInParticipant, createParticipant } from "../../../lib/admin-store";
 import { recordAuditEvent } from "../../../lib/audit-log";
 import type { ParticipantRole } from "../../../lib/local-registrations";
@@ -17,33 +18,34 @@ export default async function UciWalkInPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const successCode = params.success === "1" ? String(params.code ?? "").trim() : "";
 
-  return <div className="admin-page">
-    <div className="wide">
-      <div className="admin-topline">
-        <div>
-          <span className="eyebrow">Walk-in Registration</span>
-          <h1>ลงทะเบียนผู้เข้าร่วมงานหน้างาน</h1>
-          <p>กรอกข้อมูลผู้ที่มาร่วมงานแบบ Walk-in ระบบจะลงทะเบียนและเช็คอินเข้าร่วมงานให้ทันที</p>
-        </div>
-        <div className="admin-actions"><Link className="secondary" href="/"><ArrowLeft/>กลับหน้าหลัก</Link></div>
-      </div>
-
+  return <>
+    <PageHero
+      eyebrow="ON-SITE CHECK-IN"
+      title="ลงทะเบียนผู้เข้าร่วมงาน Walk-in"
+      description="กรอกข้อมูลผู้ที่มาร่วมงานแบบ Walk-in ระบบจะลงทะเบียนและเช็คอินเข้าร่วมงานให้ทันที"
+    />
+    <section className="wide page-body walkin-page-body">
+      <div className="walkin-page-actions"><Link className="secondary" href="/"><ArrowLeft/>กลับหน้าหลัก</Link></div>
       {params.error && <div className="admin-login-alert warning">{params.error}</div>}
-      {successCode && <section className="admin-panel walkin-success-panel">
+      {successCode && <section className="success-card walkin-success-panel">
         <div className="walkin-success-icon"><CheckCircle2/></div>
         <div>
           <span className="eyebrow">Check-in Completed</span>
           <h2>ลงทะเบียนและเช็คอินสำเร็จ</h2>
           <p>รหัสลงทะเบียนของคุณคือ <strong>{successCode}</strong> และระบบบันทึกสถานะเป็น “เข้าร่วมงานแล้ว” เรียบร้อยแล้ว</p>
         </div>
-        <div className="admin-actions"><Link className="secondary" href="/profile/login">ดู QR Code ของฉัน</Link><Link className="primary" href="/uci/walk-in"><UserPlus/>ลงทะเบียนคนถัดไป</Link></div>
+        <div className="walkin-success-actions"><Link className="secondary" href="/profile/login">ดู QR Code ของฉัน</Link><Link className="primary" href="/uci/walk-in"><UserPlus/>ลงทะเบียนคนถัดไป</Link></div>
       </section>}
 
-      <section className="admin-panel uci-participants-panel walkin-registration-panel">
-        <header className="admin-section-head"><UserPlus/><div><span className="eyebrow">On-site Check-in</span><h2>ข้อมูลผู้เข้าร่วม Walk-in</h2><p>ทุกช่องที่มีเครื่องหมาย * ต้องกรอกให้ครบ ระบบจะเช็คอินทันทีหลังบันทึกสำเร็จ</p></div></header>
-        <form action={registerWalkInAction} className="admin-form admin-participant-detail-form participant-create-form">
+      <div className="walkin-form-layout">
+        <form action={registerWalkInAction} className="form-card registration-form walkin-registration-form">
+          <div className="form-heading">
+            <span>ข้อมูลผู้เข้าร่วม</span>
+            <h2>ลงทะเบียน Walk-in</h2>
+            <p>ทุกช่องที่มีเครื่องหมาย * ต้องกรอกให้ครบ ระบบจะเช็คอินทันทีหลังบันทึกสำเร็จ</p>
+          </div>
           <div className="walkin-form-note"><ClipboardCheck/><span>ตรวจสอบชื่อและข้อมูลให้ถูกต้องก่อนกดปุ่ม เพราะเมื่อบันทึกแล้วระบบจะถือว่าเข้าร่วมงานและนับเป็นผู้เช็คอินทันที</span></div>
-          <div className="form-grid compact-grid">
+          <div className="form-grid">
             <label>อีเมล *<input type="email" name="email" required placeholder="name@example.com" autoFocus/></label>
             <label>คำนำหน้า *<input name="title" required placeholder="เช่น นาย / นาง / พ.ต.อ."/></label>
             <label>ชื่อ *<input name="firstName" required/></label>
@@ -55,12 +57,16 @@ export default async function UciWalkInPage({ searchParams }: { searchParams: Pr
             <label>สังกัด / กองบังคับการ *<input name="division" required placeholder="เช่น หน่วยงาน / ฝ่าย / กองบังคับการ"/></label>
             <label>กองบัญชาการ / หน่วยงาน *<input name="bureau" required placeholder="ชื่อหน่วยงานหรือสังกัดหลัก"/></label>
           </div>
-          <label className="walkin-consent-check"><input type="checkbox" name="consentPdpa" value="true" required/> ข้าพเจ้ายินยอมให้โครงการเก็บ ใช้ และประมวลผลข้อมูลส่วนบุคคลตาม <Link href="/privacy" target="_blank">นโยบายความเป็นส่วนตัว</Link></label>
-          <button className="primary walkin-submit-button" type="submit"><CheckCircle2/>ลงทะเบียนและเช็คอินทันที</button>
+          <label className="consent walkin-consent"><input type="checkbox" name="consentPdpa" value="true" required/><span>ข้าพเจ้ายินยอมให้โครงการเก็บ ใช้ และประมวลผลข้อมูลส่วนบุคคลตาม <Link href="/privacy" target="_blank">นโยบายความเป็นส่วนตัว</Link></span></label>
+          <button className="primary submit walkin-submit-button" type="submit"><CheckCircle2/>ลงทะเบียนและเช็คอินทันที</button>
         </form>
-      </section>
-    </div>
-  </div>;
+        <aside className="side-notes walkin-side-notes">
+          <section><h3>หลังลงทะเบียน</h3><p>ระบบจะเช็คอินให้ทันที และสามารถเปิดดู QR Code ของผู้เข้าร่วมได้จากหน้าโปรไฟล์</p></section>
+          <section><h3>ตรวจสอบข้อมูลก่อนยืนยัน</h3><p>การลงทะเบียน Walk-in จะถูกนับเป็นผู้เข้าร่วมงานทันที กรุณาตรวจสอบชื่อ เลขบัตรประชาชน และ Role ให้ถูกต้อง</p></section>
+        </aside>
+      </div>
+    </section>
+  </>;
 }
 
 async function registerWalkInAction(formData: FormData) {

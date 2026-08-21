@@ -6689,6 +6689,28 @@ body:has(.prelander-page)::before {
   scrollbar-width: thin;
 }
 
+.participant-role-toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+}
+
+.participant-role-toolbar .participant-role-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.participant-role-export {
+  flex: 0 0 auto;
+  min-height: 56px;
+  justify-content: center;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
 .participant-role-tabs::-webkit-scrollbar {
   height: 9px;
 }
@@ -11058,8 +11080,29 @@ body:has(.prelander-page)::before {
   border-bottom: 1px solid rgba(83, 194, 255, 0.34);
 }
 
-.walkin-registration-panel {
-  overflow: hidden;
+.walkin-page-body {
+  padding-top: 34px;
+}
+
+.walkin-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+}
+
+.walkin-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 28px;
+  align-items: start;
+}
+
+.walkin-registration-form {
+  min-width: 0;
+}
+
+.walkin-registration-form .form-grid {
+  margin: 24px 0;
 }
 
 .walkin-success-panel {
@@ -11097,6 +11140,14 @@ body:has(.prelander-page)::before {
   color: #b8f0d0;
 }
 
+.walkin-success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
 .walkin-form-note {
   display: flex;
   align-items: flex-start;
@@ -11124,23 +11175,7 @@ body:has(.prelander-page)::before {
   font-size: 18px;
 }
 
-.walkin-consent-check {
-  display: flex !important;
-  align-items: flex-start;
-  gap: 10px !important;
-  color: #ccefff;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.walkin-consent-check input {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  margin-top: 3px;
-}
-
-.walkin-consent-check a {
+.walkin-consent a {
   color: #fff0a8;
   font-weight: 800;
 }
@@ -11217,13 +11252,22 @@ body:has(.prelander-page)::before {
 }
 
 @media (max-width: 820px) {
+  .walkin-form-layout {
+    grid-template-columns: 1fr;
+  }
+
   .walkin-success-panel {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .walkin-success-panel .admin-actions {
+  .walkin-success-actions {
     grid-column: 1 / -1;
     justify-content: stretch;
+  }
+
+  .walkin-success-actions > * {
+    flex: 1 1 0;
+    justify-content: center;
   }
 }
 
@@ -19836,6 +19880,15 @@ footer {
 }
 
 @media (max-width: 820px) {
+  .participant-role-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .participant-role-export {
+    width: 100%;
+  }
+
   .participant-profile-content {
     grid-template-columns: 1fr;
   }

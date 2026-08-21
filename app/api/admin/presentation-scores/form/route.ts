@@ -223,7 +223,7 @@ function drawTableColumns(doc: PDFKit.PDFDocument, x: number, y: number, height:
 function drawWeightedBoxes(doc: PDFKit.PDFDocument, weighted: { average: number | null; weighted: number | null }, x: number, y: number) {
   const gap = 10;
   const width = (tableWidth - gap * 2) / 3;
-  drawBox(doc, x, y, width, 50, "คะแนนรอบที่ 1 (เฉลี่ย)", weighted.average === null ? "- / 100" : `${weighted.average.toFixed(2)} / 100`);
+  drawBox(doc, x, y, width, 50, "คะแนนรอบที่ 1", weighted.average === null ? "- / 100" : `${weighted.average.toFixed(2)} / 100`);
   drawBox(doc, x + width + gap, y, width, 50, "คะแนนรอบที่ 1 × 40%", weighted.weighted === null ? "-" : `${weighted.weighted.toFixed(2)} คะแนน`);
   drawBox(doc, x + (width + gap) * 2, y, width, 50, "คะแนนรอบที่ 2 × 60%", "________________");
   doc.rect(x, y + 60, tableWidth, 50).fillAndStroke(PRINT.white, PRINT.line);

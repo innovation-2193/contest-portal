@@ -6,8 +6,10 @@ import { listCommitteeScoreRecords } from "../../../../../lib/committee-score-st
 import { listSubmissions, listWinners } from "../../../../../lib/admin-store";
 import { selectPresentationSubmissions } from "../../../../../lib/presentation-score-utils";
 import { buildPresentationScoreboard, listPresentationJudgeProfiles, listPresentationScoreRecords } from "../../../../../lib/presentation-score-store";
-import { drawDocumentFooter, formatPdfThaiDateTime, pdfFontBold, pdfFontRegular, type PdfFontSet } from "../../../../../lib/pdf-theme";
+import { drawDocumentFooter, drawDocumentHeader, formatPdfThaiDateTime, PDF_THEME, pdfFontBold, pdfFontRegular, type PdfFontSet } from "../../../../../lib/pdf-theme";
+import { drawPdfKitIpWatermark, exportWatermarkFromRequest, type PdfExportWatermark } from "../../../../../lib/pdf-watermark";
 import { formatApplicantName } from "../../../../../lib/thai-rank-title";
+import { findPresentationScoreReportVersion } from "../../../../../lib/presentation-score-report-versions";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,10 @@ type PresentationReportRow = Awaited<ReturnType<typeof buildPresentationScoreboa
 export async function GET(request: Request) {
   const session = requireSuperAdminRequest(request);
   if (!session) return NextResponse.json({ ok: false, message: "unauthorized" }, { status: 401 });
+  const watermark = exportWatermarkFromRequest(request);
+  const versionId = new URL(request.url).searchParams.get("versionId")?.trim() || "";
+  const version = versionId ? await findPresentationScoreReportVersion(versionId) : null;
+  if (versionId && !version) return NextResponse.json({ ok: false, message: "ไม่พบ Version รายงานคะแนนรอบที่ 2" }, { status: 404 });
   const [submissions, winners, profiles, records, round1Records] = await Promise.all([
     listSubmissions(),
     listWinners(),
@@ -27,7 +33,9 @@ export async function GET(request: Request) {
   ]);
   const finalists = selectPresentationSubmissions(submissions, winners);
   const finalistCodes = new Set(finalists.map((item) => item.submission_code));
-  const scoreRows = await buildPresentationScoreboard(finalists, records.filter((record) => finalistCodes.has(record.submissionCode)), profiles, round1Records);
+  const scoreRows = version
+    ? version.rows
+    : await buildPresentationScoreboard(finalists, records.filter((record) => finalistCodes.has(record.submissionCode)), profiles, round1Records);
   const finalistsByCode = new Map(finalists.map((submission) => [submission.submission_code, submission]));
   const rows = scoreRows.map((row) => {
     const submission = finalistsByCode.get(row.submissionCode);
@@ -38,36 +46,39 @@ export async function GET(request: Request) {
       affiliation: submission ? [submission.division, submission.bureau].filter(Boolean).join(" / ") || "-" : "-",
     };
   });
-  const pdf = await buildPdf(rows, profiles.length);
+  const pdf = await buildPdf(rows, profiles.length, version?.version, watermark);
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "presentation_score.report_pdf",
     entityType: "presentation_score",
-    summary: "Export PDF รายงานคะแนนรอบที่ 2 พร้อม Weight",
-    payload: { finalists: rows.length, judges: profiles.length },
+    summary: `Export PDF รายงานคะแนนรอบที่ 2 พร้อม Weight${version ? ` Version ${version.version}` : ""}`,
+    payload: { finalists: rows.length, judges: profiles.length, reportVersion: version?.version ?? null },
   }, request.headers);
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="presentation-score-report-round-2-${new Date().toISOString().slice(0, 10)}.pdf"`,
+      "Content-Disposition": `attachment; filename="presentation-score-report-round-2${version ? `-v${version.version}` : ""}-${new Date().toISOString().slice(0, 10)}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });
 }
 
-export async function buildPdf(rows: PresentationReportRow[], judgeCount: number) {
+export async function buildPdf(rows: PresentationReportRow[], judgeCount: number, reportVersion?: number, watermark?: PdfExportWatermark) {
+  // Keep this report on a standard A4 landscape page so the weighted-score
+  // table remains readable when printed or attached to an official report.
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
-  const perPage = 6;
+  const perPage = 5;
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
   for (let page = 0; page < pages; page += 1) {
     if (page) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
     const pageRows = rows.slice(page * perPage, page * perPage + perPage);
     doc.rect(0, 0, doc.page.width, doc.page.height).fill(PRINT.white);
-    drawReportHeader(doc, judgeCount);
-    drawTableHeader(doc, 28, 104);
-    pageRows.forEach((row, index) => drawTableRow(doc, row, 136 + index * 68, index));
-    drawDocumentFooter(doc, page + 1, pages, "รายงานคะแนนรอบที่ 2 • Weight 40/60", fonts);
+    drawReportHeader(doc, judgeCount, reportVersion);
+    drawTableHeader(doc, 28, 124);
+    pageRows.forEach((row, index) => drawTableRow(doc, row, 156 + index * 68, index));
+    drawDocumentFooter(doc, page + 1, pages, `รายงานคะแนนรอบที่ 2 • Weight 40/60${reportVersion ? ` • Version ${reportVersion}` : ""}`, fonts);
+    if (watermark) drawPdfKitIpWatermark(doc, watermark);
   }
   doc.info.Title = "รายงานคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)";
   doc.info.Subject = "Weighted presentation score report";
@@ -76,16 +87,13 @@ export async function buildPdf(rows: PresentationReportRow[], judgeCount: number
   return pdf;
 }
 
-function drawReportHeader(doc: PDFKit.PDFDocument, judgeCount: number) {
-  const width = doc.page.width - 56;
-  doc.font(fonts.bold).fontSize(18).fillColor(PRINT.black).text("รายงานคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)", 28, 24, { width, align: "center", lineBreak: false });
-  doc.font(fonts.regular).fontSize(9.2).fillColor(PRINT.text).text(
-    `คะแนนรวม = (คะแนนรอบที่ 1 × 40%) + (คะแนนรอบที่ 2 × 60%) • กรรมการ ${judgeCount.toLocaleString("th-TH")} คน • ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
-    28,
-    52,
-    { width, align: "center", lineBreak: false },
-  );
-  doc.moveTo(28, 78).lineTo(doc.page.width - 28, 78).lineWidth(0.8).stroke(PRINT.line);
+function drawReportHeader(doc: PDFKit.PDFDocument, judgeCount: number, reportVersion?: number) {
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
+  drawDocumentHeader(doc, {
+    title: "รายงานคะแนนประกวดนวัตกรรม รอบที่ 2 (Presentation)",
+    subtitle: `${reportVersion ? `Version ${reportVersion} • ` : ""}คะแนนรวม = (คะแนนรอบที่ 1 × 40%) + (คะแนนรอบที่ 2 × 60%) • กรรมการ ${judgeCount.toLocaleString("th-TH")} คน • ออกรายงานเมื่อ ${formatPdfThaiDateTime(new Date())}`,
+    fonts,
+  });
 }
 
 function drawTableHeader(doc: PDFKit.PDFDocument, x: number, y: number) {
