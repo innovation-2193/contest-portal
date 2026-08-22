@@ -43,11 +43,11 @@ export async function buildUciBoothOverviewPdf(booths: EventBoothRecord[]) {
 }
 
 export async function buildUciBoothLabelsPdf(booths: EventBoothRecord[]) {
-  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: false });
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: false });
   const pdf = collectPdf(doc);
   const rows = booths.length ? booths : [null];
   rows.forEach((booth, index) => {
-    if (index) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
+    if (index) doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
     drawLabelPage(doc, booth, index + 1, rows.length);
   });
   doc.info.Title = "ป้ายประจำบูธแสดงผลงาน";
@@ -146,32 +146,37 @@ function drawOverviewPage(doc: PDFKit.PDFDocument, booths: EventBoothRecord[], p
 function drawLabelPage(doc: PDFKit.PDFDocument, booth: EventBoothRecord | null, page: number, total: number) {
   const width = doc.page.width;
   const height = doc.page.height;
+  const outer = 18;
+  const middle = 26;
+  const panel = 34;
+  const panelWidth = width - panel * 2;
+  const panelHeight = height - panel * 2;
   doc.rect(0, 0, width, height).fill(PDF_THEME.navy);
-  doc.roundedRect(22, 22, width - 44, height - 44, 16).lineWidth(2).stroke(PDF_THEME.gold);
-  doc.roundedRect(31, 31, width - 62, height - 62, 12).lineWidth(0.7).stroke("#6b5a25");
-  doc.roundedRect(42, 42, width - 84, height - 84, 10).fill("#fbfaf4");
+  doc.roundedRect(outer, outer, width - outer * 2, height - outer * 2, 16).lineWidth(2).stroke(PDF_THEME.gold);
+  doc.roundedRect(middle, middle, width - middle * 2, height - middle * 2, 12).lineWidth(0.7).stroke("#6b5a25");
+  doc.roundedRect(panel, panel, panelWidth, panelHeight, 10).fill("#fbfaf4");
   doc.save();
-  doc.roundedRect(42, 42, width - 84, height - 84, 10).clip();
-  doc.rect(42, 42, width - 84, 102).fill(PDF_THEME.navyLight);
-  doc.rect(42, 139, width - 84, 5).fill(PDF_THEME.gold);
+  doc.roundedRect(panel, panel, panelWidth, panelHeight, 10).clip();
+  doc.rect(panel, panel, panelWidth, 156).fill(PDF_THEME.navyLight);
+  doc.rect(panel, 189, panelWidth, 5).fill(PDF_THEME.gold);
   doc.restore();
   if (!booth) { drawEmpty(doc, "ยังไม่มีข้อมูลบูธแสดงผลงาน"); return; }
-  doc.image(pdfLogo, 66, 57, { fit: [72, 72], align: "center", valign: "center" });
-  doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("POLICE INNOVATION CONTEST 2026", 152, 61, { width: width - 218, align: "left", characterSpacing: 1, lineBreak: false });
-  doc.font(fonts.bold).fontSize(27).fillColor(PDF_THEME.white).text("ป้ายประจำบูธแสดงผลงาน", 152, 82, { width: width - 218, align: "left", lineBreak: false });
-  doc.roundedRect(width - 166, 57, 92, 58, 10).fillAndStroke("#101d36", PDF_THEME.gold);
-  doc.font(fonts.regular).fontSize(8).fillColor("#cbd5e4").text("หมายเลขบูธ", width - 154, 68, { width: 68, align: "center", lineBreak: false });
-  doc.font(fonts.bold).fontSize(23).fillColor(PDF_THEME.goldSoft).text(page.toLocaleString("th-TH"), width - 154, 83, { width: 68, align: "center", lineBreak: false });
-  doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("หน่วยงานผู้จัดแสดง", 76, 174, { width: width - 152, align: "center", characterSpacing: 0.3, lineBreak: false });
-  doc.font(fonts.bold).fontSize(24).fillColor(PDF_THEME.navy).text(booth.organizationName, 76, 199, { width: width - 152, height: 66, align: "center", ellipsis: true });
-  doc.moveTo(96, 276).lineTo(width - 96, 276).lineWidth(1.3).stroke(PDF_THEME.gold);
-  doc.font(fonts.regular).fontSize(9).fillColor(PDF_THEME.muted).text("ชื่อบูธ / ผลงานที่จัดแสดง", 76, 294, { width: width - 152, align: "center", lineBreak: false });
-  doc.font(fonts.bold).fontSize(25).fillColor(PDF_THEME.text).text(value(booth.workTitle, "รอระบุชื่อบูธ"), 76, 322, { width: width - 152, height: 78, align: "center", ellipsis: true });
-  doc.roundedRect(88, 418, width - 176, 90, 10).fillAndStroke("#f1ead2", "#cfad36");
-  doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.navy).text("ผู้ติดต่อหลักประจำบูธ", 108, 433, { width: width - 216, align: "center", lineBreak: false });
-  doc.font(fonts.bold).fontSize(16).fillColor(PDF_THEME.text).text(value(booth.contactName, "รอระบุผู้ติดต่อหลัก"), 108, 457, { width: width - 216, align: "center", lineBreak: false });
-  doc.font(fonts.regular).fontSize(10).fillColor(PDF_THEME.muted).text(booth.contactPhone || "ไม่พบเบอร์ติดต่อ", 108, 483, { width: width - 216, align: "center", lineBreak: false });
-  doc.font(fonts.regular).fontSize(7.5).fillColor("#9a8854").text(`POLICE INNOVATION CONTEST 2026 • ${page} / ${total}`, 58, 536, { width: width - 116, align: "center", characterSpacing: 0.8, lineBreak: false });
+  doc.image(pdfLogo, 58, 56, { fit: [78, 78], align: "center", valign: "center" });
+  doc.font(fonts.bold).fontSize(9.5).fillColor(PDF_THEME.gold).text("POLICE INNOVATION CONTEST 2026", 148, 59, { width: 274, align: "left", characterSpacing: 0.8, lineBreak: false });
+  doc.font(fonts.bold).fontSize(22).fillColor(PDF_THEME.white).text("ป้ายประจำบูธแสดงผลงาน", 148, 82, { width: 274, height: 56, align: "left", lineGap: 1, ellipsis: true });
+  doc.roundedRect(width - 134, 56, 96, 66, 10).fillAndStroke("#101d36", PDF_THEME.gold);
+  doc.font(fonts.regular).fontSize(8).fillColor("#cbd5e4").text("หมายเลขบูธ", width - 124, 68, { width: 76, align: "center", lineBreak: false });
+  doc.font(fonts.bold).fontSize(23).fillColor(PDF_THEME.goldSoft).text(page.toLocaleString("th-TH"), width - 124, 86, { width: 76, align: "center", lineBreak: false });
+  doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("หน่วยงานผู้จัดแสดง", 58, 220, { width: width - 116, align: "center", characterSpacing: 0.3, lineBreak: false });
+  doc.font(fonts.bold).fontSize(21).fillColor(PDF_THEME.navy).text(booth.organizationName, 58, 247, { width: width - 116, height: 76, align: "center", ellipsis: true });
+  doc.moveTo(64, 344).lineTo(width - 64, 344).lineWidth(1.3).stroke(PDF_THEME.gold);
+  doc.font(fonts.regular).fontSize(9).fillColor(PDF_THEME.muted).text("ชื่อบูธ / ผลงานที่จัดแสดง", 58, 363, { width: width - 116, align: "center", lineBreak: false });
+  doc.font(fonts.bold).fontSize(20).fillColor(PDF_THEME.text).text(value(booth.workTitle, "รอระบุชื่อบูธ"), 58, 392, { width: width - 116, height: 142, align: "center", lineGap: 2, ellipsis: true });
+  doc.roundedRect(60, 575, width - 120, 130, 10).fillAndStroke("#f1ead2", "#cfad36");
+  doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.navy).text("ผู้ติดต่อหลักประจำบูธ", 80, 594, { width: width - 160, align: "center", lineBreak: false });
+  doc.font(fonts.bold).fontSize(15).fillColor(PDF_THEME.text).text(value(booth.contactName, "รอระบุผู้ติดต่อหลัก"), 80, 620, { width: width - 160, height: 25, align: "center", ellipsis: true, lineBreak: false });
+  doc.font(fonts.regular).fontSize(10).fillColor(PDF_THEME.muted).text(booth.contactPhone || "ไม่พบเบอร์ติดต่อ", 80, 657, { width: width - 160, align: "center", lineBreak: false });
+  doc.font(fonts.regular).fontSize(7.5).fillColor("#9a8854").text(`POLICE INNOVATION CONTEST 2026 • ${page} / ${total}`, 48, height - 59, { width: width - 96, align: "center", characterSpacing: 0.8, lineBreak: false });
 }
 
 function drawImagePlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) { doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.paleBlue, PDF_THEME.line); doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.muted).text("ยังไม่ได้อัปโหลดรูปภาพประกอบ", x, y + height / 2 - 7, { width, align: "center", lineBreak: false }); }
