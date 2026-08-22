@@ -170,8 +170,9 @@ function drawLabelPage(doc: PDFKit.PDFDocument, booth: EventBoothRecord | null, 
   doc.font(fonts.bold).fontSize(10).fillColor(PDF_THEME.gold).text("หน่วยงานผู้จัดแสดง", 58, 220, { width: width - 116, align: "center", characterSpacing: 0.3, lineBreak: false });
   doc.font(fonts.bold).fontSize(21).fillColor(PDF_THEME.navy).text(booth.organizationName, 58, 247, { width: width - 116, height: 76, align: "center", ellipsis: true });
   doc.moveTo(64, 344).lineTo(width - 64, 344).lineWidth(1.3).stroke(PDF_THEME.gold);
-  doc.font(fonts.regular).fontSize(9).fillColor(PDF_THEME.muted).text("ชื่อบูธ / ผลงานที่จัดแสดง", 58, 363, { width: width - 116, align: "center", lineBreak: false });
-  doc.font(fonts.bold).fontSize(20).fillColor(PDF_THEME.text).text(value(booth.workTitle, "รอระบุชื่อบูธ"), 58, 392, { width: width - 116, height: 142, align: "center", lineGap: 2, ellipsis: true });
+  doc.font(fonts.regular).fontSize(10).fillColor(PDF_THEME.muted).text("ชื่อบูธ / ผลงานที่จัดแสดง", 58, 363, { width: width - 116, align: "center", lineBreak: false });
+  const workTitle = fitThaiText(doc, fonts.bold, value(booth.workTitle, "รอระบุชื่อบูธ"), width - 116, 142, 22, 17);
+  doc.font(fonts.bold).fontSize(workTitle.fontSize).fillColor(PDF_THEME.text).text(workTitle.text, 58, 392, { width: width - 116, height: 142, align: "center", lineGap: 2, lineBreak: true });
   doc.roundedRect(60, 575, width - 120, 130, 10).fillAndStroke("#f1ead2", "#cfad36");
   doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.navy).text("ผู้ติดต่อหลักประจำบูธ", 80, 594, { width: width - 160, align: "center", lineBreak: false });
   doc.font(fonts.bold).fontSize(15).fillColor(PDF_THEME.text).text(value(booth.contactName, "รอระบุผู้ติดต่อหลัก"), 80, 620, { width: width - 160, height: 25, align: "center", ellipsis: true, lineBreak: false });
@@ -181,5 +182,32 @@ function drawLabelPage(doc: PDFKit.PDFDocument, booth: EventBoothRecord | null, 
 
 function drawImagePlaceholder(doc: PDFKit.PDFDocument, x: number, y: number, width: number, height: number) { doc.roundedRect(x, y, width, height, 8).fillAndStroke(PDF_THEME.paleBlue, PDF_THEME.line); doc.font(fonts.bold).fontSize(11).fillColor(PDF_THEME.muted).text("ยังไม่ได้อัปโหลดรูปภาพประกอบ", x, y + height / 2 - 7, { width, align: "center", lineBreak: false }); }
 function drawEmpty(doc: PDFKit.PDFDocument, text: string) { doc.roundedRect(60, 180, doc.page.width - 120, 110, 12).fillAndStroke(PDF_THEME.white, PDF_THEME.line); doc.font(fonts.bold).fontSize(16).fillColor(PDF_THEME.navy).text(text, 80, 224, { width: doc.page.width - 160, align: "center", lineBreak: false }); }
+function fitThaiText(doc: PDFKit.PDFDocument, font: string, text: string, width: number, maxHeight: number, maxFontSize: number, minFontSize: number) {
+  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 0.5) {
+    doc.font(font).fontSize(fontSize);
+    const lines = wrapThaiText(doc, text, width);
+    const renderedText = lines.join("\n");
+    if (doc.heightOfString(renderedText, { width, lineGap: 2 }) <= maxHeight) return { fontSize, text: renderedText };
+  }
+  doc.font(font).fontSize(minFontSize);
+  return { fontSize: minFontSize, text: wrapThaiText(doc, text, width).join("\n") };
+}
+function wrapThaiText(doc: PDFKit.PDFDocument, text: string, width: number) {
+  const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("th", { granularity: "word" }) : null;
+  const segments = segmenter ? Array.from(segmenter.segment(text), ({ segment }) => segment) : Array.from(text);
+  const lines: string[] = [];
+  let current = "";
+  segments.forEach((segment) => {
+    const candidate = current + segment;
+    if (current && doc.widthOfString(candidate) > width) {
+      lines.push(current.trim());
+      current = segment.trimStart();
+    } else {
+      current = candidate;
+    }
+  });
+  if (current.trim()) lines.push(current.trim());
+  return lines.length ? lines : [""];
+}
 function value(input: string, fallback: string) { return input.trim() || fallback; }
 function collectPdf(doc: PDFKit.PDFDocument) { const chunks: Buffer[] = []; return new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); }); }
