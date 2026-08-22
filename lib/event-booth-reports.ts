@@ -172,7 +172,8 @@ function drawLabelPage(doc: PDFKit.PDFDocument, booth: EventBoothRecord | null, 
   doc.moveTo(64, 344).lineTo(width - 64, 344).lineWidth(1.3).stroke(PDF_THEME.gold);
   doc.font(fonts.regular).fontSize(10).fillColor(PDF_THEME.muted).text("ชื่อบูธ / ผลงานที่จัดแสดง", 58, 363, { width: width - 116, align: "center", lineBreak: false });
   const workTitle = fitThaiText(doc, fonts.bold, value(booth.workTitle, "รอระบุชื่อบูธ"), width - 116, 142, 22, 17);
-  doc.font(fonts.bold).fontSize(workTitle.fontSize).fillColor(PDF_THEME.text).text(workTitle.text, 58, 392, { width: width - 116, height: 142, align: "center", lineGap: 2, lineBreak: true });
+  const workTitleY = 392 + Math.max(0, (142 - workTitle.height) / 2);
+  doc.font(fonts.bold).fontSize(workTitle.fontSize).fillColor(PDF_THEME.text).text(workTitle.text, 58, workTitleY, { width: width - 116, height: workTitle.height, align: "center", lineGap: 2, lineBreak: true });
   doc.roundedRect(60, 575, width - 120, 130, 10).fillAndStroke("#f1ead2", "#cfad36");
   doc.font(fonts.bold).fontSize(9).fillColor(PDF_THEME.navy).text("ผู้ติดต่อหลักประจำบูธ", 80, 594, { width: width - 160, align: "center", lineBreak: false });
   doc.font(fonts.bold).fontSize(15).fillColor(PDF_THEME.text).text(value(booth.contactName, "รอระบุผู้ติดต่อหลัก"), 80, 620, { width: width - 160, height: 25, align: "center", ellipsis: true, lineBreak: false });
@@ -187,27 +188,36 @@ function fitThaiText(doc: PDFKit.PDFDocument, font: string, text: string, width:
     doc.font(font).fontSize(fontSize);
     const lines = wrapThaiText(doc, text, width);
     const renderedText = lines.join("\n");
-    if (doc.heightOfString(renderedText, { width, lineGap: 2 }) <= maxHeight) return { fontSize, text: renderedText };
+    const height = doc.heightOfString(renderedText, { width, lineGap: 2 });
+    if (height <= maxHeight) return { fontSize, text: renderedText, height };
   }
   doc.font(font).fontSize(minFontSize);
-  return { fontSize: minFontSize, text: wrapThaiText(doc, text, width).join("\n") };
+  const renderedText = wrapThaiText(doc, text, width).join("\n");
+  return { fontSize: minFontSize, text: renderedText, height: doc.heightOfString(renderedText, { width, lineGap: 2 }) };
 }
 function wrapThaiText(doc: PDFKit.PDFDocument, text: string, width: number) {
   const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("th", { granularity: "word" }) : null;
   const segments = segmenter ? Array.from(segmenter.segment(text), ({ segment }) => segment) : Array.from(text);
-  const lines: string[] = [];
-  let current = "";
+  const lines: string[][] = [[]];
   segments.forEach((segment) => {
-    const candidate = current + segment;
-    if (current && doc.widthOfString(candidate) > width) {
-      lines.push(current.trim());
-      current = segment.trimStart();
+    const current = lines[lines.length - 1];
+    const candidate = current.join("") + segment;
+    if (current.length && doc.widthOfString(candidate) > width) {
+      lines.push([segment.trimStart()]);
     } else {
-      current = candidate;
+      current.push(segment);
     }
   });
-  if (current.trim()) lines.push(current.trim());
-  return lines.length ? lines : [""];
+  while (lines.length > 1 && doc.widthOfString(lines[lines.length - 1].join("")) < width * 0.28) {
+    const previous = lines[lines.length - 2];
+    const last = lines[lines.length - 1];
+    if (previous.length < 2) break;
+    const moved = previous[previous.length - 1];
+    if (!moved || doc.widthOfString(moved + last.join("")) > width) break;
+    previous.pop();
+    last.unshift(moved);
+  }
+  return lines.map((line) => line.join("").trim()).filter(Boolean);
 }
 function value(input: string, fallback: string) { return input.trim() || fallback; }
 function collectPdf(doc: PDFKit.PDFDocument) { const chunks: Buffer[] = []; return new Promise<Buffer>((resolve, reject) => { doc.on("data", (chunk: Buffer) => chunks.push(chunk)); doc.on("end", () => resolve(Buffer.concat(chunks))); doc.on("error", reject); }); }
