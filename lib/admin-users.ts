@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import {
@@ -122,19 +122,21 @@ export async function deleteAdminAccount(id: string) {
 
 export async function createAdminPasswordLink(id: string) {
   const tokenNonce = randomBytes(32).toString("base64url");
-  const expiresAtMs = Date.now() + resetTokenMaxAgeMs;
-  const expiresAt = new Date(expiresAtMs).toISOString();
   let token = "";
+  let expiresAt = "";
   const account = await enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
     const targetIndex = accounts.findIndex((item) => item.id === id.trim());
     if (targetIndex < 0) throw new Error("ไม่พบแอดมิน");
+    const issuedAtMs = Date.now();
+    const expiresAtMs = issuedAtMs + resetTokenMaxAgeMs;
+    expiresAt = new Date(expiresAtMs).toISOString();
     token = createPasswordResetToken(accounts[targetIndex].id, tokenNonce, expiresAtMs);
     accounts[targetIndex] = {
       ...accounts[targetIndex],
       resetTokenHash: createPasswordResetTokenHash(token),
       resetTokenExpiresAt: expiresAt,
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date(issuedAtMs).toISOString(),
     };
     await writeAdminAccounts(accounts);
     return accounts[targetIndex];
@@ -153,11 +155,22 @@ export async function createAdminPasswordLink(id: string) {
 export async function getAdminAccountByResetToken(token: string) {
   const normalizedToken = normalizeResetToken(token);
   const now = Date.now();
-  return (await readAdminAccounts()).find((account) => (
+  const accounts = await readAdminAccounts();
+  const storedAccount = accounts.find((account) => (
     passwordResetTokenMatches(account.resetTokenHash, normalizedToken)
     && isResetTokenActive(account.resetTokenExpiresAt, now)
     && !account.disabled
-  )) ?? null;
+  ));
+  if (storedAccount) return storedAccount;
+
+  // The account store is mounted as persistent storage in production, but a
+  // request can still reach a process with a stale copy during a deploy or
+  // when more than one web instance is running. New tokens are signed, so the
+  // link can be validated safely and the token state can be repaired here.
+  const parsedToken = parsePasswordResetToken(normalizedToken);
+  return parsedToken
+    ? accounts.find((account) => isStatelessResetTokenActive(account, parsedToken, now)) ?? null
+    : null;
 }
 
 export function validateAdminPasswordStrength(password: string) {
@@ -196,9 +209,8 @@ export async function setAdminPasswordByResetToken(token: string, password: stri
   return enqueueWrite(async () => {
     const accounts = await readAdminAccounts();
     const targetIndex = accounts.findIndex((account) => (
-      passwordResetTokenMatches(account.resetTokenHash, normalizedToken)
-      && isResetTokenActive(account.resetTokenExpiresAt)
-      && !account.disabled
+      isStoredResetTokenActive(account, normalizedToken)
+      || isStatelessResetTokenActive(account, parsePasswordResetToken(normalizedToken), Date.now())
     ));
     if (targetIndex < 0) throw new Error("ลิงก์ตั้งรหัสผ่านหมดอายุหรือไม่ถูกต้อง");
     accounts[targetIndex] = {
@@ -306,9 +318,16 @@ function normalizeResetToken(input: string) {
   }
 }
 
+type ParsedPasswordResetToken = {
+  accountId: string;
+  issuedAtMs: number;
+  expiresAtMs: number;
+};
+
 function createPasswordResetToken(accountId: string, nonce: string, expiresAtMs: number) {
-  const payload = `${accountId}.${expiresAtMs}.${nonce}`;
-  const signature = createHash("sha256").update(payload).digest("hex").slice(0, 24);
+  const issuedAtMs = expiresAtMs - resetTokenMaxAgeMs;
+  const payload = `v2.${accountId}.${issuedAtMs}.${expiresAtMs}.${nonce}`;
+  const signature = adminSecureHash(payload, "admin-password-reset-token");
   return `${payload}.${signature}`;
 }
 
@@ -320,6 +339,42 @@ function passwordResetTokenMatches(storedHash: string | null | undefined, token:
   if (!storedHash || !token) return false;
   return storedHash === createPasswordResetTokenHash(token)
     || storedHash === adminSecureHash(token, "admin-password-reset");
+}
+
+function isStoredResetTokenActive(account: AdminAccount, token: string, now = Date.now()) {
+  return passwordResetTokenMatches(account.resetTokenHash, token)
+    && isResetTokenActive(account.resetTokenExpiresAt, now)
+    && !account.disabled;
+}
+
+function parsePasswordResetToken(token: string): ParsedPasswordResetToken | null {
+  const parts = token.split(".");
+  if (parts.length !== 6 || parts[0] !== "v2") return null;
+  const [, accountId, issuedAtText, expiresAtText, nonce, signature] = parts;
+  if (!accountId || !nonce || !/^\d+$/.test(issuedAtText) || !/^\d+$/.test(expiresAtText)) return null;
+  const issuedAtMs = Number(issuedAtText);
+  const expiresAtMs = Number(expiresAtText);
+  if (!Number.isSafeInteger(issuedAtMs) || !Number.isSafeInteger(expiresAtMs) || expiresAtMs <= issuedAtMs) return null;
+  const payload = parts.slice(0, 5).join(".");
+  if (!safeEqualText(signature, adminSecureHash(payload, "admin-password-reset-token"))) return null;
+  return { accountId, issuedAtMs, expiresAtMs };
+}
+
+function isStatelessResetTokenActive(
+  account: AdminAccount,
+  token: ParsedPasswordResetToken | null,
+  now = Date.now(),
+) {
+  if (!token || account.id !== token.accountId || account.disabled) return false;
+  if (token.expiresAtMs <= now || token.issuedAtMs > now + 5 * 60 * 1000) return false;
+  const accountUpdatedAtMs = new Date(account.updatedAt).getTime();
+  return !Number.isFinite(accountUpdatedAtMs) || accountUpdatedAtMs <= token.issuedAtMs;
+}
+
+function safeEqualText(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function isResetTokenActive(expiresAt: string | null | undefined, now = Date.now()) {

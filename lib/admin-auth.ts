@@ -69,6 +69,12 @@ export function adminPassword() {
   return process.env.ADMIN_PASSWORD ?? "";
 }
 
+export function verifyUciPortalCredentials(username: string, password: string) {
+  const expectedUsername = process.env.UCI_PORTAL_USERNAME ?? "admin";
+  const expectedPassword = process.env.UCI_PORTAL_PASSWORD ?? "admin";
+  return safeEqual(passwordHash(username.trim().toLowerCase()), passwordHash(expectedUsername.trim().toLowerCase())) && safeEqual(passwordHash(password), passwordHash(expectedPassword));
+}
+
 export function adminSessionMaxAgeSeconds(role: AdminRole = "admin", remember = false) {
   if (remember) return role === "super_admin" ? rememberedSuperAdminSessionMaxAge : rememberedAdminSessionMaxAge;
   return role === "super_admin" ? superAdminSessionMaxAge : adminSessionMaxAge;

@@ -7,7 +7,7 @@ import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { SecretInput } from "../../components/SecretInput";
 import { UciOnboardingPrompt } from "../../components/UciOnboardingPrompt";
 import { UciVideoCarousel } from "../../components/UciVideoCarousel";
-import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin } from "../../lib/admin-auth";
+import { adminClientKey, adminCookieSecure, adminSessionMaxAgeSeconds, clearAdminLoginFailures, cookieName, getAdminSession, getAdminLoginStatus, recordAdminLoginFailure, createAdminSessionToken, slowFailedAdminLogin, verifyUciPortalCredentials } from "../../lib/admin-auth";
 import { createAdminAccount, createAdminPasswordLink, deleteAdminAccount, findAdminAccountByEmail, findAdminAccountById, listUciAccounts, verifyAdminAccountPassword } from "../../lib/admin-users";
 import { actorFromAdminSession, recordAuditEvent } from "../../lib/audit-log";
 import { getAdminSettings, listParticipants, listParkingReservations, saveAdminSettings } from "../../lib/admin-store";
@@ -42,7 +42,7 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
           {params.login && <div className="admin-login-alert">อีเมลหรือรหัสผ่านไม่ถูกต้อง หรือบัญชีนี้ไม่มีสิทธิ์เข้าหน้าปฏิบัติงาน</div>}
           {params.notice && <div className="admin-login-alert success">{noticeLabel(params.notice)}</div>}
           <form action={uciLoginAction} className="admin-login-card">
-            <label><span>อีเมล UCI หรือ Admin</span><input type="email" name="email" required autoComplete="username" placeholder="name@example.com"/></label>
+            <label><span>ชื่อผู้ใช้ หรืออีเมล UCI / Admin</span><input type="text" name="username" required autoComplete="username" placeholder="admin หรือ name@example.com"/></label>
             <label><span>รหัสผ่าน</span><SecretInput name="password" required autoComplete="current-password"/></label>
             <label className="admin-login-remember"><input type="checkbox" name="remember"/><span>จำการเข้าสู่ระบบไว้ 30 วัน</span></label>
             <button className="primary" type="submit"><LogIn/>เข้าสู่ระบบ UCI หรือ Admin</button>
@@ -124,9 +124,16 @@ async function uciLoginAction(formData: FormData) {
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);
   if (status.locked) { await slowFailedAdminLogin(); redirect("/uci?login=locked"); }
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
   const remember = formData.get("remember") === "on";
-  const account = await verifyAdminAccountPassword(email, String(formData.get("password") ?? ""));
+  if (verifyUciPortalCredentials(username, password)) {
+    await clearAdminLoginFailures(clientKey);
+    cookieStore.set(cookieName, createAdminSessionToken({ email: username, role: "admin", remember }), { httpOnly: true, sameSite: "strict", secure: adminCookieSecure(), path: "/", maxAge: adminSessionMaxAgeSeconds("admin", remember) });
+    await recordAuditEvent({ actor: { type: "admin", email: username }, action: "auth.uci_login", entityType: "auth", summary: `เข้าสู่ระบบ UCI ด้วยบัญชี ${username}` }, requestHeaders);
+    redirect("/uci");
+  }
+  const account = await verifyAdminAccountPassword(username, password);
   if (!account || (account.role !== "uci" && account.role !== "admin")) {
     const failure = await recordAdminLoginFailure(clientKey);
     await slowFailedAdminLogin();
