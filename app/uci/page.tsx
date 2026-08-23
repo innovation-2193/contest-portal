@@ -119,7 +119,6 @@ export default async function UciPage({ searchParams }: { searchParams: Promise<
 async function uciLoginAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
-  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/uci");
   const requestHeaders = await headers();
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);

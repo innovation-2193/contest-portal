@@ -10,6 +10,7 @@ import { SecretInput } from "../../components/SecretInput";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../components/ParticipantRoleTabs";
 import {
   adminOtpAutoFillCookie,
+  adminOtpRequestCookie,
   adminClientKey,
   adminCookieSecure,
   createAdminOtpAutoFillValue,
@@ -822,8 +823,15 @@ function adminParticipantHref(role: string) {
 async function requestOtpAction() {
   "use server";
   const cookieStore = await cookies();
-  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
-  const result = await requestSuperAdminOtp();
+  const requestKey = cookieStore.get(adminOtpRequestCookie)?.value || Buffer.from(`${Date.now()}:${Math.random()}`).toString("base64url");
+  cookieStore.set(adminOtpRequestCookie, requestKey, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: adminCookieSecure(),
+    path: "/",
+    maxAge: 60 * 60 * 24,
+  });
+  const result = await requestSuperAdminOtp({ requestKey });
   if (!result.ok) redirect("/admin?login=otp_wait");
   if (result.autoFillCode) {
     cookieStore.set(adminOtpAutoFillCookie, createAdminOtpAutoFillValue({ purpose: "login", code: result.autoFillCode }), {
@@ -842,7 +850,6 @@ async function requestOtpAction() {
 async function verifyOtpAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
-  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
   const requestHeaders = await headers();
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);
@@ -851,7 +858,10 @@ async function verifyOtpAction(formData: FormData) {
     redirect("/admin?login=locked");
   }
 
-  const ok = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), { purpose: "login" });
+  const ok = await verifySuperAdminOtp(String(formData.get("otp") ?? ""), {
+    purpose: "login",
+    requestKey: cookieStore.get(adminOtpRequestCookie)?.value,
+  });
   if (!ok) {
     const failure = await recordAdminLoginFailure(clientKey);
     await slowFailedAdminLogin();
@@ -860,6 +870,7 @@ async function verifyOtpAction(formData: FormData) {
 
   await clearAdminLoginFailures(clientKey);
   cookieStore.delete(adminOtpAutoFillCookie);
+  cookieStore.delete(adminOtpRequestCookie);
   await setAdminSession({ email: "innovation@police.go.th", role: "super_admin" });
   await recordAuditEvent({
     actor: { type: "super_admin", email: "innovation@police.go.th" },
@@ -873,7 +884,6 @@ async function verifyOtpAction(formData: FormData) {
 async function loginAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
-  if (getAdminSession(cookieStore.get(cookieName)?.value)) redirect("/admin");
   const requestHeaders = await headers();
   const clientKey = adminClientKey(requestHeaders);
   const status = await getAdminLoginStatus(clientKey);

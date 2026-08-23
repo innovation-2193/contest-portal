@@ -45,14 +45,17 @@ export function LuckyDrawWheel({
   const [available, setAvailable] = useState(candidates);
   const [winners, setWinners] = useState(initialWinners);
   const [spinning, setSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
+  const [slotIndex, setSlotIndex] = useState(0);
   const [revealedWinner, setRevealedWinner] = useState<LuckyWinner | null>(null);
   const [error, setError] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const audioContextRef = useRef<AudioContext | null>(null);
   const spinSoundTimersRef = useRef<number[]>([]);
   const nextPrize = [1, 2, 3].find((prize) => !winners.some((winner) => winner.prize === prize)) ?? null;
-  const wheelNames = useMemo(() => available.slice(0, 12), [available]);
+  const slotCandidates = useMemo(() => {
+    if (!available.length) return [];
+    return [-1, 0, 1].map((offset) => available[(slotIndex + offset + available.length) % available.length]);
+  }, [available, slotIndex]);
 
   useEffect(() => {
     setSoundEnabled(window.localStorage.getItem("lucky-draw-sound-enabled") !== "false");
@@ -83,12 +86,20 @@ export function LuckyDrawWheel({
     };
   }, [revealedWinner, router]);
 
+  useEffect(() => {
+    if (!spinning || !available.length) return;
+    const timer = window.setInterval(() => {
+      setSlotIndex((current) => (current + 1) % available.length);
+    }, 86);
+    return () => window.clearInterval(timer);
+  }, [spinning, available.length]);
+
   const draw = async () => {
     if (!nextPrize || spinning || !available.length) return;
     setError("");
     setRevealedWinner(null);
     setSpinning(true);
-    setRotation((current) => current + 2160 + 180 + Math.floor(Math.random() * 280));
+    setSlotIndex(Math.floor(Math.random() * available.length));
     const audioContext = soundEnabled ? getAudioContext(audioContextRef) : null;
     if (audioContext) {
       void audioContext.resume();
@@ -148,22 +159,25 @@ export function LuckyDrawWheel({
       </div>
 
       <div className="lucky-wheel-layout">
-        <div className={spinning ? "lucky-wheel-stage is-spinning" : "lucky-wheel-stage"}>
-          <div className="lucky-wheel-pointer" aria-hidden="true" />
-          <div className="lucky-wheel" style={{ "--wheel-rotation": `${rotation}deg`, "--wheel-label-rotation": `${-rotation}deg` } as CSSProperties}>
-            <div className="lucky-wheel-labels">
-              {wheelNames.map((candidate, index) => (
-                <span
-                  key={candidate.registrationCode}
-                  style={{ "--label-index": index, "--label-count": Math.max(wheelNames.length, 1) } as CSSProperties}
-                >
-                  {candidate.name}
-                </span>
-              ))}
+        <div className={spinning ? "lucky-slot-stage is-spinning" : "lucky-slot-stage"}>
+          <div className="lucky-slot-machine" aria-label="ช่องสุ่มรายชื่อผู้โชคดี">
+            <div className="lucky-slot-brand">
+              <Gift />
+              <span>LUCKY DRAW</span>
+              <small>OFFICIAL SELECTION</small>
             </div>
-            <div className="lucky-wheel-center"><Gift /><small>Lucky Draw</small></div>
+            <div className="lucky-slot-window">
+              <div className="lucky-slot-highlight" aria-hidden="true" />
+              <div className="lucky-slot-reel" aria-live="polite">
+                {slotCandidates.length ? slotCandidates.map((candidate, index) => (
+                  <div className={index === 1 ? "lucky-slot-name is-active" : "lucky-slot-name"} key={`${candidate.registrationCode}-${slotIndex}-${index}`}>
+                    <span>{candidate.name}</span>
+                  </div>
+                )) : <div className="lucky-slot-empty">ไม่มีผู้มีสิทธิ์คงเหลือ</div>}
+              </div>
+            </div>
+            <div className="lucky-slot-caption"><ShieldCheck /><span>{spinning ? `กำลังสุ่มรางวัลที่ ${nextPrize}` : "ระบบพร้อมดำเนินการ"}</span></div>
           </div>
-          {spinning && <div className="lucky-wheel-status"><Sparkles /><b>กำลังจับรางวัลที่ {nextPrize}</b><span>ระบบกำลังสุ่มและล็อกผลลงฐานข้อมูล</span></div>}
         </div>
 
         <aside className="lucky-draw-control">

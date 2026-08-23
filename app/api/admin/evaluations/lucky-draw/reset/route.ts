@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   try {
     result = await resetLuckyDraw(session.email);
   } catch (error) {
+    console.error("lucky draw reset failed", error);
     const code = String((error as { code?: string }).code ?? "");
     const status = code === "NOTHING_TO_RESET" ? "empty" : "error";
     return NextResponse.redirect(publicSiteUrl(`/admin/evaluations?resetOtp=${status}`, request), 303);

@@ -264,6 +264,14 @@ export async function drawLuckyWinner(prize: number, actorEmail: string) {
   if (![1, 2, 3].includes(prize)) throw luckyDrawError("INVALID_PRIZE", "invalid lucky draw prize");
   const email = actorEmail.trim().toLowerCase();
   const now = new Date().toISOString();
+
+  // The local development server intentionally uses the JSON store when MySQL
+  // is not running. Avoid the schema-repair connection attempt in that mode so
+  // the draw button remains usable during local rehearsals.
+  if (process.env.NODE_ENV !== "production") {
+    return drawLocalLuckyWinner(prize, email, now);
+  }
+
   try {
     await ensureDatabaseSchema();
     return transaction(async (connection) => {
@@ -317,7 +325,10 @@ export async function drawLuckyWinner(prize: number, actorEmail: string) {
       return winner;
     });
   } catch (error) {
-    if (!isDatabaseUnavailable(error)) throw error;
+    if (!isDatabaseUnavailable(error)) {
+      console.error("lucky draw database path failed", error);
+      throw error;
+    }
     return drawLocalLuckyWinner(prize, email, now);
   }
 }
@@ -325,6 +336,12 @@ export async function drawLuckyWinner(prize: number, actorEmail: string) {
 export async function resetLuckyDraw(actorEmail: string): Promise<LuckyDrawResetResult> {
   const email = actorEmail.trim().toLowerCase();
   const now = new Date().toISOString();
+
+  // Keep local rehearsals independent from the optional MySQL container.
+  if (process.env.NODE_ENV !== "production") {
+    return resetLocalLuckyDraw();
+  }
+
   try {
     await ensureDatabaseSchema();
     return transaction(async (connection) => {

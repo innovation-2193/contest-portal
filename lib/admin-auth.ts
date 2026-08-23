@@ -1,10 +1,11 @@
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from "crypto";
-import { mkdir, readFile, rename, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import path from "path";
 import { sendAdminMail } from "./admin-mail";
 
 const cookieName = "contest_admin";
 export const adminOtpAutoFillCookie = "contest_admin_otp_autofill";
+export const adminOtpRequestCookie = "contest_admin_otp_request";
 
 export { cookieName };
 
@@ -57,6 +58,7 @@ type SuperAdminOtpPurpose = "login" | "delete_submission" | "reset_lucky_draw" |
 
 type SuperAdminOtpOptions = {
   purpose?: SuperAdminOtpPurpose;
+  requestKey?: string;
   submissionCode?: string;
   titleTh?: string;
   teamName?: string | null;
@@ -249,13 +251,15 @@ export async function slowFailedAdminLogin() {
 export async function requestSuperAdminOtp(options: SuperAdminOtpOptions = {}) {
   const now = options.now ?? Date.now();
   const purpose = options.purpose ?? "login";
-  const contextKey = otpContextKey({ purpose, submissionCode: options.submissionCode });
-  const current = await readSuperAdminOtp();
-  if (current && current.purpose === purpose && current.contextKey === contextKey && now - current.sentAt < otpResendCooldownMs) {
+  const requestKey = options.requestKey?.trim() || undefined;
+  const contextKey = otpContextKey({ purpose, requestKey, submissionCode: options.submissionCode });
+  const current = await readSuperAdminOtps();
+  const existing = current.find((item) => item.purpose === purpose && item.contextKey === contextKey && now - item.sentAt < otpResendCooldownMs);
+  if (existing) {
     return {
       ok: false,
-      retryAfterSeconds: Math.ceil((otpResendCooldownMs - (now - current.sentAt)) / 1000),
-      expiresAt: current.expiresAt,
+      retryAfterSeconds: Math.ceil((otpResendCooldownMs - (now - existing.sentAt)) / 1000),
+      expiresAt: existing.expiresAt,
     };
   }
 
@@ -268,7 +272,10 @@ export async function requestSuperAdminOtp(options: SuperAdminOtpOptions = {}) {
     purpose,
     contextKey,
   };
-  await writeSuperAdminOtp(record);
+  await writeSuperAdminOtps([
+    ...current.filter((item) => item.expiresAt > now && item.attempts < 5),
+    record,
+  ]);
   const message = superAdminOtpMessage(code, options);
   const mail = await sendAdminMail({
     to: [...superAdminEmails],
@@ -288,23 +295,24 @@ export async function requestSuperAdminOtp(options: SuperAdminOtpOptions = {}) {
 export async function verifySuperAdminOtp(input: string, options: SuperAdminOtpOptions = {}) {
   const now = options.now ?? Date.now();
   const expectedPurpose = options.purpose ?? "login";
-  const expectedContextKey = otpContextKey({ purpose: expectedPurpose, submissionCode: options.submissionCode });
+  const expectedContextKey = otpContextKey({ purpose: expectedPurpose, requestKey: options.requestKey, submissionCode: options.submissionCode });
   const code = normalizeOtpCode(input);
   if (!/^\d{6}$/.test(code)) return false;
   return enqueueAttemptWrite(async () => {
-    const record = await readSuperAdminOtp();
-    if (!record || record.expiresAt < now || record.attempts >= 5) {
-      await deleteSuperAdminOtp();
-      return false;
-    }
-    if (record.purpose !== expectedPurpose || record.contextKey !== expectedContextKey) {
-      return false;
-    }
-    if (safeEqual(record.codeHash, adminSecureHash(code, "super-admin-otp"))) {
-      await deleteSuperAdminOtp();
+    const records = await readSuperAdminOtps();
+    const activeRecords = records.filter((item) => item.expiresAt >= now && item.attempts < 5);
+    const matchingRecords = activeRecords.filter((item) => item.purpose === expectedPurpose && item.contextKey === expectedContextKey);
+    const matched = matchingRecords.find((item) => safeEqual(item.codeHash, adminSecureHash(code, "super-admin-otp")));
+    if (matched) {
+      await writeSuperAdminOtps(activeRecords.filter((item) => item !== matched));
       return true;
     }
-    await writeSuperAdminOtp({ ...record, attempts: record.attempts + 1 });
+    if (matchingRecords.length) {
+      const latest = matchingRecords.reduce((current, item) => item.sentAt > current.sentAt ? item : current);
+      await writeSuperAdminOtps(activeRecords.map((item) => item === latest ? { ...item, attempts: item.attempts + 1 } : item));
+    } else {
+      await writeSuperAdminOtps(activeRecords);
+    }
     return false;
   });
 }
@@ -316,11 +324,11 @@ export function normalizeOtpCode(input: string) {
     .replace(/\D/g, "");
 }
 
-function otpContextKey(options: Pick<SuperAdminOtpOptions, "purpose" | "submissionCode">) {
+function otpContextKey(options: Pick<SuperAdminOtpOptions, "purpose" | "requestKey" | "submissionCode">) {
   if (options.purpose === "delete_submission") return `delete_submission:${options.submissionCode?.trim() ?? ""}`;
   if (options.purpose === "reset_lucky_draw") return "reset_lucky_draw";
   if (options.purpose === "reset_submission_reviews") return "reset_submission_reviews";
-  return "login";
+  return `login:${options.requestKey?.trim() || "legacy"}`;
 }
 
 function superAdminOtpMessage(code: string, options: SuperAdminOtpOptions) {
@@ -450,28 +458,21 @@ async function readAttemptStore(): Promise<LoginAttemptStore> {
   }
 }
 
-async function readSuperAdminOtp() {
+async function readSuperAdminOtps(): Promise<SuperAdminOtpRecord[]> {
   try {
-    return JSON.parse(await readFile(otpPath, "utf8")) as SuperAdminOtpRecord;
+    const parsed = JSON.parse(await readFile(otpPath, "utf8")) as SuperAdminOtpRecord | SuperAdminOtpRecord[];
+    return Array.isArray(parsed) ? parsed : [parsed];
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw error;
   }
 }
 
-async function writeSuperAdminOtp(record: SuperAdminOtpRecord) {
+async function writeSuperAdminOtps(records: SuperAdminOtpRecord[]) {
   await mkdir(path.dirname(otpPath), { recursive: true });
   const tempPath = `${otpPath}.${process.pid}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(record, null, 2)}\n`, "utf8");
+  await writeFile(tempPath, `${JSON.stringify(records, null, 2)}\n`, "utf8");
   await rename(tempPath, otpPath);
-}
-
-async function deleteSuperAdminOtp() {
-  try {
-    await unlink(otpPath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-  }
 }
 
 async function writeAttemptStore(store: LoginAttemptStore) {

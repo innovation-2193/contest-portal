@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
   try {
     winner = await drawLuckyWinner(prize, session.email);
   } catch (error) {
+    console.error("lucky draw request failed", error);
     const code = String((error as { code?: string }).code ?? "");
     const status = ["DRAW_COMPLETE", "WRONG_PRIZE", "DRAW_CONFLICT"].includes(code) ? 409 : 422;
     const message = code === "NO_CANDIDATE"

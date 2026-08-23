@@ -74,10 +74,13 @@ export const participantRoles = ["VIP", "Guest", "Exhibitor", "Competitor", "Sta
 let writeQueue: Promise<unknown> = Promise.resolve();
 
 export function isDatabaseUnavailable(error: unknown) {
-  const reason = error as { code?: string; message?: string };
+  const reason = error as { code?: string; message?: string; cause?: unknown };
+  const cause = reason.cause as { code?: string; message?: string } | undefined;
+  const code = reason.code ?? cause?.code ?? "";
+  const message = [reason.message, cause?.message].filter(Boolean).join(" ");
   return (
-    unavailableCodes.has(reason.code ?? "") ||
-    (reason.message ?? "").includes("connect ECONNREFUSED")
+    unavailableCodes.has(code) ||
+    /(?:connect\s+)?ECONNREFUSED|ENOTFOUND|ETIMEDOUT|EHOSTUNREACH|PROTOCOL_CONNECTION_LOST/i.test(message)
   );
 }
 
