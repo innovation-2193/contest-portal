@@ -4,7 +4,7 @@ import { useRef } from "react";
 import { KeyRound, LogIn } from "lucide-react";
 import { SecretInput } from "./SecretInput";
 
-export function ParticipantOtpForm({ email, autoFillOtp = "" }: { email: string; autoFillOtp?: string }) {
+export function ParticipantOtpForm({ email, autoFillOtp = "", next = "/profile" }: { email: string; autoFillOtp?: string; next?: string }) {
   const submitting = useRef(false);
 
   function handleInput(event: React.FormEvent<HTMLInputElement>) {
@@ -22,6 +22,7 @@ export function ParticipantOtpForm({ email, autoFillOtp = "" }: { email: string;
 
   return <form action="/api/participant-auth/verify" method="post" className="participant-login-form">
     <input type="email" name="username" value={email} autoComplete="username" readOnly hidden/>
+    <input type="hidden" name="next" value={next}/>
     <label>
       <KeyRound/>รหัส OTP 6 หลัก
       <SecretInput

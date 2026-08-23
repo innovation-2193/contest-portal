@@ -23,6 +23,10 @@ export default async function EvaluationPage({ searchParams }: { searchParams: P
   const params = await searchParams;
   const cookieStore = await cookies();
   const session = getParticipantSession(cookieStore.get(participantSessionCookie)?.value);
+  if (!session) {
+    const target = params.code ? `/evaluation?code=${encodeURIComponent(params.code)}` : "/evaluation";
+    redirect(`/profile/login?next=${encodeURIComponent(target)}`);
+  }
   const registrations = session ? await findRegistrationsByEmail(session.email) : [];
   const registrationCode = (params.code ?? session?.registrationCode ?? "").trim();
   const item = registrations.find((registration) => registration.registration_code === registrationCode) ?? null;

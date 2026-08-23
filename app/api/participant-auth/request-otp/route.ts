@@ -4,6 +4,7 @@ import { normalizeParticipantEmail, requestParticipantLoginOtp } from "../../../
 import {
   createParticipantOtpAutoFillValue,
   createParticipantOtpPendingToken,
+  normalizeParticipantReturnTo,
   participantCookieSecure,
   participantOtpAutoFillCookie,
   participantOtpMaxAge,
@@ -14,6 +15,7 @@ import { publicSiteUrl } from "../../../../lib/public-url";
 export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const email = normalizeParticipantEmail(String(formData.get("email") ?? ""));
+  const returnTo = normalizeParticipantReturnTo(String(formData.get("next") ?? ""));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
     return NextResponse.redirect(publicSiteUrl("/profile/login?status=invalid_email", request), 303);
   }
@@ -31,8 +33,8 @@ export async function POST(request: NextRequest) {
     : result.delivery === "failed"
       ? "otp_mail_failed"
       : "otp_sent";
-  const response = NextResponse.redirect(publicSiteUrl(`/profile/login?status=${status}`, request), 303);
-  response.cookies.set(participantOtpPendingCookie, createParticipantOtpPendingToken(email), {
+  const response = NextResponse.redirect(publicSiteUrl(`/profile/login?status=${status}&next=${encodeURIComponent(returnTo)}`, request), 303);
+  response.cookies.set(participantOtpPendingCookie, createParticipantOtpPendingToken(email, Date.now(), returnTo), {
     httpOnly: true,
     sameSite: "lax",
     secure: participantCookieSecure(),

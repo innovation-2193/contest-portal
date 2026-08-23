@@ -6,6 +6,7 @@ import { findSubmissionsByEmail } from "../../../../lib/submission-lookup";
 import {
   createParticipantSessionToken,
   getParticipantOtpPendingEmail,
+  getParticipantOtpPendingReturnTo,
   participantCookieSecure,
   participantOtpAutoFillCookie,
   participantOtpPendingCookie,
@@ -28,7 +29,8 @@ export async function POST(request: NextRequest) {
     findRegistrationsByEmail(email),
     findSubmissionsByEmail(email),
   ]);
-  const response = NextResponse.redirect(publicSiteUrl("/profile", request), 303);
+  const returnTo = getParticipantOtpPendingReturnTo(request.cookies.get(participantOtpPendingCookie)?.value);
+  const response = NextResponse.redirect(publicSiteUrl(returnTo, request), 303);
   response.cookies.set(participantSessionCookie, createParticipantSessionToken({
     email,
     registrationCode: registrations[0]?.registration_code,

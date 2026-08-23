@@ -16,6 +16,7 @@ export type ParticipantSession = {
 type ParticipantTokenPayload = ParticipantSession & {
   purpose: "session" | "otp_pending";
   nonce: string;
+  returnTo?: string;
 };
 
 export function createParticipantSessionToken(input: { email: string; registrationCode?: string }, now = Date.now()) {
@@ -38,12 +39,13 @@ export function getParticipantSession(value?: string, now = Date.now()): Partici
   };
 }
 
-export function createParticipantOtpPendingToken(email: string, now = Date.now()) {
+export function createParticipantOtpPendingToken(email: string, now = Date.now(), returnTo?: string) {
   return createParticipantToken({
     purpose: "otp_pending",
     email: normalizeEmail(email),
     issuedAt: now,
     nonce: randomBytes(18).toString("base64url"),
+    returnTo: normalizeParticipantReturnTo(returnTo),
   });
 }
 
@@ -51,6 +53,17 @@ export function getParticipantOtpPendingEmail(value?: string, now = Date.now()) 
   const payload = readParticipantToken(value, "otp_pending");
   if (!payload || now - payload.issuedAt > participantOtpMaxAge * 1000) return null;
   return payload.email;
+}
+
+export function getParticipantOtpPendingReturnTo(value?: string) {
+  const payload = readParticipantToken(value, "otp_pending");
+  return normalizeParticipantReturnTo(payload?.returnTo);
+}
+
+export function normalizeParticipantReturnTo(value?: string) {
+  const target = value?.trim() || "/profile";
+  if (!target.startsWith("/") || target.startsWith("//") || target.startsWith("/api")) return "/profile";
+  return target;
 }
 
 export function createParticipantOtpAutoFillValue(code: string) {
@@ -86,6 +99,7 @@ function readParticipantToken(value: string | undefined, expectedPurpose: Partic
       registrationCode: payload.registrationCode?.trim() || undefined,
       issuedAt: Number(payload.issuedAt),
       nonce: String(payload.nonce ?? ""),
+      returnTo: payload.returnTo?.trim() || undefined,
     } satisfies ParticipantTokenPayload;
   } catch {
     return null;

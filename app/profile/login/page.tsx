@@ -7,19 +7,21 @@ import { getActiveSession } from "../../../lib/active-session";
 import {
   getParticipantOtpPendingEmail,
   getParticipantOtpAutoFillCode,
+  normalizeParticipantReturnTo,
   participantOtpAutoFillCookie,
   participantOtpPendingCookie,
 } from "../../../lib/participant-session";
 
 export const dynamic = "force-dynamic";
 
-export default async function ParticipantLoginPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function ParticipantLoginPage({ searchParams }: { searchParams: Promise<{ status?: string; next?: string }> }) {
+  const { status, next } = await searchParams;
+  const returnTo = normalizeParticipantReturnTo(next);
   const cookieStore = await cookies();
   const activeSession = getActiveSession(cookieStore);
-  if (activeSession) redirect(activeSession.href);
+  if (activeSession) redirect(activeSession.kind === "participant" ? returnTo : activeSession.href);
   const pendingEmail = getParticipantOtpPendingEmail(cookieStore.get(participantOtpPendingCookie)?.value);
   const autoFillOtp = pendingEmail ? getParticipantOtpAutoFillCode(cookieStore.get(participantOtpAutoFillCookie)?.value) : "";
-  const { status } = await searchParams;
 
   return <>
     <PageHero
@@ -35,15 +37,18 @@ export default async function ParticipantLoginPage({ searchParams }: { searchPar
         {loginMessage(status)}
         {pendingEmail ? <>
           <p>ระบบส่งรหัส OTP ไปยัง <strong>{maskEmail(pendingEmail)}</strong> รหัสมีอายุ 1 ชั่วโมงและใช้ได้ครั้งเดียว</p>
-          <ParticipantOtpForm email={pendingEmail} autoFillOtp={autoFillOtp}/>
+          {returnTo === "/evaluation" && <div className="participant-login-next"><ShieldCheck/>ยืนยันแล้วระบบจะพาไปทำแบบสอบถามทันที</div>}
+          <ParticipantOtpForm email={pendingEmail} autoFillOtp={autoFillOtp} next={returnTo}/>
           <form action="/api/participant-auth/request-otp" method="post" className="participant-resend-form">
             <input type="hidden" name="email" value={pendingEmail}/>
+            <input type="hidden" name="next" value={returnTo}/>
             <button className="secondary" type="submit"><Mail/>ส่ง OTP ใหม่</button>
           </form>
           <form action="/api/participant-auth/cancel" method="post"><button className="ghost-action participant-change-email" type="submit">ใช้อีเมลอื่น</button></form>
         </> : <>
           <p>กรอกอีเมลเดียวกับที่ใช้ลงทะเบียนเข้าร่วมงานหรือส่งผลงาน ระบบจะส่ง OTP ให้โดยไม่ต้องใช้รหัสผ่าน</p>
           <form action="/api/participant-auth/request-otp" method="post" className="participant-login-form">
+            <input type="hidden" name="next" value={returnTo}/>
             <label><Mail/>อีเมลที่ลงทะเบียน<input type="email" name="email" autoComplete="email" placeholder="name@example.com" maxLength={255} required autoFocus/></label>
             <button className="primary" type="submit"><Mail/>ส่งรหัส OTP</button>
           </form>
