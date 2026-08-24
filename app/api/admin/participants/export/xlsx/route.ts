@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { actorFromAdminSession, recordAuditEvent } from "../../../../../../lib/audit-log";
 import { cookieName, getAdminSession } from "../../../../../../lib/admin-auth";
 import { listParticipants } from "../../../../../../lib/admin-store";
+import { listEvaluationRespondents } from "../../../../../../lib/evaluation-store";
 import { abbreviateThaiRankTitle } from "../../../../../../lib/thai-rank-title";
 import type { RegistrationRecord } from "../../../../../../lib/local-registrations";
 
@@ -20,19 +21,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const participants = await listParticipants();
+  const surveyCompletedOnly = new URL(request.url).searchParams.get("survey") === "completed";
+  const allParticipants = await listParticipants();
+  const evaluatedRegistrationCodes = surveyCompletedOnly
+    ? new Set((await listEvaluationRespondents()).map((item) => item.registrationCode.trim()))
+    : null;
+  const participants = evaluatedRegistrationCodes
+    ? allParticipants.filter((participant) => evaluatedRegistrationCodes.has(participant.registration_code.trim()))
+    : allParticipants;
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "registration.export_xlsx",
     entityType: "registration",
-    summary: "Export รายชื่อผู้เข้าร่วมงานเป็น Excel",
-    payload: { count: participants.length },
+    summary: surveyCompletedOnly ? "Export รายชื่อผู้ลงทะเบียนที่ทำแบบสอบถามแล้วเป็น Excel" : "Export รายชื่อผู้เข้าร่วมงานเป็น Excel",
+    payload: { count: participants.length, surveyCompletedOnly },
   }, request.headers);
   const workbook = participantsWorkbook(participants);
   return new NextResponse(new Uint8Array(workbook), {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="participants-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+      "Content-Disposition": `attachment; filename="participants${surveyCompletedOnly ? "-survey-completed" : ""}-${new Date().toISOString().slice(0, 10)}.xlsx"`,
       "Cache-Control": "private, no-store",
     },
   });
