@@ -149,8 +149,10 @@ async function updateParticipantAction(formData: FormData) {
     });
   } catch (error) {
     const code = (error as { code?: string }).code;
+    const existingRegistrationCode = String((error as { existingRegistrationCode?: string }).existingRegistrationCode ?? "").trim();
+    const existingParticipantName = String((error as { existingParticipantName?: string }).existingParticipantName ?? "").trim();
     const message = code === "DUPLICATE_EMAIL" || code === "ER_DUP_ENTRY"
-      ? "อีเมลนี้ถูกใช้งานกับผู้เข้าร่วมงานรายการอื่นแล้ว กรุณาใช้อีเมลอื่น"
+      ? `อีเมลนี้ถูกใช้งานกับผู้เข้าร่วมงาน${existingRegistrationCode ? `รหัส ${existingRegistrationCode}${existingParticipantName ? ` (${existingParticipantName})` : ""}` : "รายการอื่น"} แล้ว กรุณาตรวจสอบรายการดังกล่าวหรือใช้อีเมลอื่น`
       : code === "DUPLICATE_CITIZEN_ID"
         ? "เลขบัตรประชาชนนี้ถูกใช้งานกับผู้เข้าร่วมงานรายการอื่นแล้ว"
         : "ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง";

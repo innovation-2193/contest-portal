@@ -572,11 +572,16 @@ export async function updateParticipant(input: RegistrationUpdateInput) {
     const normalizedEmail = input.email.trim().toLowerCase();
     if (normalizedEmail) {
       const [emailRows] = await db.execute(
-        "SELECT r.registration_code FROM users u JOIN registrations r ON r.user_id=u.id WHERE LOWER(u.email)=? AND r.registration_code<>? LIMIT 1",
+        "SELECT r.registration_code,r.title,r.first_name,r.last_name FROM users u JOIN registrations r ON r.user_id=u.id WHERE LOWER(u.email)=? AND r.registration_code<>? LIMIT 1",
         [normalizedEmail, input.registrationCode.trim()],
       );
-      if ((emailRows as Array<{ registration_code: string }>).length) {
-        throw Object.assign(new Error("participant email already exists"), { code: "DUPLICATE_EMAIL" });
+      const emailOwner = (emailRows as Array<{ registration_code: string; title?: string; first_name?: string; last_name?: string }>)[0];
+      if (emailOwner) {
+        throw Object.assign(new Error("participant email already exists"), {
+          code: "DUPLICATE_EMAIL",
+          existingRegistrationCode: emailOwner.registration_code,
+          existingParticipantName: `${emailOwner.title ?? ""}${emailOwner.first_name ?? ""} ${emailOwner.last_name ?? ""}`.trim(),
+        });
       }
     }
     const citizenId = input.citizenId.trim();
