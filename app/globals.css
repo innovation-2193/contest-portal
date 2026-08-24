@@ -7746,6 +7746,56 @@ body:has(.prelander-page)::before {
   min-width: 980px;
 }
 
+.non-finalist-selection-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(223, 186, 51, 0.42);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(13, 37, 72, 0.76), rgba(2, 10, 24, 0.68));
+}
+
+.non-finalist-selection-panel > .admin-section-head {
+  margin: 0;
+  padding: 0 0 4px;
+}
+
+.non-finalist-selection-panel > .admin-section-head h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: clamp(20px, 2vw, 30px);
+}
+
+.non-finalist-selection-panel > .admin-section-head p {
+  max-width: 850px;
+}
+
+.non-finalist-selection-table {
+  min-width: 980px;
+}
+
+.non-finalist-selection-table .row-check {
+  min-width: 130px;
+}
+
+.non-finalist-selection-table .row-check input:disabled {
+  opacity: 0.5;
+}
+
+.non-finalist-member {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.non-finalist-member:last-child {
+  margin-bottom: 0;
+}
+
+.non-finalist-member small {
+  display: block;
+}
+
 .row-check {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);

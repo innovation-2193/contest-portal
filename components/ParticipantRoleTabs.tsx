@@ -32,15 +32,19 @@ export function ParticipantRoleTabs({
   counts,
   query,
   roleParam = "participantRole",
+  additionalTabs = [],
+  activeTab,
 }: {
   activeRole: ParticipantRoleFilter;
   basePath: string;
   counts: ParticipantRoleCounts;
   query?: Record<string, string | null | undefined>;
   roleParam?: string;
+  additionalTabs?: Array<{ role: string; href: string; label: string; count: string }>;
+  activeTab?: string;
 }) {
   const roles = ["all", ...participantRoles] as ParticipantRoleFilter[];
-  const tabs = roles.map((role) => {
+  const roleTabs = roles.map((role) => {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(query ?? {})) {
         if (value) params.set(key, value);
@@ -56,5 +60,5 @@ export function ParticipantRoleTabs({
         count: counts[role].toLocaleString("th-TH"),
       };
     });
-  return <ParticipantRoleTabLinks tabs={tabs} activeRole={activeRole}/>;
+  return <ParticipantRoleTabLinks tabs={[...roleTabs, ...additionalTabs]} activeRole={activeTab ?? activeRole}/>;
 }
