@@ -7729,6 +7729,13 @@ body:has(.prelander-page)::before {
   font-size: 12px;
 }
 
+.bulk-participant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .bulk-delete-bar > span {
   color: var(--muted);
   font-size: 13px;
@@ -18892,6 +18899,15 @@ body:has(.report-page) .brand b {
 
   .bulk-delete-bar .danger-btn {
     width: 100%;
+    min-height: 48px;
+  }
+
+  .bulk-participant-actions {
+    width: 100%;
+  }
+
+  .bulk-participant-actions .small-action {
+    flex: 1 1 0;
     min-height: 48px;
   }
 

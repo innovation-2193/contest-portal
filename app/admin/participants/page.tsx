@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Download, Eye, FileSpreadsheet, FileText, Mail, Search, Trash2, UserPlus, Users } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileSpreadsheet, FileText, Mail, Search, Trash2, UserPlus, Users } from "lucide-react";
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 const pageSize = 20;
 const walkInParticipantRoles = ["Exhibitor", "Guest"] as const;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string; checkedIn?: string; alreadyCheckedIn?: string; checkInSkipped?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -58,6 +58,10 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
   const reminderQueued = Number(params.queued ?? 0) || 0;
   const reminderFailed = Number(params.failed ?? 0) || 0;
   const reminderSkipped = Number(params.skipped ?? 0) || 0;
+  const checkInCount = Number(params.checkedIn ?? 0) || 0;
+  const alreadyCheckedInCount = Number(params.alreadyCheckedIn ?? 0) || 0;
+  const checkInSkippedCount = Number(params.checkInSkipped ?? 0) || 0;
+  const canBulkCheckIn = session.role === "super_admin" || session.role === "admin" || session.role === "uci";
 
   return <div className="admin-page">
     <div className="wide">
@@ -67,6 +71,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
       </div>
       <AdminNotice code={params.notice} error={params.error}/>
       {params.notice === "participant_qr_reminders_sent" && <div className={`admin-login-alert ${reminderFailed ? "warning" : "success"}`}>ส่งอีเมล QR Code แล้ว {reminderSent.toLocaleString("th-TH")} รายการ{reminderQueued ? ` • เข้าคิวทดสอบ ${reminderQueued.toLocaleString("th-TH")} รายการ` : ""}{reminderSkipped ? ` • ข้ามรายการไม่มีอีเมล/ยกเลิก ${reminderSkipped.toLocaleString("th-TH")} รายการ` : ""}{reminderFailed ? ` • ล้มเหลว ${reminderFailed.toLocaleString("th-TH")} รายการ` : ""}</div>}
+      {params.notice === "participants_checked_in" && <div className="admin-login-alert success">เช็คอินสำเร็จ {checkInCount.toLocaleString("th-TH")} รายการ{alreadyCheckedInCount ? ` • เช็คอินไว้แล้ว ${alreadyCheckedInCount.toLocaleString("th-TH")} รายการ` : ""}{checkInSkippedCount ? ` • ข้ามรายการยกเลิก/ดำเนินการไม่ได้ ${checkInSkippedCount.toLocaleString("th-TH")} รายการ` : ""}</div>}
       <section className={`admin-panel ${isUciWorkspace ? "uci-participants-panel" : ""}`}>
         <header className="admin-section-head"><Users/><div><span className="eyebrow">{isUciWorkspace ? "Participants" : "รายการ"}</span><h2>ผู้เข้าร่วมงานทั้งหมด</h2><p>ทั้งหมด {all.length.toLocaleString("th-TH")} รายการ</p></div><div className="admin-actions"><form action={sendParticipantQrReminderAction}><ConfirmSubmitButton className="primary" type="submit" message={`ยืนยันส่งอีเมล QR Code ให้ผู้ลงทะเบียนที่ยังไม่ยกเลิกและมีอีเมล ${reminderEligibleCount.toLocaleString("th-TH")} รายการ?`}><Mail/>ส่ง QR Code ให้ผู้ลงทะเบียน</ConfirmSubmitButton></form></div></header>
         <details className={`admin-edit-disclosure participant-create-disclosure ${isUciWorkspace ? "uci-walkin-disclosure" : ""}`}>
@@ -107,13 +112,17 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/></div></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href={participantsClearHref(participantRole, isUciWorkspace ? "uci" : "")}>ล้าง</Link></div>
         </form>
-        <form id="participants-bulk-form" action={deleteParticipantsAction} className="bulk-delete-form">
-          {canDeleteParticipants && <div className="bulk-delete-bar">
+        <form id="participants-bulk-form" action={bulkParticipantsAction} className="bulk-delete-form">
+          <input type="hidden" name="returnTo" value={isUciWorkspace ? "/admin/participants?from=uci" : "/admin/participants"}/>
+          {(canDeleteParticipants || canBulkCheckIn) && <div className="bulk-delete-bar">
             <ParticipantBulkSelection formId="participants-bulk-form" />
-            <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
+            <div className="bulk-participant-actions">
+              {canBulkCheckIn && <ConfirmSubmitButton className="primary small-action" type="submit" name="bulkAction" value="checkin" message="ยืนยันเช็คอินผู้เข้าร่วมงานที่เลือก?"><CheckCircle2/>เช็คอินรายการที่เลือก</ConfirmSubmitButton>}
+              {canDeleteParticipants && <ConfirmSubmitButton className="danger-btn small-action" type="submit" name="bulkAction" value="delete" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>}
+            </div>
           </div>}
           <div className="admin-table-wrap"><table className="admin-table compact-admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
-            <td data-label="รหัส">{canDeleteParticipants ? <label className="row-check code-check"><input className="participant-row-checkbox" data-participant-checkbox type="checkbox" name="registrationCode" value={item.registration_code} aria-label={`เลือกรายการ ${item.registration_code}`}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label> : <span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span>}</td>
+            <td data-label="รหัส">{(canDeleteParticipants || canBulkCheckIn) ? <label className="row-check code-check"><input className="participant-row-checkbox" data-participant-checkbox type="checkbox" name="registrationCode" value={item.registration_code} aria-label={`เลือกรายการ ${item.registration_code}`}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label> : <span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span>}</td>
             <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id || "-"}</small></td>
             <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
             <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>
@@ -317,13 +326,44 @@ async function recordUciAutoCheckIn(registrationCode: string, isUciWorkspace: bo
   return checkedIn;
 }
 
-async function deleteParticipantsAction(formData: FormData) {
+async function bulkParticipantsAction(formData: FormData) {
   "use server";
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
-  if (session.role === "uci") redirect(adminNoticePath("/admin/participants", "participant_delete_forbidden"));
+  const action = String(formData.get("bulkAction") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "").trim() === "/admin/participants?from=uci"
+    ? "/admin/participants?from=uci"
+    : "/admin/participants";
   const codes = formData.getAll("registrationCode").map(String).filter(Boolean);
+  if (action === "checkin") {
+    if (!codes.length) redirect(adminNoticePath("/admin/participants", "participant_checkin_none_selected"));
+    const requestHeaders = await headers();
+    let checkedInCount = 0;
+    let alreadyCheckedInCount = 0;
+    let skippedCount = 0;
+    for (const registrationCode of codes) {
+      try {
+        const result = await checkInParticipant(registrationCode, session.email);
+        if (result.wasAlreadyCheckedIn) alreadyCheckedInCount += 1;
+        else checkedInCount += 1;
+      } catch {
+        skippedCount += 1;
+      }
+    }
+    await recordAuditEvent({
+      actor: actorFromAdminSession(session),
+      action: "registration.bulk_checked_in",
+      entityType: "registration",
+      summary: `เช็คอินผู้เข้าร่วมงานหลายรายการ ${checkedInCount} รายการ`,
+      payload: { registrationCodes: codes, checkedInCount, alreadyCheckedInCount, skippedCount },
+    }, requestHeaders);
+    revalidatePath("/admin");
+    revalidatePath("/admin/participants");
+    revalidatePath("/admin/scan");
+    redirect(`${returnTo.split("?")[0]}?${new URLSearchParams({ ...(returnTo.includes("from=uci") ? { from: "uci" } : {}), notice: "participants_checked_in", checkedIn: String(checkedInCount), alreadyCheckedIn: String(alreadyCheckedInCount), checkInSkipped: String(skippedCount) }).toString()}`);
+  }
+  if (session.role === "uci") redirect(adminNoticePath("/admin/participants", "participant_delete_forbidden"));
   if (!codes.length) redirect(adminNoticePath("/admin/participants", "participant_none_selected"));
   const deleted = await deleteParticipants(codes);
   await recordAuditEvent({
@@ -335,7 +375,7 @@ async function deleteParticipantsAction(formData: FormData) {
   }, await headers());
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
-  redirect(adminNoticePath("/admin/participants", deleted > 1 ? "participants_deleted" : "participant_deleted"));
+  redirect(adminNoticePath(returnTo, deleted > 1 ? "participants_deleted" : "participant_deleted"));
 }
 
 function text(formData: FormData, key: string) {
