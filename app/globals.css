@@ -7784,8 +7784,12 @@ body:has(.prelander-page)::before {
 }
 
 .non-finalist-member {
-  display: block;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
   margin-bottom: 5px;
+  padding: 8px 0;
 }
 
 .non-finalist-member:last-child {
@@ -7794,6 +7798,24 @@ body:has(.prelander-page)::before {
 
 .non-finalist-member small {
   display: block;
+}
+
+.non-finalist-member input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+
+.non-finalist-member i {
+  max-width: 240px;
+  font-style: normal;
+  text-align: right;
+  white-space: normal;
+}
+
+.non-finalist-member.is-registered {
+  opacity: 0.88;
 }
 
 .row-check {

@@ -9,14 +9,14 @@ import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { ParticipantBulkSelection } from "../../../components/ParticipantBulkSelection";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
-import { checkInParticipant, createParticipant, deleteParticipants, findExistingUserEmails, listParticipants, listSubmissionApplicantsForExport, listSubmissions, listWinners, registerSubmissionAsParticipant, type SubmissionApplicantExportRow, type SubmissionListItem, type WinnerRecord } from "../../../lib/admin-store";
+import { checkInParticipant, createParticipant, deleteParticipants, ensureSubmissionMemberParticipant, findExistingUserEmails, listParticipants, listSubmissionApplicantsForExport, listSubmissions, listWinners, type SubmissionApplicantExportRow, type SubmissionListItem, type WinnerRecord } from "../../../lib/admin-store";
 import { actorFromAdminSession, recordAuditEvent } from "../../../lib/audit-log";
 import { adminNoticePath } from "../../../lib/admin-flash";
 import { buildAnnouncedFinalistSources } from "../../../lib/announced-finalists";
 import { participantRoles, type ParticipantRole, type RegistrationRecord } from "../../../lib/local-registrations";
 import { parseParticipantBulkFile } from "../../../lib/participant-bulk-import";
 import { participantRoleClass } from "../../../lib/participant-role-style";
-import { sendRegistrationReminder } from "../../../lib/registration-artifacts";
+import { sendRegistrationConfirmation, sendRegistrationReminder } from "../../../lib/registration-artifacts";
 import { isThaiCitizenId } from "../../../lib/validation";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 const pageSize = 20;
 const walkInParticipantRoles = ["Exhibitor", "Guest"] as const;
 
-export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; participantView?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string; checkedIn?: string; alreadyCheckedIn?: string; checkInSkipped?: string; registeredTeams?: string; createdParticipants?: string }> }) {
+export default async function AdminParticipantsPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string; notice?: string; error?: string; participantRole?: string; participantView?: string; from?: string; sent?: string; queued?: string; failed?: string; skipped?: string; checkedIn?: string; alreadyCheckedIn?: string; checkInSkipped?: string; registeredMembers?: string; createdParticipants?: string; skippedMembers?: string }> }) {
   const cookieStore = await cookies();
   const session = getAdminSession(cookieStore.get(cookieName)?.value);
   if (!session) redirect("/admin");
@@ -81,7 +81,7 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
       <AdminNotice code={params.notice} error={params.error}/>
       {params.notice === "participant_qr_reminders_sent" && <div className={`admin-login-alert ${reminderFailed ? "warning" : "success"}`}>ส่งอีเมล QR Code แล้ว {reminderSent.toLocaleString("th-TH")} รายการ{reminderQueued ? ` • เข้าคิวทดสอบ ${reminderQueued.toLocaleString("th-TH")} รายการ` : ""}{reminderSkipped ? ` • ข้ามรายการไม่มีอีเมล/ยกเลิก ${reminderSkipped.toLocaleString("th-TH")} รายการ` : ""}{reminderFailed ? ` • ล้มเหลว ${reminderFailed.toLocaleString("th-TH")} รายการ` : ""}</div>}
       {params.notice === "participants_checked_in" && <div className="admin-login-alert success">เช็คอินสำเร็จ {checkInCount.toLocaleString("th-TH")} รายการ{alreadyCheckedInCount ? ` • เช็คอินไว้แล้ว ${alreadyCheckedInCount.toLocaleString("th-TH")} รายการ` : ""}{checkInSkippedCount ? ` • ข้ามรายการยกเลิก/ดำเนินการไม่ได้ ${checkInSkippedCount.toLocaleString("th-TH")} รายการ` : ""}</div>}
-      {params.notice === "non_finalists_registered" && <div className="admin-login-alert success">ลงทะเบียนแล้ว {Number(params.registeredTeams ?? 0).toLocaleString("th-TH")} ทีม{params.createdParticipants ? ` • เพิ่มผู้เข้าร่วมงานใหม่ ${Number(params.createdParticipants).toLocaleString("th-TH")} รายการ` : ""}{params.skipped ? ` • ข้าม ${Number(params.skipped).toLocaleString("th-TH")} ทีมที่ดำเนินการไม่ได้` : ""}</div>}
+      {params.notice === "non_finalists_registered" && <div className="admin-login-alert success">ลงทะเบียนแล้ว {Number(params.registeredMembers ?? 0).toLocaleString("th-TH")} คน{params.createdParticipants ? ` • เพิ่มผู้เข้าร่วมงานใหม่ ${Number(params.createdParticipants).toLocaleString("th-TH")} รายการ` : ""}{params.skippedMembers ? ` • ข้าม ${Number(params.skippedMembers).toLocaleString("th-TH")} รายการที่ดำเนินการไม่ได้` : ""}</div>}
       <section className={`admin-panel ${isUciWorkspace ? "uci-participants-panel" : ""}`}>
         <header className="admin-section-head"><Users/><div><span className="eyebrow">{isUciWorkspace ? "Participants" : "รายการ"}</span><h2>{isNonFinalistView ? "ผู้ประกวดที่ไม่ติด 10 ทีมสุดท้าย" : "ผู้เข้าร่วมงานทั้งหมด"}</h2><p>{isNonFinalistView ? `แสดง ${filteredNonFinalistRows.length.toLocaleString("th-TH")} ทีม • แอดมินเลือกลงทะเบียนเข้าร่วมงานเอง` : `ทั้งหมด ${all.length.toLocaleString("th-TH")} รายการ`}</p></div><div className="admin-actions"><a className="secondary" href="/api/admin/participants/export/xlsx"><FileSpreadsheet/>Export Excel ผู้ลงทะเบียน</a><a className="primary" href="/api/admin/participants/export/xlsx?survey=completed"><FileSpreadsheet/>Export Excel ผู้ลงทะเบียน + ทำแบบสอบถามแล้ว</a><form action={sendParticipantQrReminderAction}><ConfirmSubmitButton className="primary" type="submit" message={`ยืนยันส่งอีเมล QR Code ให้ผู้ลงทะเบียนที่ยังไม่ยกเลิกและมีอีเมล ${reminderEligibleCount.toLocaleString("th-TH")} รายการ?`}><Mail/>ส่ง QR Code ให้ผู้ลงทะเบียน</ConfirmSubmitButton></form></div></header>
         <details className={`admin-edit-disclosure participant-create-disclosure ${isUciWorkspace ? "uci-walkin-disclosure" : ""}`}>
@@ -149,11 +149,15 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
 }
 
 type NonFinalistMember = {
+  memberOrder: number;
   name: string;
   firstName: string;
   lastName: string;
   email: string;
   citizenId: string;
+  registered: boolean;
+  registrationCode: string;
+  status: RegistrationRecord["status"] | null;
 };
 
 type NonFinalistSubmissionRow = {
@@ -202,25 +206,38 @@ function buildNonFinalistSubmissionRows(
       const submission = submissionsByCode.get(submissionCode);
       const members = [...rows]
         .sort((left, right) => left.member_order - right.member_order)
-        .map((member) => ({
+        .map((member) => {
+          const applicant = {
+            firstName: String(member.first_name ?? "").trim(),
+            lastName: String(member.last_name ?? "").trim(),
+            email: String(member.email ?? "").trim(),
+            citizenId: String(member.citizen_id ?? "").trim(),
+          };
+          const registeredParticipant = participants.find((participant) => participantMatchesMember(participant, applicant));
+          return {
+          memberOrder: member.member_order,
           name: `${member.title}${member.first_name} ${member.last_name}`.replace(/\s+/g, " ").trim(),
-          firstName: String(member.first_name ?? "").trim(),
-          lastName: String(member.last_name ?? "").trim(),
-          email: String(member.email ?? "").trim(),
-          citizenId: String(member.citizen_id ?? "").trim(),
-        }));
+          firstName: applicant.firstName,
+          lastName: applicant.lastName,
+          email: applicant.email,
+          citizenId: applicant.citizenId,
+          registered: Boolean(registeredParticipant),
+          registrationCode: registeredParticipant?.registration_code ?? "",
+          status: registeredParticipant?.status ?? null,
+        };
+        });
       return {
         submissionCode: rows[0].submission_code,
         title: submission?.title_th || rows[0].title_th || "ไม่ระบุชื่อผลงาน",
         teamName: submission?.team_name || rows[0].team_name || "ไม่ระบุชื่อทีม",
         members,
-        registeredCount: members.filter((member) => participants.some((participant) => participantMatchesMember(participant, member))).length,
+        registeredCount: members.filter((member) => member.registered).length,
       };
     })
     .sort((left, right) => left.title.localeCompare(right.title, "th"));
 }
 
-function participantMatchesMember(participant: RegistrationRecord, member: NonFinalistMember) {
+function participantMatchesMember(participant: RegistrationRecord, member: Pick<NonFinalistMember, "firstName" | "lastName" | "email" | "citizenId">) {
   const participantEmail = participant.email.trim().toLowerCase();
   const memberEmail = member.email.trim().toLowerCase();
   if (participantEmail && memberEmail && participantEmail === memberEmail) return true;
@@ -239,24 +256,27 @@ function normalizeSubmissionCode(value: string) {
 
 function NonFinalistSubmissionPanel({ rows }: { rows: NonFinalistSubmissionRow[] }) {
   return <div className="non-finalist-selection-panel">
-    <div className="admin-section-head"><Users/><div><span className="eyebrow">Contestants</span><h3>ผู้ประกวดที่ไม่ติด 10 ทีมสุดท้าย</h3><p>เลือกเป็นรายทีม แล้วกดลงทะเบียนเพื่อเพิ่มสมาชิกทีมเข้าร่วมงาน ระบบยังไม่ลงทะเบียนให้อัตโนมัติ</p></div></div>
+    <div className="admin-section-head"><Users/><div><span className="eyebrow">Contestants</span><h3>ผู้ประกวดที่ไม่ติด 10 ทีมสุดท้าย</h3><p>เลือกผู้สมัครเป็นรายบุคคลได้หลายคน แล้วกดลงทะเบียน ระบบยังไม่ลงทะเบียนให้อัตโนมัติ</p></div></div>
     <form id="non-finalists-bulk-form" action={registerNonFinalistSubmissionsAction} className="bulk-delete-form">
       <input type="hidden" name="returnTo" value="/admin/participants?participantView=non-finalists"/>
       <div className="bulk-delete-bar">
         <ParticipantBulkSelection formId="non-finalists-bulk-form" />
-        <ConfirmSubmitButton className="primary small-action" type="submit" message="ยืนยันลงทะเบียนทีมที่เลือกเข้าร่วมงาน?">
-          <UserPlus/>ลงทะเบียนทีมที่เลือก
+        <ConfirmSubmitButton className="primary small-action" type="submit" message="ยืนยันลงทะเบียนผู้สมัครที่เลือกเข้าร่วมงาน?">
+          <UserPlus/>ลงทะเบียนบุคคลที่เลือก
         </ConfirmSubmitButton>
       </div>
-      <div className="admin-table-wrap"><table className="admin-table compact-admin-table non-finalist-selection-table"><thead><tr><th>เลือก</th><th>ทีม / ผลงาน</th><th>สมาชิกทีม</th><th>สถานะ</th></tr></thead><tbody>{rows.length ? rows.map((row) => {
+      <div className="admin-table-wrap"><table className="admin-table compact-admin-table non-finalist-selection-table"><thead><tr><th>ทีม / ผลงาน</th><th>สมาชิกทีม / เลือกรายบุคคล</th><th>สถานะการลงทะเบียน</th></tr></thead><tbody>{rows.length ? rows.map((row) => {
         const fullyRegistered = row.registeredCount >= row.members.length;
         return <tr key={row.submissionCode}>
-          <td data-label="เลือก"><label className="row-check"><input data-participant-checkbox type="checkbox" name="submissionCode" value={row.submissionCode} disabled={fullyRegistered} aria-label={`เลือกทีม ${row.teamName}`}/><span>{fullyRegistered ? "ลงทะเบียนแล้ว" : "เลือกทีมนี้"}</span></label></td>
           <td data-label="ทีม / ผลงาน"><b>{row.teamName}</b><small>{row.title}</small><small>{row.submissionCode}</small></td>
-          <td data-label="สมาชิกทีม">{row.members.map((member) => <span className="non-finalist-member" key={`${row.submissionCode}-${member.name}-${member.email}`}><b>{member.name}</b><small>{member.email || "ไม่ระบุอีเมล"}</small></span>)}</td>
-          <td data-label="สถานะ"><span className={`status-pill ${fullyRegistered ? "attended" : row.registeredCount ? "registered" : "pending"}`}>{fullyRegistered ? "ลงทะเบียนแล้ว" : row.registeredCount ? `ลงทะเบียนแล้ว ${row.registeredCount}/${row.members.length} คน` : "ยังไม่ลงทะเบียน"}</span></td>
+          <td data-label="สมาชิกทีม / เลือกรายบุคคล">{row.members.map((member) => <label className={`non-finalist-member ${member.registered ? "is-registered" : ""}`} key={`${row.submissionCode}-${member.memberOrder}`}>
+            <input data-participant-checkbox type="checkbox" name="submissionMember" value={`${row.submissionCode}::${member.memberOrder}`} disabled={member.registered} aria-label={`เลือก ${member.name}`}/>
+            <span><b>{member.name}</b><small>{member.email || "ไม่ระบุอีเมล"}</small></span>
+            <i className={`status-pill ${member.registered ? member.status === "attended" ? "attended" : "registered" : "pending"}`}>{member.registered ? `${participantStatus(member.status ?? "registered")}${member.registrationCode ? ` • ${member.registrationCode}` : ""}` : "ยังไม่ลงทะเบียน"}</i>
+          </label>)}</td>
+          <td data-label="สถานะการลงทะเบียน"><span className={`status-pill ${fullyRegistered ? "attended" : row.registeredCount ? "registered" : "pending"}`}>{fullyRegistered ? "ลงทะเบียนครบทุกคน" : row.registeredCount ? `ลงทะเบียนแล้ว ${row.registeredCount}/${row.members.length} คน` : "ยังไม่ลงทะเบียน"}</span></td>
         </tr>;
-      }) : <tr><td colSpan={4}>ไม่พบผู้ประกวดที่ไม่ติด 10 ทีมสุดท้าย</td></tr>}</tbody></table></div>
+      }) : <tr><td colSpan={3}>ไม่พบผู้ประกวดที่ไม่ติด 10 ทีมสุดท้าย</td></tr>}</tbody></table></div>
     </form>
   </div>;
 }
@@ -268,21 +288,34 @@ async function registerNonFinalistSubmissionsAction(formData: FormData) {
   if (!session) redirect("/admin");
   const returnTo = "/admin/participants?participantView=non-finalists";
   if (session.role !== "super_admin") redirect(participantErrorPath(returnTo, "เฉพาะ Super Admin เท่านั้นที่ลงทะเบียนผู้ประกวดเข้าร่วมงานได้"));
-  const submissionCodes = [...new Set(formData.getAll("submissionCode").map(String).map(normalizeSubmissionCode).filter(Boolean))];
-  if (!submissionCodes.length) redirect(participantErrorPath(returnTo, "กรุณาเลือกทีมที่ต้องการลงทะเบียนเข้าร่วมงานก่อน"));
+  const selectedMembers = [...new Set(formData.getAll("submissionMember").map(String).map((value) => {
+    const [submissionCode, memberOrderText] = value.split("::");
+    const memberOrder = Number(memberOrderText);
+    return normalizeSubmissionCode(submissionCode) && Number.isInteger(memberOrder) && memberOrder > 0
+      ? { submissionCode: normalizeSubmissionCode(submissionCode), memberOrder }
+      : null;
+  }).filter((item): item is { submissionCode: string; memberOrder: number } => Boolean(item)).map((item) => `${item.submissionCode}::${item.memberOrder}`))]
+    .map((value) => {
+      const [submissionCode, memberOrder] = value.split("::");
+      return { submissionCode, memberOrder: Number(memberOrder) };
+    });
+  if (!selectedMembers.length) redirect(participantErrorPath(returnTo, "กรุณาเลือกผู้สมัครที่ต้องการลงทะเบียนเข้าร่วมงานก่อน"));
 
   const requestHeaders = await headers();
-  let registeredTeams = 0;
+  let registeredMembers = 0;
   let createdParticipants = 0;
   const skipped: string[] = [];
-  for (const submissionCode of submissionCodes) {
+  for (const selected of selectedMembers) {
     try {
-      const result = await registerSubmissionAsParticipant(submissionCode);
-      registeredTeams += 1;
-      createdParticipants += result.createdCount;
+      const result = await ensureSubmissionMemberParticipant(selected.submissionCode, selected.memberOrder);
+      if (result.created) {
+        createdParticipants += 1;
+        await sendRegistrationConfirmation(result.record);
+      }
+      registeredMembers += 1;
     } catch (error) {
-      console.error(`registering non-finalist submission ${submissionCode} failed`, error);
-      skipped.push(submissionCode);
+      console.error(`registering non-finalist member ${selected.submissionCode}/${selected.memberOrder} failed`, error);
+      skipped.push(`${selected.submissionCode}/${selected.memberOrder}`);
     }
   }
   await recordAuditEvent({
@@ -290,17 +323,17 @@ async function registerNonFinalistSubmissionsAction(formData: FormData) {
     action: "registration.created",
     entityType: "registration",
     entityId: "non-finalists",
-    summary: `ลงทะเบียนผู้ประกวดที่เลือกเข้าร่วมงาน ${registeredTeams} ทีม`,
-    payload: { submissionCodes, registeredTeams, createdParticipants, skipped },
+    summary: `ลงทะเบียนผู้ประกวดที่เลือกเข้าร่วมงาน ${registeredMembers} คน`,
+    payload: { selectedMembers, registeredMembers, createdParticipants, skipped },
   }, requestHeaders);
   revalidatePath("/admin");
   revalidatePath("/admin/participants");
   const successPath = adminNoticePath(returnTo, "non_finalists_registered");
   const [base, query = ""] = successPath.split("?");
   const params = new URLSearchParams(query);
-  params.set("registeredTeams", String(registeredTeams));
+  params.set("registeredMembers", String(registeredMembers));
   params.set("createdParticipants", String(createdParticipants));
-  if (skipped.length) params.set("skipped", String(skipped.length));
+  if (skipped.length) params.set("skippedMembers", String(skipped.length));
   redirect(`${base}?${params.toString()}`);
 }
 

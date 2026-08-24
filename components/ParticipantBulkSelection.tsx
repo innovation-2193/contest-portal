@@ -11,7 +11,7 @@ export function ParticipantBulkSelection({ formId }: { formId: string }) {
     const selectAll = form.querySelector<HTMLInputElement>("[data-participant-select-all]");
     if (!selectAll) return;
 
-    const getRows = () => [...form.querySelectorAll<HTMLInputElement>("[data-participant-checkbox]")];
+    const getRows = () => [...form.querySelectorAll<HTMLInputElement>("[data-participant-checkbox]")].filter((row) => !row.disabled);
     const sync = () => {
       const rows = getRows();
       const checked = rows.filter((row) => row.checked).length;
