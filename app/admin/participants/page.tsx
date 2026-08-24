@@ -6,6 +6,7 @@ import { Download, Eye, FileSpreadsheet, FileText, Mail, Search, Trash2, UserPlu
 import { AdminNotice } from "../../../components/AdminNotice";
 import { BackButton } from "../../../components/BackButton";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { ParticipantBulkSelection } from "../../../components/ParticipantBulkSelection";
 import { buildParticipantRoleCounts, normalizeParticipantRoleFilter, ParticipantRoleTabs } from "../../../components/ParticipantRoleTabs";
 import { cookieName, getAdminSession } from "../../../lib/admin-auth";
 import { checkInParticipant, createParticipant, deleteParticipants, findExistingUserEmails, listParticipants } from "../../../lib/admin-store";
@@ -106,13 +107,13 @@ export default async function AdminParticipantsPage({ searchParams }: { searchPa
           <label className="audit-filter-search">ค้นหา<div><Search/><input name="q" defaultValue={q} placeholder="ชื่อ อีเมล เบอร์โทร เลขบัตร หรือรหัส REG"/></div></label>
           <div className="audit-filter-actions"><button className="secondary" type="submit">ค้นหา</button><Link className="ghost-action" href={participantsClearHref(participantRole, isUciWorkspace ? "uci" : "")}>ล้าง</Link></div>
         </form>
-        <form action={deleteParticipantsAction} className="bulk-delete-form">
+        <form id="participants-bulk-form" action={deleteParticipantsAction} className="bulk-delete-form">
           {canDeleteParticipants && <div className="bulk-delete-bar">
-            <span>ติ๊ก checkbox หน้าแถวที่ต้องการลบ แล้วกดลบรายการที่เลือก</span>
+            <ParticipantBulkSelection formId="participants-bulk-form" />
             <ConfirmSubmitButton className="danger-btn small-action" type="submit" message="ยืนยันลบผู้เข้าร่วมงานที่เลือก?"><Trash2/>ลบรายการที่เลือก</ConfirmSubmitButton>
           </div>}
           <div className="admin-table-wrap"><table className="admin-table compact-admin-table participants-manage-table"><thead><tr><th>รหัส</th><th>ผู้เข้าร่วมงาน</th><th>Role</th><th>ติดต่อ</th><th>หน่วยงาน</th><th>สถานะ</th><th></th></tr></thead><tbody>{items.length ? items.map((item) => <tr key={item.registration_code}>
-            <td data-label="รหัส">{canDeleteParticipants ? <label className="row-check code-check"><input type="checkbox" name="registrationCode" value={item.registration_code}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label> : <span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span>}</td>
+            <td data-label="รหัส">{canDeleteParticipants ? <label className="row-check code-check"><input className="participant-row-checkbox" data-participant-checkbox type="checkbox" name="registrationCode" value={item.registration_code} aria-label={`เลือกรายการ ${item.registration_code}`}/><span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span></label> : <span><b>{item.registration_code}</b><small>{formatAdminDate(item.registered_at)}</small></span>}</td>
             <td data-label="ผู้เข้าร่วมงาน">{item.title}{item.first_name} {item.last_name}<small>{item.citizen_id || "-"}</small></td>
             <td data-label="Role"><span className={`status-pill role-pill ${participantRoleClass(item.participant_role)}`}>{item.participant_role}</span></td>
             <td data-label="ติดต่อ">{item.email || "-"}<small>{item.phone}</small></td>

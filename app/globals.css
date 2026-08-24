@@ -7708,7 +7708,28 @@ body:has(.prelander-page)::before {
   background: rgba(1, 9, 22, 0.34);
 }
 
-.bulk-delete-bar span {
+.bulk-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bulk-select-all input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--gold);
+}
+
+.bulk-select-all b {
+  color: var(--gold-soft);
+  font-size: 12px;
+}
+
+.bulk-delete-bar > span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
@@ -18500,7 +18521,7 @@ body:has(.report-page) .brand b {
     border-radius: 12px;
   }
 
-  .bulk-delete-bar span {
+  .bulk-delete-bar > span {
     flex: 1 1 280px;
     line-height: 1.55;
   }

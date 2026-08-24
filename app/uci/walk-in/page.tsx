@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ArrowLeft, CheckCircle2, ClipboardCheck, UserPlus } from "lucide-react";
 import { PageHero } from "../../../components/SiteChrome";
+import { ScrollToTopOnResult } from "../../../components/ScrollToTopOnResult";
 import { checkInParticipant, createParticipant } from "../../../lib/admin-store";
 import { recordAuditEvent } from "../../../lib/audit-log";
 import type { ParticipantRole } from "../../../lib/local-registrations";
@@ -19,6 +20,7 @@ export default async function UciWalkInPage({ searchParams }: { searchParams: Pr
   const successCode = params.success === "1" ? String(params.code ?? "").trim() : "";
 
   return <>
+    <ScrollToTopOnResult active={Boolean(successCode || params.error)} />
     <PageHero
       eyebrow="ON-SITE CHECK-IN"
       title="ลงทะเบียนผู้เข้าร่วมงาน Walk-in"
