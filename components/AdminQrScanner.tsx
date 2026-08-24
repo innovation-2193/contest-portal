@@ -59,6 +59,7 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
   const [searchResults, setSearchResults] = useState<ParticipantSearchResult[]>([]);
   const [searchError, setSearchError] = useState("");
   const [roleCounts, setRoleCounts] = useState(initialRoleCounts);
+  const [liveRegistrationRoleCounts, setLiveRegistrationRoleCounts] = useState(registrationRoleCounts);
 
   useEffect(() => () => {
     stopCamera();
@@ -66,6 +67,39 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
   }, []);
 
   useEffect(() => setRoleCounts(initialRoleCounts), [initialRoleCounts]);
+  useEffect(() => setLiveRegistrationRoleCounts(registrationRoleCounts), [registrationRoleCounts]);
+
+  useEffect(() => {
+    let active = true;
+    let refreshing = false;
+
+    const refreshCounts = async () => {
+      if (!active || refreshing || document.visibilityState === "hidden") return;
+      refreshing = true;
+      try {
+        const response = await fetch("/api/admin/check-in/stats", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const data = await response.json() as { checkedIn?: CheckInRoleCounts; registered?: CheckInRoleCounts };
+        if (!active || !data.checkedIn || !data.registered) return;
+        setRoleCounts(data.checkedIn);
+        setLiveRegistrationRoleCounts(data.registered);
+      } catch {
+        // Keep the last known counts while the scanner continues working.
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const interval = window.setInterval(() => { void refreshCounts(); }, 10_000);
+    void refreshCounts();
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (!result) return;
@@ -339,7 +373,7 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
   const resultRoleClass = participantRoleClass(result?.participantRole);
   const resultFeaturedClass = isFeaturedCheckInRole(result?.participantRole) ? "featured-role" : "";
   const totalCheckedIn = scannerRoleOrder.reduce((total, role) => total + roleCounts[role], 0);
-  const totalRegistered = scannerRoleOrder.reduce((total, role) => total + registrationRoleCounts[role], 0);
+  const totalRegistered = scannerRoleOrder.reduce((total, role) => total + liveRegistrationRoleCounts[role], 0);
 
   return <div className="scanner-shell">
     <section className={["scanner-camera", result ? "checked-in" : "", result ? resultRoleClass : "", result ? resultFeaturedClass : ""].filter(Boolean).join(" ")}>
@@ -367,7 +401,7 @@ export function AdminQrScanner({ initialRoleCounts, registrationRoleCounts }: { 
       <div className="scanner-role-counts" aria-label="จำนวนผู้เช็คอินแยกตาม Role">
         {scannerRoleOrder.map((role) => <article className={participantRoleClass(role)} key={role}>
           <span>{role}</span>
-          <b>{roleCounts[role].toLocaleString("th-TH")} <i className="scanner-role-total">/ {registrationRoleCounts[role].toLocaleString("th-TH")}</i></b>
+          <b>{roleCounts[role].toLocaleString("th-TH")} <i className="scanner-role-total">/ {liveRegistrationRoleCounts[role].toLocaleString("th-TH")}</i></b>
           <small>เช็คอินแล้ว / ผู้ลงทะเบียน</small>
         </article>)}
       </div>

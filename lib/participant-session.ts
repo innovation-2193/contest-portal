@@ -76,8 +76,8 @@ export function getParticipantOtpAutoFillCode(value?: string) {
 }
 
 export function participantCookieSecure() {
+  if (process.env.PARTICIPANT_COOKIE_SECURE === "true") return true;
   if (process.env.PARTICIPANT_COOKIE_SECURE === "false") return false;
-  if (process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://")) return true;
   return process.env.NODE_ENV === "production";
 }
 

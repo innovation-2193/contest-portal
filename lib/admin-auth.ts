@@ -99,8 +99,8 @@ export function canManageEvaluationAvailability(session: AdminSession | null | u
 }
 
 export function adminCookieSecure() {
+  if (process.env.ADMIN_COOKIE_SECURE === "true") return true;
   if (process.env.ADMIN_COOKIE_SECURE === "false") return false;
-  if (process.env.NEXT_PUBLIC_BASE_URL?.startsWith("https://")) return true;
   return process.env.NODE_ENV === "production";
 }
 
@@ -301,7 +301,13 @@ export async function verifySuperAdminOtp(input: string, options: SuperAdminOtpO
   return enqueueAttemptWrite(async () => {
     const records = await readSuperAdminOtps();
     const activeRecords = records.filter((item) => item.expiresAt >= now && item.attempts < 5);
-    const matchingRecords = activeRecords.filter((item) => item.purpose === expectedPurpose && item.contextKey === expectedContextKey);
+    // Login OTP must be usable on another device. The code may be requested on
+    // one machine and entered on the phone/tablet used to operate the console.
+    // Keep context binding for privileged actions such as reset/delete, but let
+    // any still-valid login OTP authenticate the Super Admin account.
+    const matchingRecords = activeRecords.filter((item) => item.purpose === expectedPurpose && (
+      expectedPurpose === "login" || item.contextKey === expectedContextKey
+    ));
     const matched = matchingRecords.find((item) => safeEqual(item.codeHash, adminSecureHash(code, "super-admin-otp")));
     if (matched) {
       await writeSuperAdminOtps(activeRecords.filter((item) => item !== matched));
