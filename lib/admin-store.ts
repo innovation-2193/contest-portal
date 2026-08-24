@@ -569,10 +569,30 @@ export async function searchParticipants(query: string, limit = 12) {
 export async function updateParticipant(input: RegistrationUpdateInput) {
   try {
     await ensureDatabaseSchema();
+    const normalizedEmail = input.email.trim().toLowerCase();
+    if (normalizedEmail) {
+      const [emailRows] = await db.execute(
+        "SELECT r.registration_code FROM users u JOIN registrations r ON r.user_id=u.id WHERE LOWER(u.email)=? AND r.registration_code<>? LIMIT 1",
+        [normalizedEmail, input.registrationCode.trim()],
+      );
+      if ((emailRows as Array<{ registration_code: string }>).length) {
+        throw Object.assign(new Error("participant email already exists"), { code: "DUPLICATE_EMAIL" });
+      }
+    }
+    const citizenId = input.citizenId.trim();
+    if (citizenId) {
+      const [citizenRows] = await db.execute(
+        "SELECT registration_code FROM registrations WHERE citizen_id=? AND registration_code<>? LIMIT 1",
+        [citizenId, input.registrationCode.trim()],
+      );
+      if ((citizenRows as Array<{ registration_code: string }>).length) {
+        throw Object.assign(new Error("participant citizen id already exists"), { code: "DUPLICATE_CITIZEN_ID" });
+      }
+    }
     await db.execute(
       "UPDATE users u JOIN registrations r ON r.user_id=u.id SET u.email=NULLIF(?,''),u.provider=?,u.display_name=?,r.participant_role=?,r.title=?,r.first_name=?,r.last_name=?,r.citizen_id=NULLIF(?,''),r.phone=?,r.position=?,r.division=?,r.bureau=?,r.status=?,r.checked_in_at=CASE WHEN ?='attended' THEN COALESCE(r.checked_in_at,CURRENT_TIMESTAMP(3)) ELSE NULL END,r.checked_in_by_email=CASE WHEN ?='attended' THEN r.checked_in_by_email ELSE NULL END WHERE r.registration_code=?",
       [
-        input.email.trim().toLowerCase(),
+        normalizedEmail,
         input.provider,
         `${input.firstName} ${input.lastName}`,
         input.participantRole,

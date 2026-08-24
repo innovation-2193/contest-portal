@@ -28,7 +28,14 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
 
   const { code } = await params;
   const query = await searchParams;
-  const item = await findRegistrationByCode(code);
+  let item: Awaited<ReturnType<typeof findRegistrationByCode>> = null;
+  let lookupError = "";
+  try {
+    item = await findRegistrationByCode(code);
+  } catch (error) {
+    console.error("participant detail lookup failed", error);
+    lookupError = "ไม่สามารถโหลดข้อมูลผู้เข้าร่วมรายการนี้ได้ กรุณาลองใหม่อีกครั้ง หรือตรวจสอบการเชื่อมต่อฐานข้อมูล";
+  }
   const issuedAt = formatAdminDate(new Date().toISOString());
 
   return <div className="admin-page admin-detail-page">
@@ -41,7 +48,7 @@ export default async function AdminParticipantDetail({ params, searchParams }: {
         </div>
         <div className="admin-actions"><BackButton />{item && <AdminPrintButton />}</div>
       </div>
-      <AdminNotice code={query.notice} error={query.error}/>
+      <AdminNotice code={query.notice} error={query.error || lookupError}/>
       {item ? <article className="admin-panel printable-sheet">
         <header className="print-heading"><img className="print-brand-mark" src="/favicon.png" alt="Police Innovation Contest"/><div className="print-heading-copy"><span className="eyebrow">Registration Confirmation</span><h2>{item.registration_code}</h2><p>ลงทะเบียนเมื่อ {formatAdminDate(item.registered_at)}</p></div><div className="print-heading-meta"><b>ใบยืนยันการลงทะเบียน</b><span>ออกเอกสาร {issuedAt}</span></div></header>
         <section className="admin-detail-summary">
@@ -124,21 +131,31 @@ async function updateParticipantAction(formData: FormData) {
   if (!["registered", "attended", "cancelled"].includes(status)) throw new Error("สถานะไม่ถูกต้อง");
   if (!participantRoles.includes(participantRole)) throw new Error("Role ผู้เข้าร่วมไม่ถูกต้อง");
   const registrationCode = text(formData, "registrationCode");
-  await updateParticipant({
-    registrationCode,
-    email: text(formData, "email"),
-    provider: text(formData, "provider") as "google" | "microsoft" | "local",
-    participantRole,
-    title: text(formData, "title"),
-    firstName: text(formData, "firstName"),
-    lastName: text(formData, "lastName"),
-    citizenId,
-    phone,
-    position: text(formData, "position"),
-    division: text(formData, "division"),
-    bureau: text(formData, "bureau"),
-    status: status as "registered" | "attended" | "cancelled",
-  });
+  try {
+    await updateParticipant({
+      registrationCode,
+      email: text(formData, "email"),
+      provider: text(formData, "provider") as "google" | "microsoft" | "local",
+      participantRole,
+      title: text(formData, "title"),
+      firstName: text(formData, "firstName"),
+      lastName: text(formData, "lastName"),
+      citizenId,
+      phone,
+      position: text(formData, "position"),
+      division: text(formData, "division"),
+      bureau: text(formData, "bureau"),
+      status: status as "registered" | "attended" | "cancelled",
+    });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    const message = code === "DUPLICATE_EMAIL" || code === "ER_DUP_ENTRY"
+      ? "อีเมลนี้ถูกใช้งานกับผู้เข้าร่วมงานรายการอื่นแล้ว กรุณาใช้อีเมลอื่น"
+      : code === "DUPLICATE_CITIZEN_ID"
+        ? "เลขบัตรประชาชนนี้ถูกใช้งานกับผู้เข้าร่วมงานรายการอื่นแล้ว"
+        : "ไม่สามารถบันทึกข้อมูลได้ กรุณาตรวจสอบข้อมูลและลองใหม่อีกครั้ง";
+    redirect(`/admin/participants/${encodeURIComponent(registrationCode)}?error=${encodeURIComponent(message)}`);
+  }
   await recordAuditEvent({
     actor: actorFromAdminSession(session),
     action: "registration.updated",
@@ -183,9 +200,11 @@ function text(formData: FormData, name: string) {
 
 function formatAdminDate(value?: string | null) {
   if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("th-TH", {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "Asia/Bangkok",
-  }).format(new Date(value));
+  }).format(date);
 }
