@@ -134,7 +134,8 @@ function drawQuestionPage(doc: PDFKit.PDFDocument, summary: EvaluationSummary, g
   drawBasePage(doc);
   drawReportHeader(doc, "ส่วนที่ 2 คะแนนเฉลี่ยรายหัวข้อ", summary.total);
   drawSectionLabel(doc, "ส่วนที่ 2 · คะแนนเฉลี่ยรายหัวข้อ", 132);
-  drawQuestionBarChart(doc, summary.questions, 160);
+  drawMetricCard(doc, "คะแนนภาพรวมการจัดงาน", summary.average ? `${summary.average.toFixed(2)} / 5` : "-", margin, 155, contentWidth, PDF_THEME.goldSoft, "#e5cd70");
+  drawQuestionBarChart(doc, summary.questions, 215);
   drawDocumentFooter(doc, pageNumber, totalPages, "ส่วนที่ 2");
 }
 
@@ -183,16 +184,16 @@ function drawProfileSummary(doc: PDFKit.PDFDocument, summary: EvaluationSummary)
   profileSections.forEach(([key, label], sectionIndex) => {
     const cardWidth = (contentWidth - 15) / 2;
     const x = sectionIndex % 2 === 0 ? margin : margin + cardWidth + 15;
-    const y = 300 + Math.floor(sectionIndex / 2) * 142;
+    const y = 300 + Math.floor(sectionIndex / 2) * 240;
     const values = summary.profiles[key];
-    const cardHeight = 128;
+    const cardHeight = 225;
     doc.roundedRect(x, y, cardWidth, cardHeight, 6).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
     doc.font(pdfFontBold).fontSize(8.3).fillColor(PDF_THEME.navy).text(label, x + 10, y + 9, { width: cardWidth - 20, lineBreak: false });
     if (!values.length) {
       doc.font(pdfFontRegular).fontSize(7.2).fillColor(PDF_THEME.muted).text("ยังไม่มีข้อมูล", x + 10, y + 38, { width: cardWidth - 20, lineBreak: false });
       return;
     }
-    drawPieChart(doc, values, summary.total, x + 60, y + 76, 38, x + 107, y + 29, cardWidth - 117);
+    drawPieChart(doc, values, summary.total, x + cardWidth / 2, y + 74, 50, x + 12, y + 135, cardWidth - 24);
   });
 }
 
@@ -225,11 +226,17 @@ function drawPieChart(
     startAngle = endAngle;
   });
   values.slice(0, 5).forEach((item, index) => {
-    const rowY = legendY + index * 18;
     const percentage = total ? `${((item.count / total) * 100).toFixed(1)}%` : "0.0%";
-    doc.circle(legendX + 3, rowY + 4, 3).fill(pieColors[index % pieColors.length]);
-    doc.font(pdfFontRegular).fontSize(5.9).fillColor(PDF_THEME.text).text(clean(item.label), legendX + 11, rowY, { width: Math.max(45, legendWidth - 66), lineBreak: false, ellipsis: true });
-    doc.font(pdfFontRegular).fontSize(5.8).fillColor(PDF_THEME.muted).text(`${item.count.toLocaleString("th-TH")} (${percentage})`, legendX + legendWidth - 48, rowY, { width: 48, align: "right", lineBreak: false });
+    const countWidth = 58;
+    const labelWidth = legendWidth - 28 - countWidth;
+    const lines = wrapTextLines(doc, clean(item.label), labelWidth, 6.2, pdfFontRegular);
+    const rowHeight = Math.max(16, lines.length * 8.2 + 3);
+    doc.circle(legendX + 4, legendY + rowHeight / 2, 3).fill(pieColors[index % pieColors.length]);
+    lines.forEach((line, lineIndex) => {
+      doc.font(pdfFontRegular).fontSize(6.2).fillColor(PDF_THEME.text).text(line, legendX + 13, legendY + 2 + lineIndex * 8.2, { width: labelWidth, lineBreak: false });
+    });
+    doc.font(pdfFontRegular).fontSize(5.9).fillColor(PDF_THEME.muted).text(`${item.count.toLocaleString("th-TH")} (${percentage})`, legendX + legendWidth - countWidth, legendY + Math.max(2, (rowHeight - 5.9) / 2), { width: countWidth, align: "right", lineBreak: false });
+    legendY += rowHeight;
   });
 }
 
@@ -258,21 +265,38 @@ function drawQuestionBarChart(doc: PDFKit.PDFDocument, questions: EvaluationSumm
 
 function drawCommentColumn(doc: PDFKit.PDFDocument, title: string, comments: CommentGroup[], x: number, y: number, width: number, height: number) {
   const headerHeight = 36;
-  const rowHeight = Math.min(18, Math.max(11, (height - headerHeight - 10) / Math.max(comments.length, 1)));
-  const textSize = rowHeight < 14 ? 5.7 : 6.4;
+  const countWidth = 43;
+  const textWidth = width - 45 - countWidth;
+  const availableHeight = height - headerHeight - 10;
+  const textSizes = [6.4, 5.8, 5.2, 4.8];
+  let textSize = textSizes[textSizes.length - 1];
+  let rows = comments.map((comment) => ({ comment, lines: wrapTextLines(doc, clean(comment.text), textWidth, textSize, pdfFontRegular), rowHeight: 15 }));
+  for (const candidateSize of textSizes) {
+    const lineHeight = candidateSize + 2.2;
+    const candidateRows = comments.map((comment) => {
+      const lines = wrapTextLines(doc, clean(comment.text), textWidth, candidateSize, pdfFontRegular);
+      return { comment, lines, rowHeight: Math.max(15, lines.length * lineHeight + 4) };
+    });
+    if (candidateRows.reduce((sum, row) => sum + row.rowHeight, 0) <= availableHeight) {
+      textSize = candidateSize;
+      rows = candidateRows;
+      break;
+    }
+  }
   doc.roundedRect(x, y, width, height, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
   doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(title, x + 13, y + 12, { width: width - 26, lineBreak: false });
-  comments.forEach((comment, index) => {
-    const rowY = y + headerHeight + index * rowHeight;
-    if (index % 2 === 1) doc.rect(x + 8, rowY - 1, width - 16, rowHeight).fill(PDF_THEME.paleBlue);
-    doc.circle(x + 19, rowY + rowHeight / 2, 1.8).fill(PDF_THEME.blue);
-    const countWidth = 43;
-    const textWidth = width - 45 - countWidth;
-    const textLines = fitTextLines(doc, clean(comment.text), textWidth, textSize, pdfFontRegular, 1);
-    doc.font(pdfFontRegular).fontSize(textSize).fillColor(PDF_THEME.text).text(textLines[0] ?? "-", x + 29, rowY + Math.max(2, (rowHeight - textSize) / 2), { width: textWidth, lineBreak: false });
-    if (comment.count > 1) {
-      doc.font(pdfFontRegular).fontSize(5.8).fillColor(PDF_THEME.muted).text(`${comment.count.toLocaleString("th-TH")} ครั้ง`, x + width - countWidth - 8, rowY + Math.max(2, (rowHeight - 5.8) / 2), { width: countWidth, align: "right", lineBreak: false });
+  let cursorY = y + headerHeight;
+  rows.forEach((row, index) => {
+    if (index % 2 === 1) doc.rect(x + 8, cursorY - 1, width - 16, row.rowHeight).fill(PDF_THEME.paleBlue);
+    doc.circle(x + 19, cursorY + row.rowHeight / 2, 1.8).fill(PDF_THEME.blue);
+    const lineHeight = textSize + 2.2;
+    row.lines.forEach((line, lineIndex) => {
+      doc.font(pdfFontRegular).fontSize(textSize).fillColor(PDF_THEME.text).text(line, x + 29, cursorY + 3 + lineIndex * lineHeight, { width: textWidth, lineBreak: false });
+    });
+    if (row.comment.count > 1) {
+      doc.font(pdfFontRegular).fontSize(5.8).fillColor(PDF_THEME.muted).text(`${row.comment.count.toLocaleString("th-TH")} ครั้ง`, x + width - countWidth - 8, cursorY + Math.max(2, (row.rowHeight - 5.8) / 2), { width: countWidth, align: "right", lineBreak: false });
     }
+    cursorY += row.rowHeight;
   });
 }
 
@@ -309,12 +333,24 @@ function drawEmptyCard(doc: PDFKit.PDFDocument, y: number, message: string) {
 }
 
 function fitTextLines(doc: PDFKit.PDFDocument, value: string, width: number, size: number, font: string, maxLines: number) {
+  const lines = wrapTextLines(doc, value, width, size, font);
+  if (lines.length <= maxLines) return lines;
+  const shortened = lines.slice(0, maxLines);
+  let last = shortened[shortened.length - 1] ?? "";
+  while (last && doc.widthOfString(`${last}…`) > width) {
+    last = Array.from(new Intl.Segmenter("th", { granularity: "grapheme" }).segment(last), (item) => item.segment).slice(0, -1).join("");
+  }
+  shortened[shortened.length - 1] = `${last}…`;
+  return shortened;
+}
+
+function wrapTextLines(doc: PDFKit.PDFDocument, value: string, width: number, size: number, font: string) {
   doc.font(font).fontSize(size);
   const graphemes = Array.from(new Intl.Segmenter("th", { granularity: "grapheme" }).segment(value), (item) => item.segment);
   const lines: string[] = [];
   let current = "";
   let index = 0;
-  while (index < graphemes.length && lines.length < maxLines) {
+  while (index < graphemes.length) {
     const next = `${current}${graphemes[index]}`;
     if (!current || doc.widthOfString(next) <= width) {
       current = next;
@@ -324,14 +360,7 @@ function fitTextLines(doc: PDFKit.PDFDocument, value: string, width: number, siz
     lines.push(current.trimEnd());
     current = "";
   }
-  if (current && lines.length < maxLines) lines.push(current.trimEnd());
-  if (index < graphemes.length && lines.length) {
-    let last = lines[lines.length - 1];
-    while (last && doc.widthOfString(`${last}…`) > width) {
-      last = Array.from(new Intl.Segmenter("th", { granularity: "grapheme" }).segment(last), (item) => item.segment).slice(0, -1).join("");
-    }
-    lines[lines.length - 1] = `${last}…`;
-  }
+  if (current) lines.push(current.trimEnd());
   return lines;
 }
 
