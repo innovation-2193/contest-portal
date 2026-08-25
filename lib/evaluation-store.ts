@@ -488,7 +488,6 @@ function summarizeEvaluations(evaluations: EvaluationRecord[]): EvaluationSummar
     },
     comments: evaluations
       .filter((item) => item.impressive_text || item.suggestion_text)
-      .slice(0, 12)
       .map((item) => ({
         registrationCode: item.registration_code,
         name: item.participant_name ?? item.registration_code,
