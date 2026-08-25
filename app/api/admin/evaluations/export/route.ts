@@ -23,11 +23,11 @@ export const runtime = "nodejs";
 
 const pageWidth = 841.89;
 const pageHeight = 595.28;
+const portraitPageWidth = 595.28;
+const portraitPageHeight = 841.89;
 const tableX = 30;
 const tableWidth = 782;
 const reportTitle = "รายงานสรุปผลการประเมินความพึงพอใจของผู้เข้าร่วมงาน";
-const firstQuestionRowsPerPage = 8;
-const questionRowsPerPage = 11;
 const respondentRowsPerPage = 12;
 
 export async function GET(request: Request) {
@@ -64,36 +64,18 @@ export async function GET(request: Request) {
 }
 
 async function evaluationReportPdf(summary: EvaluationSummary, respondents: EvaluationRespondent[]) {
-  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: true });
+  const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, bufferPages: true });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
   const sortedRespondents = [...respondents].sort(compareSubmittedAt);
-  const firstQuestionRows = summary.questions.slice(0, firstQuestionRowsPerPage);
-  const remainingQuestions = summary.questions.slice(firstQuestionRowsPerPage);
-  const partOnePages = summary.questions.length
-    ? 1 + Math.ceil(remainingQuestions.length / questionRowsPerPage)
-    : 1;
   const partTwoPages = Math.max(1, Math.ceil(sortedRespondents.length / respondentRowsPerPage));
-  const totalPages = partOnePages + partTwoPages;
+  const totalPages = 1 + partTwoPages;
 
   doc.info.Title = reportTitle;
   doc.info.Subject = reportTitle;
   doc.info.Author = "Police Innovation Contest 2026";
 
-  drawPartOnePage(doc, summary, firstQuestionRows, 0, generatedAt, totalPages, 1);
-  for (let page = 1; page < partOnePages; page += 1) {
-    doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
-    const start = firstQuestionRowsPerPage + (page - 1) * questionRowsPerPage;
-    drawPartOnePage(
-      doc,
-      summary,
-      remainingQuestions.slice((page - 1) * questionRowsPerPage, page * questionRowsPerPage),
-      start,
-      generatedAt,
-      totalPages,
-      page + 1,
-    );
-  }
+  drawPartOnePortraitPage(doc, summary, generatedAt, totalPages);
 
   for (let page = 0; page < partTwoPages; page += 1) {
     doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
@@ -104,7 +86,7 @@ async function evaluationReportPdf(summary: EvaluationSummary, respondents: Eval
       sortedRespondents.length,
       generatedAt,
       totalPages,
-      partOnePages + page + 1,
+      page + 2,
     );
   }
 
@@ -112,34 +94,23 @@ async function evaluationReportPdf(summary: EvaluationSummary, respondents: Eval
   return pdf;
 }
 
-function drawPartOnePage(
+function drawPartOnePortraitPage(
   doc: PDFKit.PDFDocument,
   summary: EvaluationSummary,
-  questions: EvaluationSummary["questions"],
-  offset: number,
   generatedAt: Date,
   totalPages: number,
-  pageNumber: number,
 ) {
   drawBasePage(doc);
   drawDocumentHeader(doc, {
     title: reportTitle,
     titleFontSize: 19,
     subtitle: `ส่วนที่ 1 สรุปคะแนนรายหัวข้อ • ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
-    metaLabel: "ผู้ตอบทั้งหมด",
-    metaValue: `${summary.total.toLocaleString("th-TH")} คน`,
+    showLogo: true,
   });
-
-  const isFirstPartOnePage = offset === 0;
-  const tableY = isFirstPartOnePage ? 244 : 160;
-  if (isFirstPartOnePage) {
-    drawSummary(doc, summary.total, summary.average);
-    drawSectionSummary(doc, summary.sections);
-  } else {
-    drawSectionLabel(doc, "ส่วนที่ 1 · คะแนนรายข้อ", 126);
-  }
-  drawQuestionTable(doc, questions, offset, tableY);
-  drawDocumentFooter(doc, pageNumber, totalPages, "ส่วนที่ 1");
+  drawPortraitSummary(doc, summary.total, summary.average);
+  drawPortraitSectionSummary(doc, summary.sections);
+  drawPortraitQuestionTable(doc, summary.questions, 325);
+  drawDocumentFooter(doc, 1, totalPages, "ส่วนที่ 1");
 }
 
 function drawPartTwoPage(
@@ -165,7 +136,24 @@ function drawPartTwoPage(
 }
 
 function drawBasePage(doc: PDFKit.PDFDocument) {
-  doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_THEME.paper);
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
+}
+
+function drawPortraitSummary(doc: PDFKit.PDFDocument, total: number, overallAverage: number) {
+  drawMetricCard(doc, "จำนวนผู้ส่งแบบประเมิน", `${total.toLocaleString("th-TH")} คน`, 30, 126, portraitPageWidth - 60, PDF_THEME.white);
+  drawMetricCard(doc, "คะแนนภาพรวมการจัดงาน", overallAverage ? `${overallAverage.toFixed(2)} / 5` : "-", 30, 178, portraitPageWidth - 60, PDF_THEME.goldSoft, "#e5cd70");
+}
+
+function drawPortraitSectionSummary(doc: PDFKit.PDFDocument, sections: EvaluationSummary["sections"]) {
+  const x = 30;
+  const width = portraitPageWidth - 60;
+  sections.forEach((section, index) => {
+    const y = 230 + index * 28;
+    doc.roundedRect(x, y, width, 24, 5).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(pdfFontBold).fontSize(7.8).fillColor(PDF_THEME.navy).text(section.title, x + 10, y + 7, { width: width - 100, lineBreak: false });
+    doc.font(pdfFontBold).fontSize(10).fillColor(PDF_THEME.gold).text(section.average ? section.average.toFixed(2) : "-", x + width - 75, y + 5, { width: 50, align: "right", lineBreak: false });
+    doc.font(pdfFontRegular).fontSize(6.8).fillColor(PDF_THEME.muted).text("/ 5", x + width - 29, y + 8, { width: 18, align: "right", lineBreak: false });
+  });
 }
 
 function drawSummary(doc: PDFKit.PDFDocument, total: number, overallAverage: number) {
@@ -220,6 +208,54 @@ function drawQuestionTable(doc: PDFKit.PDFDocument, questions: EvaluationSummary
       `${question.count.toLocaleString("th-TH")} คน`,
       question.average ? `${question.average.toFixed(2)} / 5` : "-",
     ], [2, 2, 1, 1]);
+  });
+}
+
+function drawPortraitQuestionTable(doc: PDFKit.PDFDocument, questions: EvaluationSummary["questions"], y: number) {
+  const x = 30;
+  const width = portraitPageWidth - 60;
+  const columns = [
+    { label: "ลำดับ", width: 42, align: "center" as const },
+    { label: "หัวข้อการประเมิน", width: 314, align: "left" as const },
+    { label: "จำนวนคำตอบ", width: 91, align: "center" as const },
+    { label: "คะแนนเฉลี่ย", width: 88, align: "center" as const },
+  ];
+  doc.roundedRect(x, y, width, 24, 5).fill(PDF_THEME.navy);
+  let headerX = x;
+  columns.forEach((column) => {
+    doc.font(pdfFontBold).fontSize(7.6).fillColor(PDF_THEME.goldSoft).text(column.label, headerX + 4, y + 7, {
+      width: column.width - 8,
+      align: column.align,
+      lineBreak: false,
+    });
+    headerX += column.width;
+  });
+
+  if (!questions.length) {
+    doc.roundedRect(x, y + 28, width, 42, 5).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+    doc.font(pdfFontRegular).fontSize(9).fillColor(PDF_THEME.muted).text("ยังไม่มีคะแนนรายหัวข้อ", x, y + 44, { width, align: "center", lineBreak: false });
+    return;
+  }
+
+  questions.forEach((question, index) => {
+    const rowY = y + 24 + index * 22;
+    doc.rect(x, rowY, width, 22).fillAndStroke(index % 2 ? PDF_THEME.paleBlue : PDF_THEME.white, PDF_THEME.line);
+    const values = [
+      String(index + 1),
+      question.label,
+      `${question.count.toLocaleString("th-TH")} คน`,
+      question.average ? `${question.average.toFixed(2)} / 5` : "-",
+    ];
+    let cellX = x;
+    columns.forEach((column, columnIndex) => {
+      if (columnIndex > 0) doc.moveTo(cellX, rowY + 3).lineTo(cellX, rowY + 19).lineWidth(0.3).stroke(PDF_THEME.line);
+      const lines = fitTextLines(doc, clean(values[columnIndex]), column.width - 10, 7.5, columnIndex === 0 ? pdfFontBold : pdfFontRegular, 1);
+      doc.font(columnIndex === 0 || columnIndex === 3 ? pdfFontBold : pdfFontRegular)
+        .fontSize(7.5)
+        .fillColor(columnIndex === 0 || columnIndex === 3 ? PDF_THEME.navy : PDF_THEME.text)
+        .text(lines[0] ?? "-", cellX + 5, rowY + 6, { width: column.width - 10, align: column.align, lineBreak: false });
+      cellX += column.width;
+    });
   });
 }
 
