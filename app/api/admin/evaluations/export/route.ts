@@ -27,13 +27,18 @@ const profileSections = [
   ["organizationType", "ประเภทหน่วยงาน"],
   ["attendeeStatus", "สถานภาพผู้เข้าร่วม"],
 ] as const;
-const commentGroupsPerPage = 10;
 const pieColors = [PDF_THEME.blue, PDF_THEME.gold, PDF_THEME.green, "#8d5bd1", "#e77c42"];
 
 type CommentGroup = {
   kind: "impressive" | "suggestion";
   text: string;
   count: number;
+};
+
+type CommentSection = {
+  kind: CommentGroup["kind"];
+  title: string;
+  groups: CommentGroup[];
 };
 
 export async function GET(request: Request) {
@@ -71,11 +76,11 @@ async function evaluationSummaryPdf(summary: EvaluationSummary) {
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
   const commentGroups = buildCommentGroups(summary.comments);
-  const commentSections = [
+  const commentSections: CommentSection[] = [
     { kind: "impressive" as const, title: "สิ่งที่ประทับใจ", groups: commentGroups.filter((comment) => comment.kind === "impressive") },
     { kind: "suggestion" as const, title: "ข้อเสนอแนะ", groups: commentGroups.filter((comment) => comment.kind === "suggestion") },
   ].filter((section) => section.groups.length > 0);
-  const commentPages = commentSections.reduce((total, section) => total + Math.ceil(section.groups.length / commentGroupsPerPage), 0);
+  const commentPages = commentSections.length ? 1 : 0;
   const totalPages = 2 + commentPages;
 
   doc.info.Title = reportTitle;
@@ -86,13 +91,9 @@ async function evaluationSummaryPdf(summary: EvaluationSummary) {
   doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
   drawQuestionPage(doc, summary, generatedAt, totalPages, 2);
 
-  let pageNumber = 3;
-  for (const section of commentSections) {
-    for (let offset = 0; offset < section.groups.length; offset += commentGroupsPerPage) {
-      doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
-      drawCommentsPage(doc, section.title, section.groups.slice(offset, offset + commentGroupsPerPage), offset, summary.total, totalPages, pageNumber);
-      pageNumber += 1;
-    }
+  if (commentSections.length) {
+    doc.addPage({ size: "A4", layout: "portrait", margin: 0 });
+    drawCommentsPage(doc, commentSections, summary.total, totalPages, 3);
   }
 
   doc.end();
@@ -137,14 +138,20 @@ function drawQuestionPage(doc: PDFKit.PDFDocument, summary: EvaluationSummary, g
   drawDocumentFooter(doc, pageNumber, totalPages, "ส่วนที่ 2");
 }
 
-function drawCommentsPage(doc: PDFKit.PDFDocument, title: string, comments: CommentGroup[], offset: number, total: number, totalPages: number, pageNumber: number) {
+function drawCommentsPage(doc: PDFKit.PDFDocument, sections: CommentSection[], total: number, totalPages: number, pageNumber: number) {
   drawBasePage(doc);
   drawReportHeader(doc, "ส่วนที่ 3 ข้อคิดเห็นและข้อเสนอแนะ (ไม่ระบุตัวตน)", total);
-  drawSectionLabel(doc, `ส่วนที่ 3 · ${title}`, 132);
-  if (!comments.length) {
-    drawEmptyCard(doc, 160, "ยังไม่มีข้อคิดเห็นหรือข้อเสนอแนะ");
-  } else {
-    drawCommentSection(doc, title, comments, offset, 160);
+  drawSectionLabel(doc, "ส่วนที่ 3 · ข้อคิดเห็นและข้อเสนอแนะจากผู้ตอบแบบประเมิน", 132);
+  const columnGap = 14;
+  const columnWidth = (contentWidth - columnGap) / 2;
+  const columnHeight = 610;
+  sections.forEach((section, index) => {
+    drawCommentColumn(doc, section.title, section.groups, margin + index * (columnWidth + columnGap), 160, columnWidth, columnHeight);
+  });
+  if (sections.length === 1) {
+    const x = margin + columnWidth + columnGap;
+    doc.roundedRect(x, 160, columnWidth, columnHeight, 7).fillAndStroke(PDF_THEME.paleBlue, PDF_THEME.line);
+    doc.font(pdfFontRegular).fontSize(8).fillColor(PDF_THEME.muted).text("ไม่มีข้อมูลในหัวข้อนี้", x, 450, { width: columnWidth, align: "center", lineBreak: false });
   }
   drawDocumentFooter(doc, pageNumber, totalPages, "ส่วนที่ 3");
 }
@@ -249,18 +256,22 @@ function drawQuestionBarChart(doc: PDFKit.PDFDocument, questions: EvaluationSumm
   });
 }
 
-function drawCommentSection(doc: PDFKit.PDFDocument, title: string, comments: CommentGroup[], offset: number, y: number) {
-  const rowHeight = 35;
-  const cardHeight = 39 + comments.length * rowHeight;
-  doc.roundedRect(margin, y, contentWidth, cardHeight, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-  doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(title, margin + 13, y + 12, { width: contentWidth - 26, lineBreak: false });
+function drawCommentColumn(doc: PDFKit.PDFDocument, title: string, comments: CommentGroup[], x: number, y: number, width: number, height: number) {
+  const headerHeight = 36;
+  const rowHeight = Math.min(18, Math.max(11, (height - headerHeight - 10) / Math.max(comments.length, 1)));
+  const textSize = rowHeight < 14 ? 5.7 : 6.4;
+  doc.roundedRect(x, y, width, height, 7).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+  doc.font(pdfFontBold).fontSize(9.2).fillColor(PDF_THEME.gold).text(title, x + 13, y + 12, { width: width - 26, lineBreak: false });
   comments.forEach((comment, index) => {
-    const rowY = y + 35 + index * rowHeight;
-    if ((offset + index) % 2 === 1) doc.rect(margin + 8, rowY - 2, contentWidth - 16, rowHeight).fill(PDF_THEME.paleBlue);
-    doc.circle(margin + 20, rowY + 12, 2.2).fill(PDF_THEME.blue);
-    drawCommentText(doc, comment.text, margin + 31, rowY + 4, contentWidth - 135);
+    const rowY = y + headerHeight + index * rowHeight;
+    if (index % 2 === 1) doc.rect(x + 8, rowY - 1, width - 16, rowHeight).fill(PDF_THEME.paleBlue);
+    doc.circle(x + 19, rowY + rowHeight / 2, 1.8).fill(PDF_THEME.blue);
+    const countWidth = 43;
+    const textWidth = width - 45 - countWidth;
+    const textLines = fitTextLines(doc, clean(comment.text), textWidth, textSize, pdfFontRegular, 1);
+    doc.font(pdfFontRegular).fontSize(textSize).fillColor(PDF_THEME.text).text(textLines[0] ?? "-", x + 29, rowY + Math.max(2, (rowHeight - textSize) / 2), { width: textWidth, lineBreak: false });
     if (comment.count > 1) {
-      doc.font(pdfFontRegular).fontSize(6.5).fillColor(PDF_THEME.muted).text(`${comment.count.toLocaleString("th-TH")} ครั้ง`, pageWidth - margin - 87, rowY + 9, { width: 72, align: "right", lineBreak: false });
+      doc.font(pdfFontRegular).fontSize(5.8).fillColor(PDF_THEME.muted).text(`${comment.count.toLocaleString("th-TH")} ครั้ง`, x + width - countWidth - 8, rowY + Math.max(2, (rowHeight - 5.8) / 2), { width: countWidth, align: "right", lineBreak: false });
     }
   });
 }
