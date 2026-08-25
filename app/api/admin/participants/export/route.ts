@@ -281,7 +281,7 @@ function compareCheckInTime(a: RegistrationRecord, b: RegistrationRecord) {
   const aTime = a.checked_in_at ? new Date(a.checked_in_at).getTime() : Number.NEGATIVE_INFINITY;
   const bTime = b.checked_in_at ? new Date(b.checked_in_at).getTime() : Number.NEGATIVE_INFINITY;
   if (aTime !== bTime) return bTime - aTime;
-  return b.registered_at.localeCompare(a.registered_at);
+  return new Date(b.registered_at).getTime() - new Date(a.registered_at).getTime();
 }
 
 function clean(value: string) {
