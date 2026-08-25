@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     actor: actorFromAdminSession(session),
     action: "registration.export_pdf",
     entityType: "registration",
-    summary: `Export รายชื่อผู้เข้าร่วมงานเป็น PDF${requestedRole ? ` Role ${requestedRole}` : ""}`,
+    summary: `Export บัญชีรายชื่อผู้เข้าร่วมงานทั้งหมดจากระบบลงทะเบียนออนไลน์เป็น PDF${requestedRole ? ` Role ${requestedRole}` : ""}`,
     payload: { count: participants.length, role: requestedRole || "all" },
   }, request.headers);
   const pdf = await participantsPdf(participants, requestedRole);
@@ -54,45 +54,57 @@ export async function GET(request: Request) {
 }
 
 async function participantsPdf(participants: RegistrationRecord[], role = "") {
-  const pageHeight = Math.max(595.28, 190 + participants.length * 46 + 76);
-  const doc = new PDFDocument({ size: [841.89, pageHeight], margin: 0 });
+  const pageWidth = 841.89;
+  const pageHeight = 595.28;
+  const rowsPerPage = 10;
+  const sortedParticipants = [...participants].sort(compareCheckInTime);
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, bufferPages: true });
   const pdf = collectPdf(doc);
   const generatedAt = new Date();
   const columns = [
-    ["เลขลงทะเบียน", 86],
-    ["ชื่อ-สกุล", 102],
-    ["Role", 50],
-    ["บัตรประชาชน", 78],
-    ["โทร", 64],
-    ["ตำแหน่ง", 76],
-    ["สังกัด / หน่วยงาน", 120],
-    ["สถานะ", 70],
-    ["เช็คอิน", 75],
-    ["สแกนโดย", 68],
+    ["ลำดับ", 36],
+    ["ชื่อ-นามสกุล", 205],
+    ["Role", 60],
+    ["ตำแหน่ง", 120],
+    ["สังกัด", 188],
+    ["สถานะ", 84],
+    ["เวลาในการเช็คอิน", 89],
   ] as const;
-  const rowHeight = 42;
-  const tableX = 26;
-  let y = drawPageHeader(doc, participants, generatedAt, reportFonts, role);
-  drawTableHeader(doc, tableX, y, columns, reportFonts);
-  y += 30;
+  const rowHeight = 32;
+  const tableX = 30;
+  const pageCount = Math.max(1, Math.ceil(sortedParticipants.length / rowsPerPage));
 
-  participants.forEach((item, index) => {
-    drawParticipantRow(doc, tableX, y, rowHeight, columns, item, index, reportFonts);
-    y += rowHeight + 4;
-  });
+  for (let page = 0; page < pageCount; page += 1) {
+    if (page > 0) doc.addPage({ size: "A4", layout: "landscape", margin: 0 });
+    doc.rect(0, 0, pageWidth, pageHeight).fill(PDF_THEME.paper);
+    let y = drawPageHeader(doc, sortedParticipants, generatedAt, reportFonts, role);
+    drawTableHeader(doc, tableX, y, columns, reportFonts);
+    y += 30;
 
-  if (!participants.length) {
-    doc.roundedRect(26, y + 16, doc.page.width - 52, 72, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
-    doc.font(reportFonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลผู้เข้าร่วมงาน", 44, y + 42, {
-      width: doc.page.width - 88,
-      align: "center",
-      lineBreak: false,
+    const pageParticipants = sortedParticipants.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+    pageParticipants.forEach((item, index) => {
+      drawParticipantRow(doc, tableX, y, rowHeight, columns, item, page * rowsPerPage + index, reportFonts);
+      y += rowHeight + 4;
     });
+
+    if (!pageParticipants.length) {
+      doc.roundedRect(tableX, y + 16, doc.page.width - tableX * 2, 72, 8).fillAndStroke(PDF_THEME.white, PDF_THEME.line);
+      doc.font(reportFonts.bold).fontSize(14).fillColor(PDF_THEME.navy).text("ยังไม่มีข้อมูลผู้เข้าร่วมงาน", tableX + 18, y + 42, {
+        width: doc.page.width - tableX * 2 - 36,
+        align: "center",
+        lineBreak: false,
+      });
+    }
   }
-  drawDocumentFooter(doc, 1, 1, `${participants.length} รายการ`, reportFonts);
+
+  const range = doc.bufferedPageRange();
+  for (let pageIndex = 0; pageIndex < range.count; pageIndex += 1) {
+    doc.switchToPage(range.start + pageIndex);
+    drawDocumentFooter(doc, pageIndex + 1, range.count, `${sortedParticipants.length} รายการ`, reportFonts);
+  }
 
   doc.info.Title = "Police Innovation Contest 2026 participants";
-  doc.info.Subject = "รายชื่อผู้เข้าร่วมงาน";
+  doc.info.Subject = "บัญชีรายชื่อผู้เข้าร่วมงานทั้งหมดจากระบบลงทะเบียนออนไลน์";
   doc.info.Author = "Police Innovation Contest 2026";
   doc.end();
   return pdf;
@@ -106,21 +118,19 @@ function drawPageHeader(
   role: string,
 ) {
   const attended = participants.filter((item) => item.status === "attended").length;
-  const cancelled = participants.filter((item) => item.status === "cancelled").length;
-  const registered = participants.length - attended - cancelled;
 
   doc.rect(0, 0, doc.page.width, doc.page.height).fill(PDF_THEME.paper);
   drawDocumentHeader(doc, {
-    title: `รายชื่อผู้เข้าร่วมงาน${role ? ` Role ${role}` : ""}`,
+    title: `บัญชีรายชื่อผู้เข้าร่วมงานทั้งหมดจากระบบลงทะเบียนออนไลน์${role ? ` · Role ${role}` : ""}`,
+    titleFontSize: role ? 16 : 21,
     subtitle: `${role ? `เฉพาะ Role ${role} • ` : ""}ออกรายงานเมื่อ ${formatPdfThaiDateTime(generatedAt)}`,
     metaLabel: "จำนวนทั้งหมด",
     metaValue: `${participants.length} รายการ`,
-    showLogo: false,
     fonts,
   });
-  drawSummaryChip(doc, "ลงทะเบียนแล้ว", registered, 26, 120, PDF_THEME.goldSoft, "#80620b", fonts);
-  drawSummaryChip(doc, "เข้าร่วมงานแล้ว", attended, 176, 120, PDF_THEME.greenSoft, PDF_THEME.green, fonts);
-  drawSummaryChip(doc, "ยกเลิก", cancelled, 342, 120, PDF_THEME.redSoft, PDF_THEME.red, fonts);
+  drawSummaryChip(doc, "ลงทะเบียนทั้งหมด", participants.length, 30, 120, PDF_THEME.goldSoft, "#80620b", fonts);
+  drawSummaryChip(doc, "เข้าร่วมงาน", attended, 178, 120, PDF_THEME.greenSoft, PDF_THEME.green, fonts);
+  drawSummaryChip(doc, "ไม่เข้าร่วมงาน", participants.length - attended, 326, 120, PDF_THEME.redSoft, PDF_THEME.red, fonts);
   return 160;
 }
 
@@ -136,7 +146,7 @@ function drawTableHeader(
   let cursor = x;
   doc.font(fonts.bold).fontSize(8.5).fillColor(PDF_THEME.goldSoft);
   for (const [label, width] of columns) {
-    doc.text(label, cursor + 6, y + 9, { width: width - 12, align: "left", lineBreak: false });
+    doc.text(label, cursor + 5, y + 8, { width: width - 10, align: "center", lineBreak: false });
     cursor += width;
   }
 }
@@ -156,34 +166,32 @@ function drawParticipantRow(
     .fillAndStroke(index % 2 === 0 ? PDF_THEME.white : PDF_THEME.paleBlue, PDF_THEME.line);
 
   const values = [
-    item.registration_code,
+    String(index + 1),
     formatApplicantName(item),
     item.participant_role,
-    item.citizen_id,
-    item.phone,
     item.position || "-",
     `${item.division || "-"} / ${item.bureau || "-"}`,
     statusLabel(item.status),
     item.checked_in_at ? formatPdfThaiDateTime(item.checked_in_at, "short") : "-",
-    item.checked_in_by_email || "-",
   ];
   let cursor = x;
   values.forEach((value, valueIndex) => {
     if (valueIndex > 0) {
       doc.moveTo(cursor, y + 6).lineTo(cursor, y + rowHeight - 6).lineWidth(0.4).stroke("#dfe5ef");
     }
-    const font = valueIndex === 0 ? fonts.bold : fonts.regular;
-    const color = valueIndex === 0 ? PDF_THEME.navy : PDF_THEME.text;
+    const font = valueIndex === 0 || valueIndex === 1 ? fonts.bold : fonts.regular;
+    const color = valueIndex === 0 || valueIndex === 1 ? PDF_THEME.navy : PDF_THEME.text;
     drawCellText(
       doc,
       clean(value),
       cursor + 6,
       y + 8,
       columns[valueIndex][1] - 12,
-      valueIndex >= 8 ? 7.2 : 8,
+      valueIndex === 6 ? 7.4 : 8,
       font,
       color,
-      valueIndex === 1 || valueIndex === 5 || valueIndex === 6 || valueIndex === 9 ? 2 : 1,
+      valueIndex === 1 || valueIndex === 3 || valueIndex === 4 ? 2 : 1,
+      valueIndex === 0 || valueIndex === 2 || valueIndex === 5 || valueIndex === 6 ? "center" : "left",
     );
     cursor += columns[valueIndex][1];
   });
@@ -199,11 +207,12 @@ function drawCellText(
   font: string,
   color: string,
   maxLines: number,
+  align: "left" | "center" = "left",
 ) {
   doc.font(font).fontSize(size).fillColor(color);
   const lines = fitCellLines(doc, value, width, maxLines);
   lines.forEach((line, index) => {
-    doc.text(line, x, y + index * (size + 2), { width, lineBreak: false });
+    doc.text(line, x, y + index * (size + 2), { width, align, lineBreak: false });
   });
 }
 
@@ -265,9 +274,14 @@ function drawSummaryChip(
 }
 
 function statusLabel(status: string) {
-  if (status === "attended") return "เข้าร่วมงานแล้ว";
-  if (status === "cancelled") return "ยกเลิก";
-  return "ลงทะเบียนแล้ว";
+  return status === "attended" ? "เข้าร่วมงาน" : "ไม่เข้าร่วมงาน";
+}
+
+function compareCheckInTime(a: RegistrationRecord, b: RegistrationRecord) {
+  const aTime = a.checked_in_at ? new Date(a.checked_in_at).getTime() : Number.NEGATIVE_INFINITY;
+  const bTime = b.checked_in_at ? new Date(b.checked_in_at).getTime() : Number.NEGATIVE_INFINITY;
+  if (aTime !== bTime) return bTime - aTime;
+  return b.registered_at.localeCompare(a.registered_at);
 }
 
 function clean(value: string) {
