@@ -38,6 +38,8 @@ export const adminNoticeMessages = {
   evaluations_reset: "รีเซ็ตคำตอบแบบประเมินความพึงพอใจทั้งหมดเรียบร้อยแล้ว",
   evaluations_reset_empty: "ยังไม่มีคำตอบแบบประเมินสำหรับรีเซ็ต",
   evaluations_reset_blocked: "กรุณา Reset ผล Lucky Draw ด้วย OTP ก่อนรีเซ็ตคำตอบแบบประเมิน",
+  database_imported: "นำเข้า Full Backup ฐานข้อมูลและไฟล์เว็บไซต์เรียบร้อยแล้ว",
+  database_import_failed: "นำเข้า Full Backup ไม่สำเร็จ กรุณาตรวจสอบไฟล์ ZIP และ log ของระบบ",
   evaluation_opened: "เปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
   evaluation_closed: "ปิดแบบสอบถามความพึงพอใจเรียบร้อยแล้ว",
   uci_video_added: "เพิ่มคลิปสอนการใช้งาน UCI เรียบร้อยแล้ว",

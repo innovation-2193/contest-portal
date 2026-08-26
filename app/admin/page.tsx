@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { CalendarClock, Car, ClipboardList, Database, Download, Eye, FileSpreadsheet, FileText, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, UserCheck, UserPlus, Users, Video } from "lucide-react";
+import { CalendarClock, Car, ClipboardList, Database, Download, Eye, FileSpreadsheet, FileText, Gift, Image as ImageIcon, LayoutGrid, LogIn, LogOut, Mail, Megaphone, Newspaper, Paperclip, Pencil, Phone, Printer, QrCode, Search, Settings, ShieldCheck, Star, Trash2, Trophy, Upload, UserCheck, UserPlus, Users, Video } from "lucide-react";
 import { AdminNotice } from "../../components/AdminNotice";
 import { ConfirmSubmitButton } from "../../components/ConfirmSubmitButton";
 import { ParkingParticipantPicker } from "../../components/ParkingParticipantPicker";
@@ -191,7 +191,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     {isSuperAdmin && <SettingsControlPanel settings={settings}/>}
     {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
       <div className="admin-checkin-copy"><Database/><div><span className="eyebrow">Super Admin Only</span><h2>สำรองข้อมูลเว็บไซต์ทั้งระบบ</h2><p>ดาวน์โหลด Full Backup เป็น ZIP รวม database.sql ครบทุกตาราง/ทุกแถว พร้อมไฟล์ storage เช่น เอกสาร รูปภาพ และข้อมูลระบบ • รวมข้อมูลส่วนบุคคลและคะแนน</p></div></div>
-      <a className="primary" href="/api/admin/database/export"><Download/>Export Database ทั้งเว็บ</a>
+      <a className="primary" href="/api/admin/database/export" download><Download/>Export Database ทั้งเว็บ</a>
+    </section>}
+    {isSuperAdmin && <section className="admin-panel admin-checkin-cta">
+      <div className="admin-checkin-copy"><Upload/><div><span className="eyebrow">Super Admin Only • Destructive</span><h2>นำเข้า / กู้คืน Full Backup</h2><p>ใช้สำหรับกู้คืนไปยังฐานข้อมูลและ storage ของระบบนี้เท่านั้น ระบบจะเขียนทับข้อมูลที่มีอยู่ ควรใช้กับเครื่องใหม่หรือหลังหยุดรับข้อมูลแล้ว • database.sql และ storage ใช้ต่อกับ PHP + MySQL ได้ แต่เว็บไซต์ Next.js เดิมต้องใช้ Host ที่รองรับ Node.js</p></div></div>
+      <form action="/api/admin/database/import" method="post" encType="multipart/form-data" className="admin-form database-import-form">
+        <label>ไฟล์ Full Backup (.zip)<input type="file" name="backup" accept=".zip,application/zip" required/><small>รองรับ ZIP ที่ Export จากระบบนี้ ขนาดไม่เกิน 512 MB</small></label>
+        <label>ยืนยันการดำเนินการ<input name="confirmation" placeholder="พิมพ์ IMPORT เพื่อยืนยัน" pattern="IMPORT" required autoComplete="off"/><small>การ Import จะ DROP และสร้างตารางใหม่ตามไฟล์ backup</small></label>
+        <button className="danger-btn" type="submit"><Upload/>Import Database</button>
+      </form>
     </section>}
     <ReviewQueuePanel submissions={filteredSubmissions} total={filteredSubmissionsAll.length} allSubmissions={submissions} search={submissionSearch} review={submissionReview} sort={submissionSort} isSuperAdmin={isSuperAdmin}/>
     {isSuperAdmin && <ParkingReservationPanel participants={parkingEligibleParticipants} reservations={parkingReservations} editId={params.parkingEdit} showAll={showAllParkingReservations}/>}

@@ -50,6 +50,8 @@ export async function GET(request: Request) {
 async function buildFullBackup() {
   const { sql, databaseName, tableCount, rowCount } = await buildDatabaseDump();
   const storage = await collectStorageFiles();
+  const restoreGuide = buildRestoreGuide(databaseName);
+  const phpGuide = buildPhpMigrationGuide();
   const manifest = {
     backupType: "Police Innovation Contest 2026 full website backup",
     createdAt: new Date().toISOString(),
@@ -61,6 +63,8 @@ async function buildFullBackup() {
   const entries: ZipEntry[] = [
     { name: "database.sql", data: Buffer.from(sql, "utf8") },
     { name: "backup-manifest.json", data: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8") },
+    { name: "RESTORE-GUIDE-TH.md", data: Buffer.from(restoreGuide, "utf8") },
+    { name: "PHP-MIGRATION-NOTE-TH.md", data: Buffer.from(phpGuide, "utf8") },
     ...storage.entries,
   ];
   return { archive: createZip(entries), databaseName, tableCount, rowCount, storageFileCount: storage.fileCount, storageBytes: storage.bytes };
@@ -77,6 +81,8 @@ async function buildDatabaseDump() {
     `-- Database: ${databaseName}`,
     "-- This file contains every visible table, row, and view in the application database.",
     "SET NAMES utf8mb4;",
+    `CREATE DATABASE IF NOT EXISTS ${quoteIdentifier(databaseName)} CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;`,
+    `USE ${quoteIdentifier(databaseName)};`,
     "SET FOREIGN_KEY_CHECKS=0;",
     "",
   ];
@@ -104,6 +110,24 @@ async function buildDatabaseDump() {
 
   chunks.push("SET FOREIGN_KEY_CHECKS=1;", "");
   return { sql: chunks.join("\n"), databaseName, tableCount: objects.length, rowCount };
+}
+
+function buildRestoreGuide(databaseName: string) {
+  return `# คู่มือกู้คืน Full Backup\n\nไฟล์นี้เป็น backup ของข้อมูลและไฟล์ runtime ของ Police Innovation Contest 2026 ประกอบด้วยฐานข้อมูลทุกตาราง/ทุกแถว และโฟลเดอร์ storage ทั้งหมดที่ไม่ใช่ไฟล์ชั่วคราว\n\n> ไฟล์ source code, .env และ secret ไม่ได้รวมอยู่ใน ZIP ต้อง deploy source รุ่นเดียวกันแยกต่างหาก และสร้าง secret ใหม่บน Host ใหม่\n\n## 1. เตรียมระบบ\n\n1. Deploy source code รุ่นเดียวกับระบบเดิม\n2. สร้าง MySQL 8.4 และตั้งค่า .env.production ให้ DATABASE_URL ชี้ไปยังฐานข้อมูลใหม่\n3. แตก ZIP นี้ไว้ชั่วคราวบนเครื่องที่เข้าถึง MySQL ได้\n\nฐานข้อมูลเดิมใน backup คือ \`${databaseName}\`\n\n## 2. Import ฐานข้อมูล\n\nใช้บัญชี MySQL ที่มีสิทธิ์สร้างฐานข้อมูลและตาราง เช่น root:\n\n\`\`\`bash\nmysql -h <MYSQL_HOST> -u root -p < database.sql\n\`\u0060\`\n\nหรือถ้าใช้ Docker Compose:\n\n\`\`\`bash\ndocker compose --env-file .env.production -f compose.production.yml exec -T mysql \\\n  sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < database.sql\n\`\u0060\`\n\n## 3. คืนค่าไฟล์ storage\n\nหยุด web ชั่วคราว แล้วคัดลอกโฟลเดอร์ \`storage/\` จาก ZIP ไปทับ volume ของระบบใหม่ โดยคงโครงสร้างโฟลเดอร์เดิม โดยเฉพาะ \`storage/uploads/\` และไฟล์รูปภาพ/ไฟล์แนบ\n\n## 4. ตรวจค่าและเปิดระบบ\n\n- ตั้งค่า ADMIN_PASSWORD และ ADMIN_SESSION_SECRET ใหม่\n- ตรวจ SMTP และ NEXT_PUBLIC_BASE_URL\n- ตรวจสิทธิ์ไฟล์ storage ให้ user ของ container อ่าน/เขียนได้\n- เปิด web แล้วตรวจ \`/api/health\`\n- ตรวจ login Super Admin, รายชื่อผู้เข้าร่วม, ผลงาน, ไฟล์แนบ, ข่าว, คะแนน และรายงาน\n\nไฟล์ \`admin-login-attempts.json\`, \`admin-super-otp.json\` และ \`participant-login-otps.json\` ถูกละเว้นจาก backup เพราะเป็นข้อมูลชั่วคราวด้านความปลอดภัย\n`;
+}
+
+function buildPhpMigrationGuide() {
+  return `# หมายเหตุสำหรับ Host ที่รองรับเฉพาะ PHP
+
+ไฟล์ database.sql ใน backup เป็น SQL ของ MySQL จึงนำไปใช้กับระบบ PHP ได้ โดย import ผ่าน phpMyAdmin หรือคำสั่ง mysql แล้วคัดลอกโฟลเดอร์ storage ไปยังพื้นที่จัดเก็บไฟล์ของระบบ PHP
+
+อย่างไรก็ตาม source code ของเว็บไซต์ชุดนี้เป็น Next.js ไม่สามารถนำไปเปิดบน PHP-only hosting ได้โดยตรง การย้ายมี 2 ทางเลือก:
+
+1. ใช้ VPS/Host ที่รองรับ Node.js แล้ว deploy เว็บไซต์เดิม พร้อมใช้ MySQL และ storage จาก backup
+2. พัฒนาเว็บไซต์และ API ใหม่เป็น PHP โดยใช้ฐานข้อมูลและไฟล์ storage จาก backup ชุดนี้
+
+ตัว backup นี้ช่วยย้ายข้อมูลและไฟล์ให้พร้อมสำหรับทั้งสองทางเลือก แต่ไม่ได้แปลง source code Next.js เป็น PHP และไม่ได้รวม .env หรือ secret จริง
+`;
 }
 
 async function currentDatabaseName() {
