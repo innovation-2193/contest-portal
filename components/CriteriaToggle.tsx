@@ -68,7 +68,7 @@ export function CriteriaToggle({ rounds, award }: { rounds: CriteriaRound[]; awa
             onKeyDown={(event) => selectWithKeyboard(event, rounds.length)}
           >
             <span>รางวัล</span>
-            <b>เงินรางวัล</b>
+            <b>โล่เกียรติยศ</b>
           </button>
         )}
       </div>
