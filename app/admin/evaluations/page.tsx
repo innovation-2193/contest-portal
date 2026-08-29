@@ -94,6 +94,7 @@ export default async function AdminEvaluationsPage({ searchParams }: { searchPar
           <div><h2>ผู้ตอบแบบประเมินล่าสุด</h2><p>แสดง 10 รายการล่าสุด จากผู้ตอบทั้งหมด {respondents.length.toLocaleString("th-TH")} คน</p></div>
           <div className="admin-actions">
             <a className="primary" href="/api/admin/evaluations/export" target="_blank" rel="noreferrer"><FileDown/>Export PDF</a>
+            <a className="secondary" href="/api/admin/evaluations/respondents/export" download><FileDown/>รายชื่อผู้ตอบทั้งหมด</a>
           </div>
         </header>
         <div className="admin-table-wrap">
