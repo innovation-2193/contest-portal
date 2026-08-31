@@ -21,8 +21,9 @@ export async function GET(request: Request) {
     const detail = await getSubmissionDetail(item.submission_code);
     if (!detail) continue;
     const packet = await submissionPrintPacketPdf(detail, { includeReview: false });
+    const sequence = String(entries.length + 1).padStart(2, "0");
     entries.push({
-      name: `${safeFileName(`${detail.submission_code}-${detail.title_th}`)}.pdf`,
+      name: `${safeFileName(`${sequence} - ${detail.title_th}`)}.pdf`,
       data: packet,
       modifiedAt: new Date(detail.submitted_at),
     });
